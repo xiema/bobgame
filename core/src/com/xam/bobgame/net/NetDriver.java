@@ -30,7 +30,7 @@ public class NetDriver {
     final Array<Socket> clientSockets = new Array<>();
     private Socket clientSocket;
 
-    private PacketBuffer packetBuffer = new PacketBuffer(2);
+    private PacketBuffer packetBuffer = new PacketBuffer(8);
     private PacketSerializer packetSerializer = new PacketSerializer();
     private ByteBuffer syncBuffer = ByteBuffer.allocate(Packet.PACKET_MAX_SIZE);
     private ByteBuffer sendBuffer = ByteBuffer.allocate(Packet.PACKET_MAX_SIZE);

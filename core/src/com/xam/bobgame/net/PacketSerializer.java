@@ -16,7 +16,7 @@ import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
 
 public class PacketSerializer {
-    PacketBuilder packetBuilder;
+    PacketBuilder packetBuilder = new PacketBuilder();
     ByteBuffer byteBuffer;
     Engine engine;
     CRC32 crc32 = new CRC32();
@@ -24,6 +24,7 @@ public class PacketSerializer {
     public void syncEngine(ByteBuffer byteBuffer, Engine engine) {
         this.byteBuffer = byteBuffer;
         this.engine = engine;
+        packetBuilder.setBuffer(byteBuffer);
 
         int length = byteBuffer.getInt();
         if (State.Start.deserialize(this) == -1) {
@@ -69,6 +70,7 @@ public class PacketSerializer {
     public boolean serialize(ByteBuffer byteBuffer, Engine engine) {
         this.byteBuffer = byteBuffer;
         this.engine = engine;
+        packetBuilder.setBuffer(byteBuffer);
         int i = byteBuffer.position();
         byteBuffer.position(i + Packet.HEADER_SIZE);
         int l = State.Start.serialize(this);
@@ -120,15 +122,17 @@ public class PacketSerializer {
             int deserialize(PacketSerializer ps) {
                 ImmutableArray<Entity> entities = ps.engine.getSystem(GameDirector.class).getEntities();
                 int i = 0;
-                int cnt = ps.byteBuffer.getInt();
+//                int cnt = ps.byteBuffer.getInt();
+                int cnt = ps.packetBuilder.getInt(0, 255);
                 while (cnt-- > 0) {
-                    int id = ps.byteBuffer.getInt();
+//                    int id = ps.byteBuffer.getInt();
+                    int id = ps.packetBuilder.getInt(0, 255);
                     while (EntityUtils.getId(entities.get(i)) != id) {
                         i = (i + 1) % entities.size();
                     }
                     Entity entity = entities.get(i);
-                    ComponentMappers.position.get(entity).vec.set(ps.byteBuffer.getFloat(), ps.byteBuffer.getFloat());
-                    ComponentMappers.velocity.get(entity).vec.set(ps.byteBuffer.getFloat(), ps.byteBuffer.getFloat());
+                    ComponentMappers.position.get(entity).vec.set(ps.packetBuilder.getFloat(-500, 500, 0.001f), ps.packetBuilder.getFloat(-500, 500, 0.001f));
+                    ComponentMappers.velocity.get(entity).vec.set(ps.packetBuilder.getFloat(-500, 500, 0.001f), ps.packetBuilder.getFloat(-500, 500, 0.001f));
                 }
 
                 return 0;
@@ -136,19 +140,24 @@ public class PacketSerializer {
 
             @Override
             int serialize(PacketSerializer ps) {
-                int i = 4;
+                int i = 0;
                 ImmutableArray<Entity> entities = ps.engine.getSystem(GameDirector.class).getEntities();
-                ps.byteBuffer.putInt(entities.size());
+//                ps.byteBuffer.putInt(entities.size());
+                i += ps.packetBuilder.packInt(entities.size(),0, 255);
                 for (Entity entity : entities) {
                     int id = EntityUtils.getId(entity);
                     PositionComponent position = ComponentMappers.position.get(entity);
                     VelocityComponent velocity = ComponentMappers.velocity.get(entity);
-                    ps.byteBuffer.putInt(id);
-                    ps.byteBuffer.putFloat(position.vec.x);
-                    ps.byteBuffer.putFloat(position.vec.y);
-                    ps.byteBuffer.putFloat(velocity.vec.x);
-                    ps.byteBuffer.putFloat(velocity.vec.y);
-                    i += 20;
+//                    ps.byteBuffer.putInt(id);
+//                    ps.byteBuffer.putFloat(position.vec.x);
+//                    ps.byteBuffer.putFloat(position.vec.y);
+//                    ps.byteBuffer.putFloat(velocity.vec.x);
+//                    ps.byteBuffer.putFloat(velocity.vec.y);
+                    i += ps.packetBuilder.packInt(id, 0, 255);
+                    i += ps.packetBuilder.packFloat(position.vec.x, -500, 500, 0.001f);
+                    i += ps.packetBuilder.packFloat(position.vec.y, -500, 500, 0.001f);
+                    i += ps.packetBuilder.packFloat(velocity.vec.x, -500, 500, 0.001f);
+                    i += ps.packetBuilder.packFloat(velocity.vec.y, -500, 500, 0.001f);
                 }
 
                 return i;

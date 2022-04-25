@@ -6,8 +6,12 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public class PacketBuilder {
-    public final ByteBuffer buffer;
+    public ByteBuffer buffer;
     private ByteOrder order;
+
+    public PacketBuilder() {
+
+    }
 
     public PacketBuilder(int size) {
         buffer = ByteBuffer.allocate(size);
@@ -19,40 +23,51 @@ public class PacketBuilder {
         order = buffer.order();
     }
 
+    public void setBuffer(ByteBuffer buffer) {
+        this.buffer = buffer;
+        order = buffer.order();
+    }
+
     private static int makeInt(byte var0, byte var1, byte var2, byte var3) {
         return var0 << 24 | (var1 & 255) << 16 | (var2 & 255) << 8 | var3 & 255;
     }
 
-    public void packInt(int i, int min, int max) {
+    public int packInt(int i, int min, int max) {
         int r = max - min + 1;
         if (r < 0 || r >= 16777216) {
             buffer.putInt(i);
-            return;
+            return 4;
         }
         i -= min;
 
         if (this.order != ByteOrder.BIG_ENDIAN) {
             if (r < 256) {
                 buffer.put((byte) (i & 255));
+                return 1;
             } else if (r < 65536) {
                 buffer.put((byte) (i & 255));
                 buffer.put((byte) (i >> 8 & 255));
+                return 2;
             } else {
                 buffer.put((byte) (i & 255));
                 buffer.put((byte) (i >> 8 & 255));
                 buffer.put((byte) (i >> 16 & 255));
+                return 3;
             }
         }
         else {
             if (r < 256) {
                 buffer.put((byte) (i & 255));
+                return 1;
             } else if (r < 65536) {
                 buffer.put((byte) ((i >> 8) & 255));
                 buffer.put((byte) (i & 255));
+                return 2;
             } else {
                 buffer.put((byte) ((i >> 16) & 255));
                 buffer.put((byte) ((i >> 8) & 255));
                 buffer.put((byte) (i & 255));
+                return 3;
             }
         }
     }
@@ -84,12 +99,12 @@ public class PacketBuilder {
         return i + min;
     }
 
-    public void packFloat(float f, float min, float max, float res) {
+    public int packFloat(float f, float min, float max, float res) {
         float rf = max - min;
         int ri = MathUtils.ceil(rf / res);
         float fn = MathUtils.clamp((f - min) / rf, 0f, 1f);
         int i = MathUtils.floor(fn * ri + 0.5f);
-        packInt(i, 0, ri-1);
+        return packInt(i, 0, ri-1);
     }
 
     public float getFloat(float min, float max, float res) {

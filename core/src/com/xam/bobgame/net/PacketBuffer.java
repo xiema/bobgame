@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 public class PacketBuffer{
     private int putIndex = 0;
     private int getIndex = 0;
+    private int jump = 0;
 
     private ByteBuffer receiveBuffer = ByteBuffer.allocate(Packet.PACKET_MAX_SIZE);
     private PacketSerializer serializer = new PacketSerializer();
@@ -27,7 +28,10 @@ public class PacketBuffer{
             synchronized (buffer) {
                 System.arraycopy(receiveBuffer.array(), 0, buffer, putIndex, Packet.PACKET_MAX_SIZE);
                 putIndex = (putIndex + Packet.PACKET_MAX_SIZE) % bufferSize;
-                if (putIndex == getIndex) getIndex = (getIndex + Packet.PACKET_MAX_SIZE) % bufferSize;
+                if (putIndex == getIndex) {
+                    getIndex = (getIndex + Packet.PACKET_MAX_SIZE) % bufferSize;
+                    jump += 1;
+                }
             }
         }
         receiveBuffer.clear();
@@ -49,7 +53,8 @@ public class PacketBuffer{
             else {
                 out.put(buffer, getIndex, Packet.PACKET_MAX_SIZE);
             }
-            getIndex = (getIndex + Packet.PACKET_MAX_SIZE) % bufferSize;
+            getIndex = (getIndex + (jump + 1) * Packet.PACKET_MAX_SIZE) % bufferSize;
+            jump /= 2;
         }
 
         return true;
