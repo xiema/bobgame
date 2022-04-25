@@ -3,12 +3,11 @@ package com.xam.bobgame.game;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.core.EntitySystem;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.IntMap;
 import com.badlogic.gdx.utils.IntSet;
 import com.badlogic.gdx.utils.ObjectMap;
-import com.xam.bobgame.components.PositionComponent;
-import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.utils.DebugUtils;
@@ -58,6 +57,8 @@ public class ControlSystem extends EntitySystem {
         return true;
     }
 
+    private Vector2 tempVec = new Vector2();
+
     private void control(int controlId, int entityId, float x, float y) {
         IntMap<Entity> entityMap = controlMap.get(controlId, null);
         if (entityMap == null) {
@@ -69,8 +70,5 @@ public class ControlSystem extends EntitySystem {
             DebugUtils.error("ControlSystem", "Invalid entityId: " + entityId);
             return;
         }
-
-        PositionComponent position = ComponentMappers.position.get(entity);
-        position.vec.set(Math.min(500, Math.max(x, 0)), Math.min(500, Math.max(y, 0)));
     }
 }

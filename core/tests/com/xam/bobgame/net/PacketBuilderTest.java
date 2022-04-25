@@ -12,6 +12,7 @@ public class PacketBuilderTest {
     public void testInt() {
         int count = 29;
         int[] testInts = new int[count];
+        int[] bitCounts = new int[count];
 
         ByteBuffer buffer = ByteBuffer.allocate(count * 4);
         PacketBuilder packetBuilder = new PacketBuilder(buffer);
@@ -19,18 +20,35 @@ public class PacketBuilderTest {
         for (int i = 0; i < count; ++i) {
             limit *= 2;
             testInts[i] = MathUtils.random(0, limit * 2 - 1) - limit;
-            packetBuilder.packInt(testInts[i], -limit, limit-1);
+            bitCounts[i] = packetBuilder.packInt(testInts[i], -limit, limit-1);
         }
 
+        packetBuilder.flush();
         buffer.rewind();
 
         limit = 1;
         for (int i = 0; i < count; ++i) {
             limit *= 2;
-            int a = packetBuilder.getInt(-limit, limit-1);
-            System.out.println("" + testInts[i] + " ? " + a);
+            int a = packetBuilder.unpackInt(-limit, limit-1);
+            System.out.println("" + bitCounts[i] + " " + testInts[i] + " ? " + a);
             Assertions.assertEquals(testInts[i], a);
         }
+    }
+
+    @Test
+    public void testInt1() {
+        int i = 1;
+        ByteBuffer buffer = ByteBuffer.allocate(32);
+        PacketBuilder packetBuilder = new PacketBuilder(buffer);
+        System.out.println("" + packetBuilder.packInt(1, 0, 1));
+        System.out.println("" + packetBuilder.packInt(1, 0, 2));
+
+        packetBuilder.flush();
+        buffer.rewind();
+
+//        System.out.println("" + buffer.get());
+        System.out.println("" + packetBuilder.unpackInt(0, 1));
+        System.out.println("" + packetBuilder.unpackInt(0, 2));
     }
 
     @Test
@@ -48,12 +66,13 @@ public class PacketBuilderTest {
             packetBuilder.packFloat(testFloats[i], -res * limit, res * limit, res);
         }
 
+        packetBuilder.flush();
         buffer.rewind();
 
         limit = 1;
         for (int i = 0; i < count; ++i) {
             limit *= 2;
-            float a = packetBuilder.getFloat(-res * limit, res * limit, res);
+            float a = packetBuilder.unpackFloat(-res * limit, res * limit, res);
             System.out.println("" + i + " " + testFloats[i] + " ? " + a);
             Assertions.assertEquals(testFloats[i], a);
         }
@@ -69,10 +88,11 @@ public class PacketBuilderTest {
             packetBuilder.packFloat(testFloats[i], min, max, res);
         }
 
+        packetBuilder.flush();
         buffer.rewind();
 
         for (int i = 0; i < count; ++i) {
-            float a = packetBuilder.getFloat(min, max, res);
+            float a = packetBuilder.unpackFloat(min, max, res);
             System.out.println("" + i + " " + testFloats[i] + " ? " + a + " diff: " + (testFloats[i] - a));
             Assertions.assertTrue(testFloats[i] - a < res);
         }
@@ -80,11 +100,11 @@ public class PacketBuilderTest {
 
     @Test
     public void testSpecifiedFloats() {
-        testFloats(30, -100f, 100f, 0.0001f);
+        testFloats(30, -500f, 500f, 0.01f);
     }
 
-//    @Test
-//    public void numbers() {
+    @Test
+    public void numbers() {
 //        byte[] bytes = new byte[256];
 //        byte j = -128;
 //        for (int i = 0; i < 256; ++i) {
@@ -100,5 +120,7 @@ public class PacketBuilderTest {
 //        for (int i = 0; i < 256; ++i) {
 //            System.out.println("" + bytes[i] + " " + ((bytes[i] & 255) << 8) + " " + (((int) bytes[i]) << 8));
 //        }
-//    }
+
+        System.out.println("" + (-1 & 4294967295L) );
+    }
 }

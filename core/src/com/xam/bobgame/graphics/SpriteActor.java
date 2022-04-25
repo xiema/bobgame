@@ -2,21 +2,27 @@ package com.xam.bobgame.graphics;
 
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.scenes.scene2d.Actor;
-import com.xam.bobgame.components.GraphicsComponent;
-import com.xam.bobgame.components.PositionComponent;
-import com.xam.bobgame.entity.ComponentMappers;
 
 public class SpriteActor extends Actor {
-    Entity entity;
+    private Entity entity = null;
+    private Sprite sprite = new Sprite();
 
-    public SpriteActor(Entity entity) {
+    public SpriteActor() {
+
+    }
+
+    public void setEntity(Entity entity) {
         this.entity = entity;
+    }
+
+    public Sprite getSprite() {
+        return sprite;
     }
 
     @Override
     public void draw(Batch batch, float parentAlpha) {
-        PositionComponent pos = ComponentMappers.position.get(entity);
-        batch.draw(ComponentMappers.graphics.get(entity).txtReg, pos.vec.x, pos.vec.y);
+        sprite.draw(batch, parentAlpha);
     }
 }

@@ -3,11 +3,17 @@ package com.xam.bobgame;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import com.xam.bobgame.components.PhysicsBodyComponent;
+import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.graphics.GraphicsRenderer;
 import com.xam.bobgame.net.NetDriver;
 
@@ -22,6 +28,10 @@ public class BoBGame extends ApplicationAdapter {
 	Viewport viewport;
 	NetDriver netDriver;
 	Stage stage;
+
+	Stage uiStage;
+	Viewport uiViewport;
+	Label bitrateLabel;
 
 	private static long counter = 0;
 
@@ -42,13 +52,22 @@ public class BoBGame extends ApplicationAdapter {
 	
 	@Override
 	public void create () {
+
 		batch = new SpriteBatch();
-		viewport = new FitViewport(500, 500);
+		viewport = new FitViewport(10, 10);
 		stage = new Stage(viewport, batch);
 		engine = new GameEngine();
 		renderer = new GraphicsRenderer(engine, stage);
 		netDriver = new NetDriver();
 		engine.initialize();
+
+		Skin skin = new Skin(Gdx.files.internal("skin/uiskin.json"));
+		uiViewport = new FitViewport(500, 500);
+		uiStage = new Stage(uiViewport, batch);
+		bitrateLabel = new Label("0", skin);
+		bitrateLabel.setName("bitrateLabel");
+		uiStage.addActor(bitrateLabel);
+		bitrateLabel.setPosition(0, 0, Align.bottomLeft);
 
 		if (mode == 1) {
 			netDriver.setMode(NetDriver.Mode.Server);
@@ -56,6 +75,10 @@ public class BoBGame extends ApplicationAdapter {
 		}
 
 		engine.gameSetup();
+		if (mode != 2) {
+			engine.getSystem(GameDirector.class).getPlayerEntity().getComponent(PhysicsBodyComponent.class).body.applyForceToCenter(MathUtils.random() * 100f, MathUtils.random() * 100f, true);
+			engine.getSystem(PhysicsSystem.class).setEnabled(true);
+		}
 	}
 
 	int t = 0;
@@ -73,14 +96,21 @@ public class BoBGame extends ApplicationAdapter {
 			}
 		}
 		engine.update(deltaTime);
-		if (mode != 2) engine.userInput(viewport);
-		if (mode == 1) netDriver.syncClients(engine);
+//		if (mode != 2) engine.userInput(viewport);
+		if (mode == 1) {
+			netDriver.syncClients(engine);
+			if (netDriver.getClientCount() > 0) bitrateLabel.setText(String.valueOf(netDriver.updateBitrate(deltaTime)));
+		}
 
 		stage.act(deltaTime);
 		ScreenUtils.clear(0, 0, 0, 1);
-		stage.draw();
+		viewport.apply(true);
+		renderer.draw(batch);
 
-//		viewport.apply(true);
+		uiStage.act(deltaTime);
+		uiViewport.apply(true);
+		uiStage.draw();
+
 //		ScreenUtils.clear(0, 0, 0, 1);
 //		batch.setProjectionMatrix(viewport.getCamera().combined);
 //		batch.begin();

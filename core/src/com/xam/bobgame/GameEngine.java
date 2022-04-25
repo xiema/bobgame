@@ -10,6 +10,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.events.PlayerControlEvent;
 import com.xam.bobgame.game.ControlSystem;
+import com.xam.bobgame.game.PhysicsSystem;
 
 public class GameEngine extends PooledEngine {
     private EventsSystem eventsSystem;
@@ -23,6 +24,7 @@ public class GameEngine extends PooledEngine {
         addSystem(eventsSystem = new EventsSystem(0));
         addSystem(gameDirector = new GameDirector(10));
         addSystem(new ControlSystem(20));
+        addSystem(new PhysicsSystem(30));
     }
 
     public void gameSetup() {

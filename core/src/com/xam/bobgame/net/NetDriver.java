@@ -3,11 +3,7 @@ package com.xam.bobgame.net;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Net;
-import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.net.ServerSocket;
-import com.badlogic.gdx.net.ServerSocketHints;
-import com.badlogic.gdx.net.Socket;
-import com.badlogic.gdx.net.SocketHints;
+import com.badlogic.gdx.net.*;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.xam.bobgame.utils.DebugUtils;
@@ -22,7 +18,7 @@ public class NetDriver {
     private static final ServerSocketHints hints = new ServerSocketHints();
     private static final SocketHints socketHints = new SocketHints();
     static {
-        hints.acceptTimeout = 0;
+        hints.acceptTimeout = 1000;
         socketHints.connectTimeout = 1000;
     }
 
@@ -37,7 +33,9 @@ public class NetDriver {
 
     private Thread thread;
 
-    private int counter = 0;
+    private DebugUtils.ExpoMovingAverage movingAverage = new DebugUtils.ExpoMovingAverage(0.1f);
+    private float packetBits = 0;
+    private float bitrate = 0;
 
     public NetDriver() {
 
@@ -91,7 +89,8 @@ public class NetDriver {
     public void syncClients(Engine engine) {
 //        if (counter++ % 2 != 0) return;
         if (clientSockets.size == 0) return;
-        packetSerializer.serialize(sendBuffer, engine);
+        packetBits = packetSerializer.serialize(sendBuffer, engine);
+        DebugUtils.log("Packet", DebugUtils.bytesHex(sendBuffer.array()));
         sendBuffer.flip();
         synchronized (clientSockets) {
             for (Socket socket : clientSockets) {
@@ -115,6 +114,15 @@ public class NetDriver {
         syncBuffer.clear();
     }
 
+    public int getClientCount() {
+        return clientSockets.size;
+    }
+
+    public float updateBitrate(float deltaTime) {
+        bitrate = packetBits / deltaTime;
+        return movingAverage.update(bitrate);
+    }
+
     private static class ServerIncomingConnectionsThread extends Thread {
         public ServerIncomingConnectionsThread (final NetDriver netDriver, final ServerSocket serverSocket) {
             super(new Runnable() {
@@ -127,10 +135,11 @@ public class NetDriver {
                             socket = serverSocket.accept(null);
                         }
                         catch (GdxRuntimeException e) {
-                            e.printStackTrace();
+
                         }
                         if (socket != null) {
                             synchronized (netDriver.clientSockets) {
+                                DebugUtils.log("Server", "Accepted connection from " + socket.getRemoteAddress());
                                 netDriver.clientSockets.add(socket);
                             }
                         }

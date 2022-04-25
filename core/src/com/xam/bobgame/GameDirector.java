@@ -37,6 +37,12 @@ public class GameDirector extends EntitySystem {
         return entities;
     }
 
+    private Entity playerEntity;
+
+    public Entity getPlayerEntity() {
+        return playerEntity;
+    }
+
     public void setupGame() {
         Engine engine = getEngine();
 
@@ -45,5 +51,7 @@ public class GameDirector extends EntitySystem {
 
         ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
         controlSystem.registerEntity(entity, 0);
+
+        playerEntity = entity;
     }
 }
