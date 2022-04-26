@@ -33,6 +33,10 @@ public class DebugUtils {
             }
         }
 
+        public float getAverage() {
+            return ave;
+        }
+
         public void setAlpha(float alpha) {
             this.alpha = alpha;
         }

@@ -6,6 +6,6 @@ import com.badlogic.ashley.core.Entity;
 public class EntityUtils {
 
     public static int getId(Entity entity) {
-        return ComponentMappers.identity.get(entity).id;
+        return entity != null ? ComponentMappers.identity.get(entity).id : -1;
     }
 }

@@ -8,6 +8,8 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.IntMap;
 import com.badlogic.gdx.utils.IntSet;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.xam.bobgame.components.PhysicsBodyComponent;
+import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.utils.DebugUtils;
@@ -24,7 +26,7 @@ public class ControlSystem extends EntitySystem {
         listeners.put(PlayerControlEvent.class, new EventListenerAdapter<PlayerControlEvent>() {
             @Override
             public void handleEvent(PlayerControlEvent event) {
-                control(event.controlId, event.entityId, event.x, event.y);
+                control(event.controlId, event.entityId, event.x, event.y, event.buttonId, event.buttonState);
             }
         });
     }
@@ -59,7 +61,7 @@ public class ControlSystem extends EntitySystem {
 
     private Vector2 tempVec = new Vector2();
 
-    private void control(int controlId, int entityId, float x, float y) {
+    private void control(int controlId, int entityId, float x, float y, int buttonId, boolean buttonState) {
         IntMap<Entity> entityMap = controlMap.get(controlId, null);
         if (entityMap == null) {
             DebugUtils.error("ControlSystem", "Invalid controlId: " + controlId);
@@ -69,6 +71,12 @@ public class ControlSystem extends EntitySystem {
         if (entity == null) {
             DebugUtils.error("ControlSystem", "Invalid entityId: " + entityId);
             return;
+        }
+
+        if (buttonState) {
+            PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
+            tempVec.set(x, y).sub(pb.body.getPosition()).nor().scl(-500f);
+            pb.body.applyForceToCenter(tempVec, true);
         }
     }
 }

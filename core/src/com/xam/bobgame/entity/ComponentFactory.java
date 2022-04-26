@@ -11,6 +11,8 @@ import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.xam.bobgame.components.GraphicsComponent;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
+import com.xam.bobgame.game.ShapeDef;
+import com.xam.bobgame.graphics.TextureDef;
 
 public class ComponentFactory {
 
@@ -28,24 +30,23 @@ public class ComponentFactory {
         pb.bodyDef.type = bodyType;
         pb.bodyDef.position.set(xPos, yPos);
 
-        CircleShape circle = new CircleShape();
-        circle.setRadius(shapeVal1);
+        pb.shapeDef = new ShapeDef();
+        pb.shapeDef.type = ShapeDef.ShapeType.values()[shapeType];
+        pb.shapeDef.shapeVal1 = shapeVal1;
 
         FixtureDef fixtureDef = new FixtureDef();
-        fixtureDef.shape = circle;
         fixtureDef.density = density;
         fixtureDef.friction = friction;
         fixtureDef.restitution = restitution;
         pb.fixtureDef = fixtureDef;
 
-        circle.dispose();
-
         return pb;
     }
 
-    public static GraphicsComponent graphics(Engine engine, TextureRegion txtReg, float w, float h) {
+    public static GraphicsComponent graphics(Engine engine, TextureDef textureDef, float w, float h) {
         GraphicsComponent g = engine.createComponent(GraphicsComponent.class);
-        g.spriteActor.getSprite().setRegion(txtReg);
+        g.textureDef = textureDef;
+        g.spriteActor.getSprite().setRegion(new TextureRegion(textureDef.createTexture()));
         g.spriteActor.getSprite().setSize(w, h);
         g.spriteActor.getSprite().setOriginCenter();
         return g;

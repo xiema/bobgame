@@ -98,7 +98,7 @@ public class PacketBuilderTest {
 
     @Test
     public void testSpecifiedFloats() {
-        testFloats(30, -500f, 500f, 0.01f);
+        testFloats(30, -500f, 500f, 1e-6f);
     }
 
     @Test

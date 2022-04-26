@@ -5,10 +5,8 @@ import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.physics.box2d.Body;
-import com.badlogic.gdx.physics.box2d.BodyDef;
-import com.badlogic.gdx.physics.box2d.PolygonShape;
-import com.badlogic.gdx.physics.box2d.World;
+import com.badlogic.gdx.physics.box2d.*;
+import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 
@@ -60,7 +58,10 @@ public class PhysicsSystem extends EntitySystem {
             public void entityAdded(Entity entity) {
                 PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
                 physicsBody.body = world.createBody(physicsBody.bodyDef);
+                Shape shape = physicsBody.shapeDef.createShape();
+                physicsBody.fixtureDef.shape = shape;
                 physicsBody.fixture = physicsBody.body.createFixture(physicsBody.fixtureDef);
+                shape.dispose();
             }
 
             @Override
@@ -83,13 +84,9 @@ public class PhysicsSystem extends EntitySystem {
     public void update(float deltaTime) {
         if (enabled) world.step(1/60f, 6, 2);
 //        for (Entity entity : entities) {
-//            PositionComponent position = ComponentMappers.position.get(entity);
-//            VelocityComponent velocity = ComponentMappers.velocity.get(entity);
 //            PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
-//
-//            position.vec.mulAdd(velocity.vec, deltaTime);
-//            position.vec.x = MathUtils.clamp(position.vec.x, 0, 500);
-//            position.vec.y = MathUtils.clamp(position.vec.y, 0, 500);
+//            MassData md = physicsBody.body.getMassData();
+//            Log.info("m=" + md.mass + " cx=" + md.center.x + " cy=" + md.center.y + " i=" + md.I);
 //        }
     }
 }

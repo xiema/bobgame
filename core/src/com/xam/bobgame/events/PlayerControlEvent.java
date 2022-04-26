@@ -6,6 +6,8 @@ public class PlayerControlEvent implements GameEvent {
     public int controlId = -1;
     public int entityId = -1;
     public float x, y;
+    public int buttonId;
+    public boolean buttonState;
 
     @Override
     public void reset() {

@@ -49,6 +49,7 @@ public class NetSerialization extends KryoSerialization {
                     Log.error("NetSerialization", "Bad CRC [" + length + "]: " + DebugUtils.bytesHex(byteBuffer, i, length));
                     return null;
                 }
+//                Log.info("[" + length + "] " + returnPacket);
                 if (packetBuffer != null) {
                     packetBuffer.receive(returnPacket);
                 }

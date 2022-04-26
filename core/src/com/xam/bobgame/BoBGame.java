@@ -2,6 +2,7 @@ package com.xam.bobgame;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.Actor;
@@ -58,8 +59,12 @@ public class BoBGame extends ApplicationAdapter {
 		stage = new Stage(viewport, batch);
 		engine = new GameEngine();
 		renderer = new GraphicsRenderer(engine, stage);
-		netDriver = new NetDriver();
+
+		InputMultiplexer input = new InputMultiplexer();
+		engine.addInputProcessor(input, viewport);
+		Gdx.input.setInputProcessor(input);
 		engine.initialize();
+		netDriver = engine.getSystem(NetDriver.class);
 
 		Skin skin = new Skin(Gdx.files.internal("skin/uiskin.json"));
 		uiViewport = new FitViewport(500, 500);
@@ -74,33 +79,19 @@ public class BoBGame extends ApplicationAdapter {
 			netDriver.startServer();
 		}
 
-		engine.gameSetup();
 		if (mode != 2) {
+			engine.gameSetup();
 			engine.getSystem(GameDirector.class).getPlayerEntity().getComponent(PhysicsBodyComponent.class).body.applyForceToCenter(MathUtils.random() * 1000f, MathUtils.random() * 100f, true);
 			engine.getSystem(PhysicsSystem.class).setEnabled(true);
 		}
 	}
 
-	int t = 0;
-
 	@Override
 	public void render () {
 		float deltaTime = Gdx.graphics.getDeltaTime();
 
-		if (mode == 2) {
-			if (netDriver.isConnected()) {
-				netDriver.syncWithServer(engine);
-			}
-			else if (t++ % 100 == 0) {
-				netDriver.connect("127.0.0.1");
-			}
-		}
 		engine.update(deltaTime);
-//		if (mode != 2) engine.userInput(viewport);
-		if (mode == 1) {
-			netDriver.syncClients(engine);
-			if (netDriver.getServer().getConnections().length > 0) bitrateLabel.setText(String.valueOf(netDriver.updateBitrate(deltaTime)));
-		}
+		if (netDriver.getMode() == NetDriver.Mode.Server && netDriver.getServer().getConnections().length > 0) bitrateLabel.setText(String.valueOf(netDriver.getAverageBitrate()));
 
 		stage.act(deltaTime);
 		ScreenUtils.clear(0, 0, 0, 1);
@@ -110,12 +101,6 @@ public class BoBGame extends ApplicationAdapter {
 		uiStage.act(deltaTime);
 		uiViewport.apply(true);
 		uiStage.draw();
-
-//		ScreenUtils.clear(0, 0, 0, 1);
-//		batch.setProjectionMatrix(viewport.getCamera().combined);
-//		batch.begin();
-//		renderer.draw(batch);
-//		batch.end();
 
 		counter++;
 	}

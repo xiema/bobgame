@@ -10,6 +10,7 @@ import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.CircleShape;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.xam.bobgame.components.*;
+import com.xam.bobgame.graphics.TextureDef;
 
 public class EntityFactory {
 
@@ -24,9 +25,14 @@ public class EntityFactory {
 
         IdentityComponent identity = createIdentity(engine);
         PhysicsBodyComponent physicsBody = ComponentFactory.physicsBody(engine, BodyDef.BodyType.DynamicBody,  5, 5,
-                0, 0.5f, 0.5f, 0.1f, 1f);
-        Texture tx = ComponentFactory.textureCircle(32, 16, Color.WHITE);
-        GraphicsComponent graphics = ComponentFactory.graphics(engine, new TextureRegion(tx), 1, 1);
+                0, 0.5f, 0.5f, 0.1f, 0.8f);
+//        Texture tx = ComponentFactory.textureCircle(32, 16, Color.WHITE);
+        TextureDef textureDef = new TextureDef();
+        textureDef.type = TextureDef.TextureType.Circle;
+        textureDef.wh = 32;
+        textureDef.textureVal1 = 16;
+        textureDef.color.set(Color.WHITE);
+        GraphicsComponent graphics = ComponentFactory.graphics(engine, textureDef, 1, 1);
 
         entity.add(identity);
         entity.add(physicsBody);

@@ -85,23 +85,25 @@ public class Packet {
         private ByteOrder order;
         private long scratch = 0;
         private int scratchBits = 0;
+        private int totalBits = 0;
 
         public PacketBuilder() {
 
         }
 
         public PacketBuilder(Packet packet) {
-            this.packet = packet;
-            buffer = packet.byteBuffer;
-            order = buffer.order();
+            setPacket(packet);
+        }
+
+        public int getTotalBits() {
+            return totalBits;
         }
 
         public void setPacket(Packet packet) {
             this.packet = packet;
             buffer = packet.byteBuffer;
             order = buffer.order();
-            scratch = 0;
-            scratchBits = 0;
+            clear();
         }
 
         public boolean hasRemaining() {
@@ -109,11 +111,13 @@ public class Packet {
         }
 
         public byte unpackByte() {
+            totalBits += 8;
             return (byte) unpackIntBits(8, 0);
         }
 
         public int packByte(byte b) {
             packIntBits((b & 255), 8, 0);
+            totalBits += 8;
             return 8;
         }
 
@@ -162,7 +166,7 @@ public class Packet {
                 scratch = 0;
             }
             else {
-                while (byteCount-- > 1) {
+                while (byteCount-- > 0) {
                     buffer.put((byte) (scratch & 255));
                     scratch >>= 8;
                     packet.length++;
@@ -182,6 +186,7 @@ public class Packet {
         public void clear() {
             scratch = 0;
             scratchBits = 0;
+            totalBits = 0;
         }
 
         public int unpackIntBits(int packBits, int min) {
@@ -199,6 +204,8 @@ public class Packet {
                 scratch >>= packBits;
                 scratchBits -= packBits;
             }
+
+            totalBits += packBits;
 
             return i;
         }
@@ -237,6 +244,8 @@ public class Packet {
                     scratch = i >> scratchBits;
                 }
             }
+
+            totalBits += packBits;
         }
 
         private static int calcBits(long l) {
@@ -258,6 +267,8 @@ public class Packet {
         public int packFloat(float f, float min, float max, float res) {
             float rf = max - min;
             int ri = MathUtils.ceil(rf / res);
+            if (f == min) return packInt(0, 0, ri);
+            if (f == max) return packInt(ri, 0, ri);
             float fn = MathUtils.clamp((f - min) / rf, 0f, 1f);
             int i = MathUtils.floor(fn * ri + 0.5f);
             return packInt(i, 0, ri);
