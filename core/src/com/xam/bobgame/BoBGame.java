@@ -76,7 +76,7 @@ public class BoBGame extends ApplicationAdapter {
 
 		engine.gameSetup();
 		if (mode != 2) {
-			engine.getSystem(GameDirector.class).getPlayerEntity().getComponent(PhysicsBodyComponent.class).body.applyForceToCenter(MathUtils.random() * 100f, MathUtils.random() * 100f, true);
+			engine.getSystem(GameDirector.class).getPlayerEntity().getComponent(PhysicsBodyComponent.class).body.applyForceToCenter(MathUtils.random() * 1000f, MathUtils.random() * 100f, true);
 			engine.getSystem(PhysicsSystem.class).setEnabled(true);
 		}
 	}
@@ -92,14 +92,14 @@ public class BoBGame extends ApplicationAdapter {
 				netDriver.syncWithServer(engine);
 			}
 			else if (t++ % 100 == 0) {
-				netDriver.connect("0.0.0.0");
+				netDriver.connect("127.0.0.1");
 			}
 		}
 		engine.update(deltaTime);
 //		if (mode != 2) engine.userInput(viewport);
 		if (mode == 1) {
 			netDriver.syncClients(engine);
-			if (netDriver.getClientCount() > 0) bitrateLabel.setText(String.valueOf(netDriver.updateBitrate(deltaTime)));
+			if (netDriver.getServer().getConnections().length > 0) bitrateLabel.setText(String.valueOf(netDriver.updateBitrate(deltaTime)));
 		}
 
 		stage.act(deltaTime);

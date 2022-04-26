@@ -47,20 +47,34 @@ public class PacketSerializer {
         packetBuilder.clear();
     }
 
+    public boolean checkCRC(int crcHash, byte[] bytes, int i, int l) {
+        crc32.reset();
+        crc32.update(bytes, i, l);
+        return ((int) crc32.getValue()) == crcHash;
+    }
+
+    public boolean checkCRC(int crcHash, ByteBuffer byteBuffer) {
+        crc32.reset();
+        while (byteBuffer.hasRemaining()) {
+            crc32.update(byteBuffer.get());
+        }
+        return ((int) crc32.getValue()) == crcHash;
+    }
+
     public int read(InputStream input, ByteBuffer byteBuffer) {
         int dataSize;
         int b = byteBuffer.position();
         byte bytes[] = byteBuffer.array();
 
         try {
-            if (input.available() < Packet.HEADER_SIZE || input.read(bytes, b, Packet.HEADER_SIZE) < Packet.HEADER_SIZE) return -1;
+            if (input.available() < Net.HEADER_SIZE || input.read(bytes, b, Net.HEADER_SIZE) < Net.HEADER_SIZE) return -1;
             dataSize = byteBuffer.getInt(b + 4);
-            if (dataSize + b + Packet.HEADER_SIZE > byteBuffer.limit()) {
+            if (dataSize + b + Net.HEADER_SIZE > byteBuffer.limit()) {
                 DebugUtils.error("PacketBuffer", "Packet too long");
                 input.skip(input.available());
                 return -1;
             }
-            input.read(bytes, b + Packet.HEADER_SIZE, dataSize);
+            input.read(bytes, b + Net.HEADER_SIZE, dataSize);
         }
         catch (IOException e) {
             e.printStackTrace();
@@ -68,7 +82,7 @@ public class PacketSerializer {
         }
 
         crc32.reset();
-        crc32.update(bytes, b + 4, dataSize + Packet.HEADER_SIZE - 4);
+        crc32.update(bytes, b + 4, dataSize + Net.HEADER_SIZE - 4);
         if ((int) crc32.getValue() != byteBuffer.getInt(b)) {
             DebugUtils.error("PacketBuffer", "Bad CRC:");
             DebugUtils.log("Packet", DebugUtils.bytesHex(bytes));
@@ -81,7 +95,7 @@ public class PacketSerializer {
             }
             return -1;
         }
-        return dataSize + Packet.HEADER_SIZE;
+        return dataSize + Net.HEADER_SIZE;
     }
 
     private void zeroBytes(byte[] bytes) {
@@ -95,12 +109,12 @@ public class PacketSerializer {
         this.engine = engine;
         packetBuilder.setBuffer(byteBuffer);
         int i = byteBuffer.position();
-        byteBuffer.position(i + Packet.HEADER_SIZE);
+        byteBuffer.position(i + Net.HEADER_SIZE);
         int bits = State.Start.serialize(this);
         int l = (bits + 7) / 8;
         byteBuffer.putInt(i + 4, l);
         crc32.reset();
-        crc32.update(byteBuffer.array(), i + 4, l + Packet.HEADER_SIZE - 4);
+        crc32.update(byteBuffer.array(), i + 4, l + Net.HEADER_SIZE - 4);
         byteBuffer.putInt(i, (int) crc32.getValue());
         return l;
     }

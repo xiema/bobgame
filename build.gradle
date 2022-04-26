@@ -40,6 +40,7 @@ allprojects {
         maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
         maven { url "https://oss.sonatype.org/content/repositories/releases/" }
         maven { url "https://jitpack.io" }
+        maven { url "https://clojars.org/repo/" }
     }
 }
 
@@ -144,6 +145,8 @@ project(":core") {
         api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
         api "com.badlogicgames.box2dlights:box2dlights:$box2DLightsVersion"
         api "com.kotcrab.vis:vis-ui:1.4.11"
+        api "com.esotericsoftware:kryo:5.3.0"
+        api "kryonet:kryonet:2.21"
 
     }
 }
