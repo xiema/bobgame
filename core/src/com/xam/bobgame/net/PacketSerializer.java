@@ -17,12 +17,6 @@ import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentFactory;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
-import com.xam.bobgame.utils.DebugUtils;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.util.zip.CRC32;
 
 public class PacketSerializer {
     public static final float RES_POSITION = 1e-8f;
@@ -31,71 +25,18 @@ public class PacketSerializer {
     public static final float RES_MASS = 1e-8f;
     public static final float MAX_ORIENTATION = 3.14159f;
 
-    PacketBuilder packetBuilder = new PacketBuilder();
+    Packet.PacketBuilder builder = new Packet.PacketBuilder();
     Engine engine;
-    CRC32 crc32 = new CRC32();
     int option = 1;
 
-    public void syncEngine(ByteBuffer byteBuffer, Engine engine) {
+    public void syncEngine(Packet packet, Engine engine) {
         this.engine = engine;
-        packetBuilder.setBuffer(byteBuffer);
+        builder.setPacket(packet);
 
-        int length = byteBuffer.getInt();
         if (State.Start.deserialize(this) == -1) {
 //            DebugUtils.error("PacketSerializer", "Sync engine to server failed");
         }
-        packetBuilder.clear();
-    }
-
-    public boolean checkCRC(int crcHash, byte[] bytes, int i, int l) {
-        crc32.reset();
-        crc32.update(bytes, i, l);
-        return ((int) crc32.getValue()) == crcHash;
-    }
-
-    public boolean checkCRC(int crcHash, ByteBuffer byteBuffer) {
-        crc32.reset();
-        while (byteBuffer.hasRemaining()) {
-            crc32.update(byteBuffer.get());
-        }
-        return ((int) crc32.getValue()) == crcHash;
-    }
-
-    public int read(InputStream input, ByteBuffer byteBuffer) {
-        int dataSize;
-        int b = byteBuffer.position();
-        byte bytes[] = byteBuffer.array();
-
-        try {
-            if (input.available() < Net.HEADER_SIZE || input.read(bytes, b, Net.HEADER_SIZE) < Net.HEADER_SIZE) return -1;
-            dataSize = byteBuffer.getInt(b + 4);
-            if (dataSize + b + Net.HEADER_SIZE > byteBuffer.limit()) {
-                DebugUtils.error("PacketBuffer", "Packet too long");
-                input.skip(input.available());
-                return -1;
-            }
-            input.read(bytes, b + Net.HEADER_SIZE, dataSize);
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-            return -1;
-        }
-
-        crc32.reset();
-        crc32.update(bytes, b + 4, dataSize + Net.HEADER_SIZE - 4);
-        if ((int) crc32.getValue() != byteBuffer.getInt(b)) {
-            DebugUtils.error("PacketBuffer", "Bad CRC:");
-            DebugUtils.log("Packet", DebugUtils.bytesHex(bytes));
-            zeroBytes(bytes);
-            try {
-                input.skip(input.available());
-            }
-            catch (IOException e) {
-                e.printStackTrace();
-            }
-            return -1;
-        }
-        return dataSize + Net.HEADER_SIZE;
+        builder.clear();
     }
 
     private void zeroBytes(byte[] bytes) {
@@ -105,17 +46,11 @@ public class PacketSerializer {
         }
     }
 
-    public int serialize(ByteBuffer byteBuffer, Engine engine) {
+    public int serialize(Packet packet, Engine engine) {
         this.engine = engine;
-        packetBuilder.setBuffer(byteBuffer);
-        int i = byteBuffer.position();
-        byteBuffer.position(i + Net.HEADER_SIZE);
+        builder.setPacket(packet);
         int bits = State.Start.serialize(this);
         int l = (bits + 7) / 8;
-        byteBuffer.putInt(i + 4, l);
-        crc32.reset();
-        crc32.update(byteBuffer.array(), i + 4, l + Net.HEADER_SIZE - 4);
-        byteBuffer.putInt(i, (int) crc32.getValue());
         return l;
     }
 
@@ -127,14 +62,14 @@ public class PacketSerializer {
             }
             @Override
             int serialize(PacketSerializer ps) {
-                return Command.serialize(ps) + ps.packetBuilder.flush();
+                return Command.serialize(ps) + ps.builder.flush(true);
             }
         },
         Command() {
             @Override
             int deserialize(PacketSerializer ps) {
-                while (ps.packetBuilder.hasRemaining()) {
-                    byte b = ps.packetBuilder.unpackByte();
+                while (ps.builder.hasRemaining()) {
+                    byte b = ps.builder.unpackByte();
                     int i = -1;
                     switch (b) {
                         case 1:
@@ -152,7 +87,7 @@ public class PacketSerializer {
             @Override
             int serialize(PacketSerializer ps) {
                 int i = 0, j = -1;
-                i += ps.packetBuilder.packByte((byte) ps.option);
+                i += ps.builder.packByte((byte) ps.option);
                 switch(ps.option) {
                     case 1:
                         j = SystemUpdate.serialize(ps);
@@ -172,27 +107,27 @@ public class PacketSerializer {
                 ImmutableArray<Entity> entities = ps.engine.getSystem(GameDirector.class).getEntities();
                 int i = 0;
 //                int cnt = ps.byteBuffer.getInt();
-                int cnt = ps.packetBuilder.unpackInt(0, 255);
+                int cnt = ps.builder.unpackInt(0, 255);
                 while (cnt-- > 0) {
 //                    int id = ps.byteBuffer.getInt();
-                    int id = ps.packetBuilder.unpackInt(0, 255);
+                    int id = ps.builder.unpackInt(0, 255);
                     while (EntityUtils.getId(entities.get(i)) != id) {
                         i = (i + 1) % entities.size();
                     }
                     Entity entity = entities.get(i);
                     PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
-                    pb.body.setTransform(ps.packetBuilder.unpackFloat(-1,11, RES_POSITION),
-                            ps.packetBuilder.unpackFloat(-1,11, RES_POSITION),
-                            ps.packetBuilder.unpackFloat(0,MAX_ORIENTATION, RES_ORIENTATION));
+                    pb.body.setTransform(ps.builder.unpackFloat(-1,11, RES_POSITION),
+                            ps.builder.unpackFloat(-1,11, RES_POSITION),
+                            ps.builder.unpackFloat(0,MAX_ORIENTATION, RES_ORIENTATION));
 
-                    pb.body.setLinearVelocity(ps.packetBuilder.unpackFloat(-1000, 1000, RES_VELOCITY),
-                            ps.packetBuilder.unpackFloat(-1000, 1000, RES_VELOCITY));
-                    pb.body.setAngularVelocity(ps.packetBuilder.unpackFloat(-1000, 1000, RES_VELOCITY));
+                    pb.body.setLinearVelocity(ps.builder.unpackFloat(-1000, 1000, RES_VELOCITY),
+                            ps.builder.unpackFloat(-1000, 1000, RES_VELOCITY));
+                    pb.body.setAngularVelocity(ps.builder.unpackFloat(-1000, 1000, RES_VELOCITY));
 
-                    tempMassData.mass = ps.packetBuilder.unpackFloat(0, 1000, RES_MASS);
-                    tempMassData.center.set(ps.packetBuilder.unpackFloat(-1,  11, RES_POSITION),
-                            ps.packetBuilder.unpackFloat(-1, 11, RES_POSITION));
-                    tempMassData.I = ps.packetBuilder.unpackFloat(-1000, 1000, RES_MASS);
+                    tempMassData.mass = ps.builder.unpackFloat(0, 1000, RES_MASS);
+                    tempMassData.center.set(ps.builder.unpackFloat(-1,  11, RES_POSITION),
+                            ps.builder.unpackFloat(-1, 11, RES_POSITION));
+                    tempMassData.I = ps.builder.unpackFloat(-1000, 1000, RES_MASS);
                     pb.body.setMassData(tempMassData);
                 }
 
@@ -204,27 +139,27 @@ public class PacketSerializer {
                 int i = 0;
                 ImmutableArray<Entity> entities = ps.engine.getSystem(GameDirector.class).getEntities();
 //                ps.byteBuffer.putInt(entities.size());
-                i += ps.packetBuilder.packInt(entities.size(),0, 255);
+                i += ps.builder.packInt(entities.size(),0, 255);
                 for (Entity entity : entities) {
                     int id = EntityUtils.getId(entity);
-                    i += ps.packetBuilder.packInt(id, 0, 255);
+                    i += ps.builder.packInt(id, 0, 255);
 
                     PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
                     Transform tfm = pb.body.getTransform();
-                    i += ps.packetBuilder.packFloat(tfm.vals[0], -1, 11, RES_POSITION);
-                    i += ps.packetBuilder.packFloat(tfm.vals[1], -1, 11, RES_POSITION);
-                    i += ps.packetBuilder.packFloat(tfm.getRotation(), 0, MAX_ORIENTATION, RES_ORIENTATION);
+                    i += ps.builder.packFloat(tfm.vals[0], -1, 11, RES_POSITION);
+                    i += ps.builder.packFloat(tfm.vals[1], -1, 11, RES_POSITION);
+                    i += ps.builder.packFloat(tfm.getRotation(), 0, MAX_ORIENTATION, RES_ORIENTATION);
 
                     Vector2 vel = pb.body.getLinearVelocity();
-                    i += ps.packetBuilder.packFloat(vel.x, -1000, 1000, RES_VELOCITY);
-                    i += ps.packetBuilder.packFloat(vel.y, -1000, 1000, RES_VELOCITY);
-                    i += ps.packetBuilder.packFloat(pb.body.getAngularVelocity(), -1000, 1000,  RES_VELOCITY);
+                    i += ps.builder.packFloat(vel.x, -1000, 1000, RES_VELOCITY);
+                    i += ps.builder.packFloat(vel.y, -1000, 1000, RES_VELOCITY);
+                    i += ps.builder.packFloat(pb.body.getAngularVelocity(), -1000, 1000,  RES_VELOCITY);
 
                     MassData md = pb.body.getMassData();
-                    i +=  ps.packetBuilder.packFloat(md.mass, 0, 1000, RES_MASS);
-                    i +=  ps.packetBuilder.packFloat(md.center.x,  -1,  11, RES_POSITION);
-                    i +=  ps.packetBuilder.packFloat(md.center.y,  -1,  11, RES_POSITION);
-                    i +=  ps.packetBuilder.packFloat(md.I, 0, 1000, RES_MASS);
+                    i +=  ps.builder.packFloat(md.mass, 0, 1000, RES_MASS);
+                    i +=  ps.builder.packFloat(md.center.x,  -1,  11, RES_POSITION);
+                    i +=  ps.builder.packFloat(md.center.y,  -1,  11, RES_POSITION);
+                    i +=  ps.builder.packFloat(md.I, 0, 1000, RES_MASS);
                 }
 
                 return i;
@@ -233,7 +168,7 @@ public class PacketSerializer {
         SystemSnapshot() {
             @Override
             int deserialize(PacketSerializer ps) {
-                int count = ps.packetBuilder.unpackInt(0, 255);
+                int count = ps.builder.unpackInt(0, 255);
                 while (count-- > 0) {
                     deserializeEntity(ps);
                 }
@@ -245,7 +180,7 @@ public class PacketSerializer {
                 int i = 0;
                 ImmutableArray<Entity> entities = ps.engine.getSystem(GameDirector.class).getEntities();
 //                ps.byteBuffer.putInt(entities.size());
-                i += ps.packetBuilder.packInt(entities.size(),0, 255);
+                i += ps.builder.packInt(entities.size(),0, 255);
                 for (Entity entity : entities) {
                     i += serializeEntity(ps, entity, true);
                 }
@@ -257,7 +192,7 @@ public class PacketSerializer {
         private static MassData tempMassData = new MassData();
 
         private static int deserializeEntity(PacketSerializer ps) {
-            PacketBuilder pb = ps.packetBuilder;
+            Packet.PacketBuilder pb = ps.builder;
             Entity entity = ps.engine.createEntity();
 
             IdentityComponent identity = ComponentFactory.identity(ps.engine, pb.unpackInt(0, 255));
@@ -281,22 +216,22 @@ public class PacketSerializer {
             int i = 0;
 
             int id = EntityUtils.getId(entity);
-            i += ps.packetBuilder.packInt(id, 0, 255);
+            i += ps.builder.packInt(id, 0, 255);
 
             PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
-            i += ps.packetBuilder.packInt(pb.bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length);
-            i += ps.packetBuilder.packFloat(pb.bodyDef.position.x, -1, 11, RES_POSITION);
-            i += ps.packetBuilder.packFloat(pb.bodyDef.position.y, -1, 11, RES_POSITION);
+            i += ps.builder.packInt(pb.bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length);
+            i += ps.builder.packFloat(pb.bodyDef.position.x, -1, 11, RES_POSITION);
+            i += ps.builder.packFloat(pb.bodyDef.position.y, -1, 11, RES_POSITION);
             // add shape type
-            i += ps.packetBuilder.packFloat(pb.fixtureDef.shape.getRadius(), 0, 10, RES_POSITION);
-            i += ps.packetBuilder.packFloat(pb.fixtureDef.density, 0, 10, RES_MASS);
-            i += ps.packetBuilder.packFloat(pb.fixtureDef.friction, 0, 10, RES_MASS);
-            i += ps.packetBuilder.packFloat(pb.fixtureDef.restitution, 0, 10, RES_MASS);
+            i += ps.builder.packFloat(pb.fixtureDef.shape.getRadius(), 0, 10, RES_POSITION);
+            i += ps.builder.packFloat(pb.fixtureDef.density, 0, 10, RES_MASS);
+            i += ps.builder.packFloat(pb.fixtureDef.friction, 0, 10, RES_MASS);
+            i += ps.builder.packFloat(pb.fixtureDef.restitution, 0, 10, RES_MASS);
 
             GraphicsComponent g = ComponentMappers.graphics.get(entity);
             // add texture type
-            i += ps.packetBuilder.packFloat(g.spriteActor.getSprite().getWidth(), 0, 100, RES_POSITION);
-            i += ps.packetBuilder.packFloat(g.spriteActor.getSprite().getHeight(), 0, 100, RES_POSITION);
+            i += ps.builder.packFloat(g.spriteActor.getSprite().getWidth(), 0, 100, RES_POSITION);
+            i += ps.builder.packFloat(g.spriteActor.getSprite().getHeight(), 0, 100, RES_POSITION);
 
             return i;
         }

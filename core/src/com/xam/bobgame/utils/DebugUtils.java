@@ -2,6 +2,8 @@ package com.xam.bobgame.utils;
 
 import com.xam.bobgame.BoBGame;
 
+import java.nio.ByteBuffer;
+
 public class DebugUtils {
 
     public static void log(String tag, String msg) {
@@ -40,6 +42,13 @@ public class DebugUtils {
         }
     }
 
+    public static String intHex(int i) {
+        StringBuilder sb = new StringBuilder();
+        ByteBuffer b = ByteBuffer.allocate(4);
+        b.putInt(0, i);
+        return bytesHex(b.array());
+    }
+
     public static String bytesHex(byte[] bytes) {
         return bytesHex(bytes, 0, bytes.length);
     }
@@ -48,6 +57,15 @@ public class DebugUtils {
         StringBuilder sb = new StringBuilder();
         for (; i < j; ++i) {
             sb.append(Integer.toHexString(bytes[i]));
+            sb.append(' ');
+        }
+        return sb.toString();
+    }
+
+    public static String bytesHex(ByteBuffer byteBuffer, int i, int j) {
+        StringBuilder sb = new StringBuilder();
+        for (; i < j; ++i) {
+            sb.append(Integer.toHexString(byteBuffer.get(i)));
             sb.append(' ');
         }
         return sb.toString();

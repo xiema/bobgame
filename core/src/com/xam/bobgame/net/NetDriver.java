@@ -1,14 +1,9 @@
 package com.xam.bobgame.net;
 
 import com.badlogic.ashley.core.Engine;
-import com.badlogic.gdx.net.*;
-import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.GdxRuntimeException;
-import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryonet.Client;
-import com.esotericsoftware.kryonet.Connection;
-import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Server;
+import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.utils.DebugUtils;
 
 import java.io.IOException;
@@ -18,13 +13,14 @@ public class NetDriver {
     public static final int PORT_UDP = 55196;
     private Mode mode = Mode.Client;
 
-    private Server server;
-    private Client client;
+    Server server;
+    Client client;
 
-    private PacketBuffer packetBuffer = new PacketBuffer(8);
+    PacketBuffer packetBuffer = new PacketBuffer(8);
     private PacketSerializer packetSerializer = new PacketSerializer();
-    private Packet syncBuffer = new Packet(Net.PACKET_MAX_SIZE);
-    private Packet sendBuffer = new Packet(Net.PACKET_MAX_SIZE);
+    private NetSerialization serialization = new NetSerialization(packetBuffer);
+    private Packet syncPacket = new Packet(Net.DATA_MAX_SIZE);
+    private Packet sendPacket = new Packet(Net.DATA_MAX_SIZE);
 
     private DebugUtils.ExpoMovingAverage movingAverage = new DebugUtils.ExpoMovingAverage(0.1f);
     private float packetBits = 0;
@@ -32,10 +28,6 @@ public class NetDriver {
 
     public NetDriver() {
 
-    }
-
-    private void registerSerializers(Kryo kryo) {
-        kryo.register(Packet.class, new NetSerializer(Net.PACKET_MAX_SIZE));
     }
 
     public void setMode(Mode mode) {
@@ -48,21 +40,7 @@ public class NetDriver {
 
     public void connect(String host) {
         if (mode != Mode.Client || client != null) return;
-        client = new Client();
-        registerSerializers(client.getKryo());
-        client.addListener(new Listener() {
-            @Override
-            public void disconnected(Connection connection) {
-                client = null;
-            }
-
-            @Override
-            public void received(Connection connection, Object o) {
-                if (o instanceof Packet) {
-                    packetBuffer.receive(((Packet) o).byteBuffer);
-                }
-            }
-        });
+        client = new Client(8192, 2048, serialization);
         client.start();
         try {
             client.connect(5000, host, PORT_TCP, PORT_UDP);
@@ -75,8 +53,7 @@ public class NetDriver {
 
     public void startServer() {
         if (mode != Mode.Server || server != null) return;
-        server = new Server();
-        registerSerializers(server.getKryo());
+        server = new Server(8192, 2048, serialization);
         server.start();
         try {
             server.bind(PORT_TCP, PORT_UDP);
@@ -101,22 +78,19 @@ public class NetDriver {
 
     public void syncClients(Engine engine) {
         if (server.getConnections().length == 0) return;
-        packetBits = packetSerializer.serialize(sendBuffer.byteBuffer, engine);
+        packetBits = packetSerializer.serialize(sendPacket, engine);
 //        DebugUtils.log("Packet", DebugUtils.bytesHex(sendBuffer.array()));
-        sendBuffer.byteBuffer.flip();
-        DebugUtils.log("Packet", "length=" + sendBuffer.byteBuffer.limit());
-        server.sendToAllUDP(sendBuffer);
-        sendBuffer.byteBuffer.clear();
+        Log.info("Packet", "[" + sendPacket.getLength() + "] " + sendPacket);
+        server.sendToAllUDP(sendPacket);
+        sendPacket.clear();
     }
 
     public void syncWithServer(Engine engine) {
         if (mode != Mode.Client) return;
-        if (packetBuffer.get(syncBuffer.byteBuffer)) {
-            syncBuffer.byteBuffer.flip();
-            syncBuffer.byteBuffer.position(4);
-            packetSerializer.syncEngine(syncBuffer.byteBuffer, engine);
+        if (packetBuffer.get(syncPacket)) {
+            packetSerializer.syncEngine(syncPacket, engine);
         }
-        syncBuffer.byteBuffer.clear();
+        syncPacket.clear();
     }
 
     public float updateBitrate(float deltaTime) {

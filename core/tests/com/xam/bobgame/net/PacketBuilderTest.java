@@ -4,8 +4,6 @@ import com.badlogic.gdx.math.MathUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
 
-import java.nio.ByteBuffer;
-
 public class PacketBuilderTest {
 
     @Test
@@ -14,8 +12,8 @@ public class PacketBuilderTest {
         int[] testInts = new int[count];
         int[] bitCounts = new int[count];
 
-        ByteBuffer buffer = ByteBuffer.allocate(count * 4);
-        PacketBuilder packetBuilder = new PacketBuilder(buffer);
+        Packet packet = new Packet(count * 4);
+        Packet.PacketBuilder packetBuilder = new Packet.PacketBuilder(packet);
         int limit = 1;
         for (int i = 0; i < count; ++i) {
             limit *= 2;
@@ -23,8 +21,8 @@ public class PacketBuilderTest {
             bitCounts[i] = packetBuilder.packInt(testInts[i], -limit, limit-1);
         }
 
-        packetBuilder.flush();
-        buffer.rewind();
+        packetBuilder.flush(true);
+        packetBuilder.rewind();
 
         limit = 1;
         for (int i = 0; i < count; ++i) {
@@ -38,13 +36,13 @@ public class PacketBuilderTest {
     @Test
     public void testInt1() {
         int i = 1;
-        ByteBuffer buffer = ByteBuffer.allocate(32);
-        PacketBuilder packetBuilder = new PacketBuilder(buffer);
+        Packet packet = new Packet(32);
+        Packet.PacketBuilder packetBuilder = new Packet.PacketBuilder(packet);
         System.out.println("" + packetBuilder.packInt(1, 0, 1));
         System.out.println("" + packetBuilder.packInt(1, 0, 2));
 
-        packetBuilder.flush();
-        buffer.rewind();
+        packetBuilder.flush(true);
+        packetBuilder.rewind();
 
 //        System.out.println("" + buffer.get());
         System.out.println("" + packetBuilder.unpackInt(0, 1));
@@ -56,8 +54,8 @@ public class PacketBuilderTest {
         int count = 29;
         float[] testFloats = new float[count];
 
-        ByteBuffer buffer = ByteBuffer.allocate(count * 4);
-        PacketBuilder packetBuilder = new PacketBuilder(buffer);
+        Packet packet = new Packet(count * 4);
+        Packet.PacketBuilder packetBuilder = new Packet.PacketBuilder(packet);
         int limit = 1;
         float res = 0.001f;
         for (int i = 0; i < count; ++i) {
@@ -66,8 +64,8 @@ public class PacketBuilderTest {
             packetBuilder.packFloat(testFloats[i], -res * limit, res * limit, res);
         }
 
-        packetBuilder.flush();
-        buffer.rewind();
+        packetBuilder.flush(true);
+        packetBuilder.rewind();
 
         limit = 1;
         for (int i = 0; i < count; ++i) {
@@ -81,15 +79,15 @@ public class PacketBuilderTest {
     public void testFloats(int count, float min, float max, float res) {
         float[] testFloats = new float[count];
 
-        ByteBuffer buffer = ByteBuffer.allocate(count * 4);
-        PacketBuilder packetBuilder = new PacketBuilder(buffer);
+        Packet packet = new Packet(count * 4);
+        Packet.PacketBuilder packetBuilder = new Packet.PacketBuilder(packet);
         for (int i = 0; i < count; ++i) {
             testFloats[i] = MathUtils.random(min, max);
             packetBuilder.packFloat(testFloats[i], min, max, res);
         }
 
-        packetBuilder.flush();
-        buffer.rewind();
+        packetBuilder.flush(true);
+        packetBuilder.rewind();
 
         for (int i = 0; i < count; ++i) {
             float a = packetBuilder.unpackFloat(min, max, res);
