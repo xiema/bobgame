@@ -38,15 +38,16 @@ public class PacketBuilderTest {
         int i = 1;
         Packet packet = new Packet(32);
         Packet.PacketBuilder packetBuilder = new Packet.PacketBuilder(packet);
-        System.out.println("" + packetBuilder.packInt(1, 0, 1));
-        System.out.println("" + packetBuilder.packInt(1, 0, 2));
+//        System.out.println("" + packetBuilder.packInt(1, 0, 1));
+//        System.out.println("" + packetBuilder.packInt(1, 0, 2));
+        packetBuilder.packInt(1, -1, 30);
 
         packetBuilder.flush(true);
         packetBuilder.rewind();
 
 //        System.out.println("" + buffer.get());
-        System.out.println("" + packetBuilder.unpackInt(0, 1));
-        System.out.println("" + packetBuilder.unpackInt(0, 2));
+        System.out.println("" + packetBuilder.unpackInt(-1, 30));
+//        System.out.println("" + packetBuilder.unpackInt(0, 2));
     }
 
     @Test

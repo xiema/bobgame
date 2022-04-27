@@ -20,6 +20,8 @@ public class GameEngine extends PooledEngine {
     private GameDirector gameDirector;
     private NetDriver netDriver;
 
+    private int lastSnapshot = -1;
+
     public GameEngine() {
         super();
     }
@@ -50,41 +52,51 @@ public class GameEngine extends PooledEngine {
         inputMultiplexer.addProcessor(new InputAdapter() {
             public void userInput(int x, int y, int button, boolean state) {
                 PlayerControlEvent event = Pools.obtain(PlayerControlEvent.class);
-                tempVec.set(Gdx.input.getX(), Gdx.input.getY());
+                PlayerControlEvent netEvent = Pools.obtain(PlayerControlEvent.class);
+                tempVec.set(x, y);
                 viewport.unproject(tempVec);
                 event.x = tempVec.x;
                 event.y = tempVec.y;
                 event.buttonId = button;
                 event.buttonState = state;
                 event.controlId = 0;
-                event.entityId = 0;
+                event.entityId = getSystem(GameDirector.class).getPlayerEntityId();
                 eventsSystem.queueEvent(event);
+                event.copyTo(netEvent);
+                netDriver.queueClientEvent(0, netEvent);
             }
 
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
                 userInput(screenX, screenY, button, true);
-                return true;
-            }
-
-            @Override
-            public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-                userInput(screenX, screenY, button, false);
                 return false;
             }
 
-            @Override
-            public boolean touchDragged(int screenX, int screenY, int pointer) {
-                userInput(screenX, screenY, -1, true);
-                return true;
-            }
+//            @Override
+//            public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+//                userInput(screenX, screenY, button, false);
+//                return false;
+//            }
+//
+//            @Override
+//            public boolean touchDragged(int screenX, int screenY, int pointer) {
+//                userInput(screenX, screenY, -1, true);
+//                return true;
+//            }
 
-            @Override
-            public boolean mouseMoved(int screenX, int screenY) {
-                userInput(screenX, screenY, -1, false);
-                return false;
-            }
+//            @Override
+//            public boolean mouseMoved(int screenX, int screenY) {
+//                userInput(screenX, screenY, -1, false);
+//                return false;
+//            }
         });
     }
 
+    public int getLastSnapshotFrame() {
+        return lastSnapshot;
+    }
+
+    public int setLastSnapshotFrame() {
+        return lastSnapshot++;
+    }
 }

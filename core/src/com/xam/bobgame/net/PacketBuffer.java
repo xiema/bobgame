@@ -1,9 +1,6 @@
 package com.xam.bobgame.net;
 
-import com.xam.bobgame.utils.DebugUtils;
-
-import java.io.InputStream;
-import java.nio.ByteBuffer;
+import com.esotericsoftware.minlog.Log;
 
 public class PacketBuffer{
     private int putIndex = 0;
@@ -49,5 +46,9 @@ public class PacketBuffer{
     public void reset() {
         putIndex = 0;
         getIndex = 0;
+    }
+
+    public void debug(String tag) {
+        Log.info(tag + ": p=" + putIndex + " g=" + getIndex + " j=" + jump);
     }
 }

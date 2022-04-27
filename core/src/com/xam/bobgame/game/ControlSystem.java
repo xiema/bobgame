@@ -4,14 +4,12 @@ import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.IntMap;
-import com.badlogic.gdx.utils.IntSet;
-import com.badlogic.gdx.utils.ObjectMap;
+import com.badlogic.gdx.utils.*;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.DebugUtils;
 
 public class ControlSystem extends EntitySystem {
@@ -27,6 +25,23 @@ public class ControlSystem extends EntitySystem {
             @Override
             public void handleEvent(PlayerControlEvent event) {
                 control(event.controlId, event.entityId, event.x, event.y, event.buttonId, event.buttonState);
+//                NetDriver netDriver = getEngine().getSystem(NetDriver.class);
+//                PlayerControlEvent netEvent = Pools.obtain(PlayerControlEvent.class);
+//                event.copyTo(netEvent);
+//                if (netDriver.getMode() == NetDriver.Mode.Client) {
+//                    netDriver.queueClientEvent(0, netEvent);
+//                }
+            }
+        });
+        listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
+            @Override
+            public void handleEvent(PlayerAssignEvent event) {
+                for (Entity entity : getEngine().getEntities()) {
+                    if (EntityUtils.getId(entity) == event.entityId) {
+                        registerEntity(entity, 0);
+                        break;
+                    }
+                }
             }
         });
     }
@@ -75,7 +90,7 @@ public class ControlSystem extends EntitySystem {
 
         if (buttonState) {
             PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
-            tempVec.set(x, y).sub(pb.body.getPosition()).nor().scl(-500f);
+            tempVec.set(x, y).sub(pb.body.getPosition()).nor().scl(500f);
             pb.body.applyForceToCenter(tempVec, true);
         }
     }

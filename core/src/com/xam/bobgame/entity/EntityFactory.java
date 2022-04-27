@@ -20,7 +20,7 @@ public class EntityFactory {
         return ComponentFactory.identity(engine, nextId++);
     }
 
-    public static Entity createPlayer(Engine engine) {
+    public static Entity createPlayer(Engine engine, Color color) {
         Entity entity = engine.createEntity();
 
         IdentityComponent identity = createIdentity(engine);
@@ -31,7 +31,7 @@ public class EntityFactory {
         textureDef.type = TextureDef.TextureType.Circle;
         textureDef.wh = 32;
         textureDef.textureVal1 = 16;
-        textureDef.color.set(Color.WHITE);
+        textureDef.color.set(color);
         GraphicsComponent graphics = ComponentFactory.graphics(engine, textureDef, 1, 1);
 
         entity.add(identity);

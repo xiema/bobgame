@@ -82,8 +82,8 @@ public class BoBGame extends ApplicationAdapter {
 		if (mode != 2) {
 			engine.gameSetup();
 			engine.getSystem(GameDirector.class).getPlayerEntity().getComponent(PhysicsBodyComponent.class).body.applyForceToCenter(MathUtils.random() * 1000f, MathUtils.random() * 100f, true);
-			engine.getSystem(PhysicsSystem.class).setEnabled(true);
 		}
+		engine.getSystem(PhysicsSystem.class).setEnabled(true);
 	}
 
 	@Override

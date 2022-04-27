@@ -3,11 +3,9 @@ package com.xam.bobgame.net;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.utils.DebugUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
 
 public class NetTest {
@@ -42,7 +40,7 @@ public class NetTest {
         packet = new Packet(Net.DATA_MAX_SIZE);
         for (int i = 0; i < count; ++i) {
             serverDriver.server.sendToAllUDP(packets[i]);
-            while (!clientDriver.packetBuffer.get(packet)) {
+            while (!clientDriver.updateBuffer.get(packet)) {
 
             }
             Log.info("Check packet " + (i + 1));

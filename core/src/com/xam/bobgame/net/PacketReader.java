@@ -3,33 +3,38 @@ package com.xam.bobgame.net;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.utils.ImmutableArray;
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
+import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
+import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.components.GraphicsComponent;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
-import com.xam.bobgame.entity.ComponentFactory;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.game.ShapeDef;
 import com.xam.bobgame.graphics.TextureDef;
 
 public class PacketReader {
-    public static final float RES_POSITION = 1e-6f;
-    public static final float RES_ORIENTATION = 1e-6f;
-    public static final float RES_VELOCITY = 1e-6f;
-    public static final float RES_MASS = 1e-6f;
-    public static final float RES_COLOR = 1e-6f;
+    public static final float RES_POSITION = 1e-4f;
+    public static final float RES_ORIENTATION = 1e-4f;
+    public static final float RES_VELOCITY = 1e-4f;
+    public static final float RES_MASS = 1e-4f;
+    public static final float RES_COLOR = 1e-4f;
     public static final float MAX_ORIENTATION = 3.14159f;
 
-    Packet.PacketBuilder builder = new Packet.PacketBuilder();
+    NetDriver netDriver;
+    Packet.PacketBuilder builder;
     Engine engine;
+
+    public PacketReader(NetDriver netDriver) {
+        builder = new Packet.PacketBuilder();
+        this.netDriver = netDriver;
+    }
 
     private boolean write = false;
 
@@ -70,12 +75,20 @@ public class PacketReader {
 
         switch (builder.unpackByte()) {
             case 1:
-                return readSystemUpdate();
+                if (((GameEngine) engine).getLastSnapshotFrame() == -1) return -1;
+                readSystemUpdate();
+                readFooter();
+                break;
             case 2:
-                return readSystemSnapshot();
+                readSystemSnapshot();
+                readFooter();
+                ((GameEngine) engine).setLastSnapshotFrame();
+                break;
             default:
                 return -1;
         }
+
+        return 0;
     }
 
     public int serialize(Packet packet, Engine engine, int option) {
@@ -92,9 +105,42 @@ public class PacketReader {
                 if (readSystemSnapshot() == -1) return -1;
                 break;
         }
+        readFooter();
         builder.flush(true);
 
         return 0;
+    }
+
+    public int serializeEvent(Packet packet, NetDriver.NetworkEvent event) {
+        builder.setPacket(packet);
+        write = true;
+
+        packet.setType(Packet.PacketType.Event);
+        for (int i = 0; i < NetDriver.networkEventClasses.length; ++i) {
+            if (NetDriver.networkEventClasses[i] == event.getClass()) {
+                builder.packInt(i, 0, NetDriver.networkEventClasses.length - 1);
+                break;
+            }
+        }
+        event.netDriver = netDriver;
+        event.connectionId = -1;
+        event.read(builder, true);
+        builder.flush(true);
+
+        return 0;
+    }
+
+    public NetDriver.NetworkEvent readEvent(Packet packet) {
+        builder.setPacket(packet);
+
+        int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);
+        //noinspection unchecked
+        NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
+        event.netDriver = netDriver;
+        event.connectionId = packet.connectionId;
+        event.read(builder, false);
+
+        return event;
     }
 
     private void zeroBytes(byte[] bytes) {
@@ -102,6 +148,11 @@ public class PacketReader {
         while (i-- > 0) {
             bytes[i] = 0;
         }
+    }
+
+    private int readFooter() {
+        readByte((byte) 0xFF);
+        return 0;
     }
 
     private int readSystemUpdate() {
@@ -204,18 +255,18 @@ public class PacketReader {
 
         iden.id = readInt(iden.id, 0, 255);
 
-        pb.bodyDef.type = BodyDef.BodyType.values()[readInt(pb.bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length + 1)];
+        pb.bodyDef.type = BodyDef.BodyType.values()[readInt(pb.bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length)];
         pb.bodyDef.position.x = readFloat(pb.bodyDef.position.x, -3, 13, RES_POSITION);
         pb.bodyDef.position.y = readFloat(pb.bodyDef.position.y, -3, 13, RES_POSITION);
-        pb.shapeDef.type = ShapeDef.ShapeType.values()[readInt(pb.shapeDef.type.getValue(), 0, ShapeDef.ShapeType.values().length + 1)];
+        pb.shapeDef.type = ShapeDef.ShapeType.values()[readInt(pb.shapeDef.type.getValue(), 0, ShapeDef.ShapeType.values().length)];
         pb.shapeDef.shapeVal1 = readFloat(pb.shapeDef.shapeVal1, 0, 16, RES_POSITION);
         pb.fixtureDef.density = readFloat(pb.fixtureDef.density, 0, 16, RES_MASS);
         pb.fixtureDef.friction = readFloat(pb.fixtureDef.friction, 0, 16, RES_MASS);
         pb.fixtureDef.restitution = readFloat(pb.fixtureDef.restitution, 0, 16, RES_MASS);
 
-        graphics.textureDef.type = TextureDef.TextureType.values()[readInt(graphics.textureDef.type.getValue(), 0, TextureDef.TextureType.values().length + 1)];
-        graphics.textureDef.wh = readInt(graphics.textureDef.wh, 0, 512);
-        graphics.textureDef.textureVal1 = readInt(graphics.textureDef.textureVal1, 0, 512);
+        graphics.textureDef.type = TextureDef.TextureType.values()[readInt(graphics.textureDef.type.getValue(), 0, TextureDef.TextureType.values().length)];
+        graphics.textureDef.wh = readInt(graphics.textureDef.wh, 0, 128);
+        graphics.textureDef.textureVal1 = readInt(graphics.textureDef.textureVal1, 0, 128);
         float r = readFloat(graphics.textureDef.color.r, 0, 1, RES_COLOR);
         float g = readFloat(graphics.textureDef.color.g, 0, 1, RES_COLOR);
         float b = readFloat(graphics.textureDef.color.b, 0, 1, RES_COLOR);

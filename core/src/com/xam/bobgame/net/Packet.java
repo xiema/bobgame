@@ -13,6 +13,9 @@ public class Packet {
     private CRC32 crc32 = new CRC32();
     private long crc = -1;
     private int length = 0;
+    private PacketType type = PacketType.Normal;
+
+    int connectionId = -1;
 
     public Packet(int size) {
         byteBuffer = ByteBuffer.allocate(size);
@@ -35,6 +38,14 @@ public class Packet {
         return length;
     }
 
+    public void setType(PacketType type) {
+        this.type = type;
+    }
+
+    public PacketType getType() {
+        return type;
+    }
+
     public void copyTo(ByteBuffer out) {
         int i = length;
         while (i-- > 0) {
@@ -45,6 +56,8 @@ public class Packet {
 
     public void copyTo(Packet out) {
         out.set(byteBuffer, length);
+        out.type = type;
+        out.connectionId = connectionId;
         byteBuffer.rewind();
     }
 
@@ -62,6 +75,7 @@ public class Packet {
         byteBuffer.clear();
         length = 0;
         crc = -1;
+        type = PacketType.Normal;
     }
 
     @Override
@@ -78,6 +92,20 @@ public class Packet {
         return true;
     }
 
+    public enum PacketType {
+        Normal(0), Event(1),
+        ;
+
+        private final int value;
+
+        PacketType(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+    }
 
     public static class PacketBuilder {
         private Packet packet;
@@ -122,19 +150,25 @@ public class Packet {
         }
 
         private void getBitsB(int bits) {
-            int byteCount = (bits + 7) / 8;
+            int byteCount = (bits - scratchBits + 7) / 8;
             scratchBits += byteCount * 8;
             if (scratchBits > 64) {
                 DebugUtils.error("PacketBuilder", "gigtBitsB: Tried to get too many bits");
                 return;
             }
             while (byteCount-- > 0) {
-                scratch = (scratch << 8) | (buffer.get() & 255L);
+                if (!buffer.hasRemaining()) {
+                    Log.warn("PacketBuilder", "Buffer underflow (" + byteCount + ")");
+                    scratch <<= 8;
+                }
+                else {
+                    scratch = (scratch << 8) | (buffer.get() & 255L);
+                }
             }
         }
 
         private void getBitsL(int bits) {
-            int byteCount = (bits + 7) / 8;
+            int byteCount = (bits - scratchBits + 7) / 8;
             scratchBits += byteCount * 8;
             if (scratchBits > 64) {
                 DebugUtils.error("PacketBuilder", "gigtBitsL: Tried to get too many bits");
@@ -278,7 +312,7 @@ public class Packet {
             float rf = max - min;
             int ri = MathUtils.ceil(rf / res);
             int i = unpackInt(0, ri);
-            return min + (rf * ((float) i / (float) ri));
+            return min + ((rf * (float) i) / (float) ri);
         }
 
 

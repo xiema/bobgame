@@ -26,10 +26,12 @@ public class EventsSystem extends EntitySystem {
     @Override
     public void removedFromEngine(Engine engine) {
         super.removedFromEngine(engine);
-        for (GameEvent event : eventQueue) {
-            Pools.free(event);
+        synchronized (eventQueue) {
+            for (GameEvent event : eventQueue) {
+                Pools.free(event);
+            }
+            eventQueue.clear();
         }
-        eventQueue.clear();
         for (GameEvent event : eventQueue2) {
             Pools.free(event);
         }
@@ -40,8 +42,11 @@ public class EventsSystem extends EntitySystem {
 
     @Override
     public void update(float deltaTime) {
-        Array<GameEvent> currentQueue = eventQueue;
-        eventQueue = eventQueue2;
+        Array<GameEvent> currentQueue;
+        synchronized (eventQueue) {
+            currentQueue = eventQueue;
+            eventQueue = eventQueue2;
+        }
 
         for (GameEvent event : currentQueue) {
             Array<GameEventListener> listeners = listenerMap.get(event.getClass());
@@ -71,7 +76,9 @@ public class EventsSystem extends EntitySystem {
             Pools.free(event);
             return 0;
         }
-        eventQueue.add(event);
+        synchronized (eventQueue) {
+            eventQueue.add(event);
+        }
         return globalListeners.size + (listeners == null ? 0 : listeners.size);
     }
 
