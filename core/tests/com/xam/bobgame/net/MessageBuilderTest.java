@@ -4,7 +4,7 @@ import com.badlogic.gdx.math.MathUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
 
-public class PacketBuilderTest {
+public class MessageBuilderTest {
 
     @Test
     public void testInt() {
@@ -12,22 +12,22 @@ public class PacketBuilderTest {
         int[] testInts = new int[count];
         int[] bitCounts = new int[count];
 
-        Packet packet = new Packet(count * 4);
-        Packet.PacketBuilder packetBuilder = new Packet.PacketBuilder(packet);
+        Message message = new Message(count * 4);
+        Message.MessageBuilder messageBuilder = new Message.MessageBuilder(message);
         int limit = 1;
         for (int i = 0; i < count; ++i) {
             limit *= 2;
             testInts[i] = MathUtils.random(0, limit * 2 - 1) - limit;
-            bitCounts[i] = packetBuilder.packInt(testInts[i], -limit, limit-1);
+            bitCounts[i] = messageBuilder.packInt(testInts[i], -limit, limit-1);
         }
 
-        packetBuilder.flush(true);
-        packetBuilder.rewind();
+        messageBuilder.flush(true);
+        messageBuilder.rewind();
 
         limit = 1;
         for (int i = 0; i < count; ++i) {
             limit *= 2;
-            int a = packetBuilder.unpackInt(-limit, limit-1);
+            int a = messageBuilder.unpackInt(-limit, limit-1);
             System.out.println("" + bitCounts[i] + " " + testInts[i] + " ? " + a);
             Assertions.assertEquals(testInts[i], a);
         }
@@ -36,17 +36,17 @@ public class PacketBuilderTest {
     @Test
     public void testInt1() {
         int i = 1;
-        Packet packet = new Packet(32);
-        Packet.PacketBuilder packetBuilder = new Packet.PacketBuilder(packet);
+        Message message = new Message(32);
+        Message.MessageBuilder messageBuilder = new Message.MessageBuilder(message);
 //        System.out.println("" + packetBuilder.packInt(1, 0, 1));
 //        System.out.println("" + packetBuilder.packInt(1, 0, 2));
-        packetBuilder.packInt(1, -1, 30);
+        messageBuilder.packInt(1, -1, 30);
 
-        packetBuilder.flush(true);
-        packetBuilder.rewind();
+        messageBuilder.flush(true);
+        messageBuilder.rewind();
 
 //        System.out.println("" + buffer.get());
-        System.out.println("" + packetBuilder.unpackInt(-1, 30));
+        System.out.println("" + messageBuilder.unpackInt(-1, 30));
 //        System.out.println("" + packetBuilder.unpackInt(0, 2));
     }
 
@@ -55,23 +55,23 @@ public class PacketBuilderTest {
         int count = 29;
         float[] testFloats = new float[count];
 
-        Packet packet = new Packet(count * 4);
-        Packet.PacketBuilder packetBuilder = new Packet.PacketBuilder(packet);
+        Message message = new Message(count * 4);
+        Message.MessageBuilder messageBuilder = new Message.MessageBuilder(message);
         int limit = 1;
         float res = 0.001f;
         for (int i = 0; i < count; ++i) {
             limit *= 2;
             testFloats[i] = res * MathUtils.random(0, limit * 2) - res * limit;
-            packetBuilder.packFloat(testFloats[i], -res * limit, res * limit, res);
+            messageBuilder.packFloat(testFloats[i], -res * limit, res * limit, res);
         }
 
-        packetBuilder.flush(true);
-        packetBuilder.rewind();
+        messageBuilder.flush(true);
+        messageBuilder.rewind();
 
         limit = 1;
         for (int i = 0; i < count; ++i) {
             limit *= 2;
-            float a = packetBuilder.unpackFloat(-res * limit, res * limit, res);
+            float a = messageBuilder.unpackFloat(-res * limit, res * limit, res);
             System.out.println("" + i + " " + testFloats[i] + " ? " + a);
             Assertions.assertEquals(testFloats[i], a);
         }
@@ -80,18 +80,18 @@ public class PacketBuilderTest {
     public void testFloats(int count, float min, float max, float res) {
         float[] testFloats = new float[count];
 
-        Packet packet = new Packet(count * 4);
-        Packet.PacketBuilder packetBuilder = new Packet.PacketBuilder(packet);
+        Message message = new Message(count * 4);
+        Message.MessageBuilder messageBuilder = new Message.MessageBuilder(message);
         for (int i = 0; i < count; ++i) {
             testFloats[i] = MathUtils.random(min, max);
-            packetBuilder.packFloat(testFloats[i], min, max, res);
+            messageBuilder.packFloat(testFloats[i], min, max, res);
         }
 
-        packetBuilder.flush(true);
-        packetBuilder.rewind();
+        messageBuilder.flush(true);
+        messageBuilder.rewind();
 
         for (int i = 0; i < count; ++i) {
-            float a = packetBuilder.unpackFloat(min, max, res);
+            float a = messageBuilder.unpackFloat(min, max, res);
             System.out.println("" + i + " " + testFloats[i] + " ? " + a + " diff: " + (testFloats[i] - a));
             Assertions.assertTrue(testFloats[i] - a < res);
         }

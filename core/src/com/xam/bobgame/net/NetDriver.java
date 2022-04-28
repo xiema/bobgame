@@ -9,10 +9,12 @@ import com.esotericsoftware.kryonet.Server;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.utils.DebugUtils;
+import com.xam.bobgame.utils.SequenceNumChecker;
 
 import java.io.IOException;
 
 public class NetDriver extends EntitySystem {
+    public static final int SERVER_UPDATE_FREQUENCY = 3;
     public static final int PORT_TCP = 55192;
     public static final int PORT_UDP = 55196;
     private Mode mode = Mode.Client;
@@ -25,10 +27,16 @@ public class NetDriver extends EntitySystem {
     PacketBuffer updateBuffer = new PacketBuffer(8);
     PacketBuffer eventBuffer = new PacketBuffer(4);
     private PacketReader packetReader = new PacketReader(this);
-    private NetSerialization serialization = new NetSerialization(updateBuffer, eventBuffer);
+    private PacketTransport transport = new PacketTransport(this);
+    private NetSerialization serialization = new NetSerialization(transport);
     private Packet syncPacket = new Packet(Net.DATA_MAX_SIZE);
     private Packet sendPacket = new Packet(Net.DATA_MAX_SIZE);
     private Packet snapshotPacket = new Packet(Net.SNAPSHOT_MAX_SIZE);
+
+
+    private MessageInfo[] messageInfos = new MessageInfo[128];
+    private SequenceNumChecker messageNumChecker = new SequenceNumChecker(128);
+    private int messageCount = 0;
 
     private IntIntMap playerConnectionMap = new IntIntMap();
     private IntIntMap connectionPlayerMap = new IntIntMap();
@@ -43,21 +51,40 @@ public class NetDriver extends EntitySystem {
             PlayerAssignEvent.class,  PlayerControlEvent.class,
     };
 
+    public void setMessageInfo(Message message) {
+        message.messageNum = messageCount;
+        messageInfos[messageCount % messageInfos.length].set(message);
+        messageCount++;
+    }
+
+    public static int getNetworkEventIndex(Class<? extends NetworkEvent> clazz) {
+        for (int i = 0; i < NetDriver.networkEventClasses.length; ++i) {
+            if (NetDriver.networkEventClasses[i] == clazz) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     public NetDriver() {
         this(0);
     }
 
     public NetDriver(int priority) {
         super(priority);
+        for (int i = 0; i < messageInfos.length; ++i) {
+            messageInfos[i] = new MessageInfo();
+        }
     }
 
     @Override
     public void update(float deltaTime) {
+        packetBits = 0;
         if (mode == Mode.Client) {
             if (isConnected()) {
                 syncWithServer();
             }
-            else if (t++ % 100 == 0) {
+            else if (t % 100 == 0) {
                 connect("127.0.0.1");
             }
         }
@@ -67,6 +94,7 @@ public class NetDriver extends EntitySystem {
                 syncPacket.clear();
             }
         }
+        t++;
     }
 
     public float getAverageBitrate() {
@@ -121,6 +149,13 @@ public class NetDriver extends EntitySystem {
         if (mode != Mode.Client || client != null) return;
         client = new Client(8192, 2048, serialization);
         client.start();
+        client.addListener(new Listener() {
+            @Override
+            public void connected(Connection connection) {
+                transport.addConnection(0, connection.getID());
+            }
+        });
+        client.addListener(packetReceiveListener);
         try {
             client.connect(5000, host, PORT_TCP, PORT_UDP);
             Log.info("Connected to " + host);
@@ -131,18 +166,50 @@ public class NetDriver extends EntitySystem {
         }
     }
 
+    private Listener packetReceiveListener = new Listener() {
+        @Override
+        public void received(Connection connection, Object o) {
+            if (o instanceof Packet) {
+                Packet packet = (Packet) o;
+                Message message = packet.getMessage();
+
+                // message already seen or old and assumed seen
+                if (messageNumChecker.getAndSet(message.messageNum)) {
+                    Log.info("Discarded message num=" + message.messageNum);
+                    return;
+                }
+
+                if (packet.getMessage().getType() == Message.MessageType.Normal)  {
+                    if (updateBuffer != null) {
+                        updateBuffer.receive(packet);
+                    }
+                }
+                else {
+                    if (eventBuffer != null) {
+                        eventBuffer.receive(packet);
+                    }
+                }
+            }
+        }
+    };
+
     public void startServer() {
         if (mode != Mode.Server || server != null) return;
         server = new Server(8192, 2048, serialization);
         server.addListener(new Listener() {
             @Override
             public void connected(Connection connection) {
+                if (getEngine() == null) return;
+                EventsSystem eventsSystem = getEngine().getSystem(EventsSystem.class);
+                if (eventsSystem == null) return;
+                transport.addConnection(0, connection.getID());
                 ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);
                 event.connectionId = connection.getID();
-                getEngine().getSystem(EventsSystem.class).queueEvent(event);
+                eventsSystem.queueEvent(event);
 //                needsSnapshot.add(connection.getID());
             }
         });
+        server.addListener(packetReceiveListener);
         server.start();
         try {
             server.bind(PORT_TCP, PORT_UDP);
@@ -169,7 +236,8 @@ public class NetDriver extends EntitySystem {
     public void syncClients(float deltaTime) {
         if (server.getConnections().length == 0) return;
 
-        packetReader.serialize(sendPacket, getEngine(), 1);
+        if (t % SERVER_UPDATE_FREQUENCY == 0)
+            packetReader.serialize(sendPacket, getEngine(), 1);
         packetBits = 0;
 //        DebugUtils.log("Packet", DebugUtils.bytesHex(sendBuffer.array()));
         boolean snapshot = false;
@@ -181,14 +249,16 @@ public class NetDriver extends EntitySystem {
                     snapshot = true;
                 }
                 needsSnapshot.removeValue(connection.getID());
-//                Log.info("Snapshot: [" + snapshotPacket.getLength() + "] " + snapshotPacket);
+//                Log.info("Snapshot: [" + snapshotPacket.getMessage().getLength() + "] " + snapshotPacket);
                 connection.sendUDP(snapshotPacket);
-                packetBits += snapshotPacket.getLength() * 8;
+                packetBits += snapshotPacket.getBitSize();
             }
             else {
-                connection.sendUDP(sendPacket);
-//                Log.info("Update", "[" + sendPacket.getLength() + "] " + sendPacket);
-                packetBits += sendPacket.getLength() * 8;
+                if (t % SERVER_UPDATE_FREQUENCY == 0) {
+                    connection.sendUDP(sendPacket);
+    //                Log.info("Update", "[" + sendPacket.getLength() + "] " + sendPacket);
+                    packetBits += sendPacket.getBitSize();
+                }
             }
         }
 //        server.sendToAllUDP(sendPacket);
@@ -203,11 +273,10 @@ public class NetDriver extends EntitySystem {
                     connection.sendUDP(sendPacket);
                 }
             }
+            packetBits += sendPacket.getBitSize();
+            sendPacket.clear();
         }
         clientEvents.clear();
-
-        bitrate = packetBits / deltaTime;
-        movingAverage.update(bitrate);
     }
 
     public void syncWithServer() {
@@ -215,6 +284,7 @@ public class NetDriver extends EntitySystem {
         if (eventBuffer.get(syncPacket)) {
             getEngine().getSystem(EventsSystem.class).queueEvent(packetReader.readEvent(syncPacket));
         }
+        boolean sent = false;
         syncPacket.clear();
         if (updateBuffer.get(syncPacket)) {
 //            Log.info("[" + syncPacket.getLength() + "] " + syncPacket);
@@ -225,9 +295,28 @@ public class NetDriver extends EntitySystem {
         for (ClientEvent clientEvent : clientEvents) {
             packetReader.serializeEvent(sendPacket, clientEvent.event);
             client.sendUDP(sendPacket);
+            packetBits += sendPacket.getBitSize();
             sendPacket.clear();
+            sent = true;
         }
         clientEvents.clear();
+
+        if (!sent) {
+            packetReader.serialize(sendPacket, getEngine(), 3);
+            client.sendUDP(sendPacket);
+            packetBits += sendPacket.getBitSize();
+            sendPacket.clear();
+        }
+    }
+
+    public float updateBitRate(float deltaTime) {
+        bitrate = packetBits / deltaTime;
+        if (Float.isNaN(bitrate)) return movingAverage.getAverage();
+        return movingAverage.update(bitrate);
+    }
+
+    public float getBitRate() {
+        return bitrate;
     }
 
     public Server getServer() {
@@ -260,7 +349,7 @@ public class NetDriver extends EntitySystem {
             return id;
         }
 
-        protected int readInt(Packet.PacketBuilder builder, int i, int min, int max, boolean write) {
+        protected int readInt(Message.MessageBuilder builder, int i, int min, int max, boolean write) {
             if (write) {
                 builder.packInt(i, min, max);
                 return i;
@@ -270,7 +359,7 @@ public class NetDriver extends EntitySystem {
             }
         }
 
-        protected float readFloat(Packet.PacketBuilder builder, float f, float min, float max, float res, boolean write) {
+        protected float readFloat(Message.MessageBuilder builder, float f, float min, float max, float res, boolean write) {
             if (write) {
                 builder.packFloat(f, min, max, res);
                 return f;
@@ -280,7 +369,7 @@ public class NetDriver extends EntitySystem {
             }
         }
 
-        protected byte readByte(Packet.PacketBuilder builder, byte b, boolean write) {
+        protected byte readByte(Message.MessageBuilder builder, byte b, boolean write) {
             if (write) {
                 builder.packByte(b);
                 return b;
@@ -290,7 +379,7 @@ public class NetDriver extends EntitySystem {
             }
         }
 
-        public void read(Packet.PacketBuilder builder, boolean write){
+        public void read(Message.MessageBuilder builder, boolean write){
 
         }
 

@@ -20,6 +20,7 @@ public class PacketBuffer{
 
     public int receive(Packet packet) {
         synchronized (buffer) {
+//            Log.info("Receive: [" + packet.getMessage().getLength() + "] " + packet.getMessage());
             packet.copyTo(buffer[putIndex]);
 //            System.arraycopy(byteBuffer.array(), byteBuffer.position(), buffer, putIndex, byteBuffer.remaining());
             putIndex = (putIndex + 1) % bufferLength;
@@ -29,7 +30,7 @@ public class PacketBuffer{
             }
         }
 
-        return packet.getLength();
+        return packet.getMessage().getLength();
     }
 
     public boolean get(Packet out) {

@@ -1,7 +1,7 @@
 package com.xam.bobgame.events;
 
 import com.xam.bobgame.net.NetDriver;
-import com.xam.bobgame.net.Packet;
+import com.xam.bobgame.net.Message;
 
 public class PlayerAssignEvent extends NetDriver.NetworkEvent {
 
@@ -14,7 +14,7 @@ public class PlayerAssignEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
-    public void read(Packet.PacketBuilder builder, boolean write) {
+    public void read(Message.MessageBuilder builder, boolean write) {
         entityId = readInt(builder, entityId, 0, 255, write);
     }
 }

@@ -91,7 +91,8 @@ public class BoBGame extends ApplicationAdapter {
 		float deltaTime = Gdx.graphics.getDeltaTime();
 
 		engine.update(deltaTime);
-		if (netDriver.getMode() == NetDriver.Mode.Server && netDriver.getServer().getConnections().length > 0) bitrateLabel.setText(String.valueOf(netDriver.getAverageBitrate()));
+		netDriver.updateBitRate(deltaTime);
+		bitrateLabel.setText(String.valueOf(netDriver.getAverageBitrate()));
 
 		stage.act(deltaTime);
 		ScreenUtils.clear(0, 0, 0, 1);

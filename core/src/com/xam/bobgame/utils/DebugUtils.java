@@ -74,4 +74,17 @@ public class DebugUtils {
         }
         return sb.toString();
     }
+
+    public static String bitString(long bits, int length) {
+        StringBuilder sb = new StringBuilder();
+        int i = 0;
+        while (length > 0) {
+            sb.append(bits & 1);
+            bits >>>= 1;
+            i++;
+            length--;
+            if ((i % 8) == 0) sb.append(' ');
+        }
+        return sb.toString();
+    }
 }

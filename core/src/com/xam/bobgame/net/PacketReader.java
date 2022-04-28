@@ -18,6 +18,7 @@ import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.game.ShapeDef;
 import com.xam.bobgame.graphics.TextureDef;
+import com.xam.bobgame.utils.DebugUtils;
 
 public class PacketReader {
     public static final float RES_POSITION = 1e-4f;
@@ -28,11 +29,11 @@ public class PacketReader {
     public static final float MAX_ORIENTATION = 3.14159f;
 
     NetDriver netDriver;
-    Packet.PacketBuilder builder;
+    Message.MessageBuilder builder;
     Engine engine;
 
     public PacketReader(NetDriver netDriver) {
-        builder = new Packet.PacketBuilder();
+        builder = new Message.MessageBuilder();
         this.netDriver = netDriver;
     }
 
@@ -69,8 +70,9 @@ public class PacketReader {
     }
 
     public int syncEngine(Packet packet, Engine engine) {
+        Message message = packet.getMessage();
         this.engine = engine;
-        builder.setPacket(packet);
+        builder.setMessage(message);
         write = false;
 
         switch (builder.unpackByte()) {
@@ -84,6 +86,10 @@ public class PacketReader {
                 readFooter();
                 ((GameEngine) engine).setLastSnapshotFrame();
                 break;
+            case 3:
+                // empty
+                readFooter();
+                break;
             default:
                 return -1;
         }
@@ -92,10 +98,12 @@ public class PacketReader {
     }
 
     public int serialize(Packet packet, Engine engine, int option) {
+        Message message = packet.getMessage();
         this.engine = engine;
-        builder.setPacket(packet);
+        builder.setMessage(message);
         write = true;
 
+        netDriver.setMessageInfo(message);
         builder.packByte((byte) option);
         switch (option) {
             case 1:
@@ -103,6 +111,8 @@ public class PacketReader {
                 break;
             case 2:
                 if (readSystemSnapshot() == -1) return -1;
+                break;
+            case 3:
                 break;
         }
         readFooter();
@@ -112,16 +122,14 @@ public class PacketReader {
     }
 
     public int serializeEvent(Packet packet, NetDriver.NetworkEvent event) {
-        builder.setPacket(packet);
+        Message message = packet.getMessage();
+        builder.setMessage(message);
         write = true;
 
-        packet.setType(Packet.PacketType.Event);
-        for (int i = 0; i < NetDriver.networkEventClasses.length; ++i) {
-            if (NetDriver.networkEventClasses[i] == event.getClass()) {
-                builder.packInt(i, 0, NetDriver.networkEventClasses.length - 1);
-                break;
-            }
-        }
+        netDriver.setMessageInfo(message);
+        packet.needsAck = true;
+        message.setType(Message.MessageType.Event);
+        builder.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
         event.netDriver = netDriver;
         event.connectionId = -1;
         event.read(builder, true);
@@ -131,7 +139,7 @@ public class PacketReader {
     }
 
     public NetDriver.NetworkEvent readEvent(Packet packet) {
-        builder.setPacket(packet);
+        builder.setMessage(packet.getMessage());
 
         int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);
         //noinspection unchecked

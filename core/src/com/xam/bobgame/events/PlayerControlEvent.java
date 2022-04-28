@@ -1,9 +1,7 @@
 package com.xam.bobgame.events;
 
-import com.esotericsoftware.minlog.Log;
-import com.sun.org.apache.bcel.internal.generic.ACONST_NULL;
 import com.xam.bobgame.net.NetDriver;
-import com.xam.bobgame.net.Packet;
+import com.xam.bobgame.net.Message;
 import com.xam.bobgame.net.PacketReader;
 
 public class PlayerControlEvent extends NetDriver.NetworkEvent {
@@ -21,7 +19,7 @@ public class PlayerControlEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
-    public void read(Packet.PacketBuilder builder, boolean write) {
+    public void read(Message.MessageBuilder builder, boolean write) {
         controlId = getPlayerId();
         entityId = readInt(builder, entityId, 0, 255, write);
         x = readFloat(builder, x, -3,  13, PacketReader.RES_POSITION, write);

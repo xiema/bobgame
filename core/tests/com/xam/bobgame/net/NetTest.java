@@ -13,31 +13,33 @@ public class NetTest {
     public void test1() {
         NetDriver serverDriver = new NetDriver();
         serverDriver.setMode(NetDriver.Mode.Server);
+        serverDriver.startServer();
+
         NetDriver clientDriver = new NetDriver();
 
         CRC32 crc32 = new CRC32();
 
         int count = 10;
         Packet[] packets = new Packet[count];
-        Packet.PacketBuilder pb = new Packet.PacketBuilder();
-        Packet packet;
+        Message.MessageBuilder pb = new Message.MessageBuilder();
+        Message message;
         for (int i = 0; i < count; ++i) {
-            packet = new Packet(Net.DATA_MAX_SIZE);
-            pb.setPacket(packet);
+            packets[i] = new Packet(Net.DATA_MAX_SIZE);
+            message = packets[i].getMessage();
+            message.messageNum = i;
+            pb.setMessage(message);
             crc32.reset();
             while (pb.hasRemaining()) {
                 pb.packByte((byte) MathUtils.random(0, 0xFF));
             }
             pb.flush(true);
             pb.clear();
-            packets[i] = packet;
-            Log.info("Packet " + i + ": " + packet);
+            Log.info("Packet " + i + ": " + packets[i]);
         }
 
-        serverDriver.startServer();
         clientDriver.connect("127.0.0.1");
 
-        packet = new Packet(Net.DATA_MAX_SIZE);
+        Packet packet = new Packet(Net.DATA_MAX_SIZE);
         for (int i = 0; i < count; ++i) {
             serverDriver.server.sendToAllUDP(packets[i]);
             while (!clientDriver.updateBuffer.get(packet)) {
