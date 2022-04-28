@@ -20,6 +20,7 @@ public class NetSerialization extends KryoSerialization {
     @Override
     public void write(Connection connection, ByteBuffer byteBuffer, Object o) {
         if (o instanceof Packet) {
+            byteBuffer.put((byte) 1);
             Packet packet = (Packet) o;
             PacketTransport.PacketInfo dropped = transport.setHeaders(packet, connection.getID());
             packet.encode(byteBuffer);
@@ -36,10 +37,7 @@ public class NetSerialization extends KryoSerialization {
 
     @Override
     public Object read(Connection connection, ByteBuffer byteBuffer) {
-        int i = byteBuffer.position();
-        byte type = byteBuffer.get();
-        if (type > 0) {
-            byteBuffer.position(i);
+        if (byteBuffer.get() > 0) {
             if (returnPacket.decode(byteBuffer) == -1) return null;
             returnPacket.connectionId = connection.getID();
 //            Log.info("Received Packet " + returnPacket.localSeqNum + " Message " + returnPacket.getMessage().messageNum);

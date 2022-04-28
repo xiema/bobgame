@@ -6,7 +6,6 @@ import com.xam.bobgame.utils.DebugUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.zip.CRC32;
 
 public class Message {
     private ByteBuffer byteBuffer;
@@ -16,7 +15,7 @@ public class Message {
      */
     private int length = 0;
 
-    private MessageType type = MessageType.Normal;
+    private MessageType type = MessageType.Update;
     int messageNum = -1;
 //    boolean needsAck = false;
 
@@ -71,7 +70,7 @@ public class Message {
     public void clear() {
         byteBuffer.clear();
         length = 0;
-        type = MessageType.Normal;
+        type = MessageType.Update;
         messageNum = -1;
 //        needsAck = false;
     }
@@ -86,7 +85,7 @@ public class Message {
     }
 
     public enum MessageType {
-        Normal(0), Event(1),
+        Update(0), Event(1), Snapshot(2), Empty(3)
         ;
 
         private final int value;

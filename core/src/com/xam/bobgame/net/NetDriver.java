@@ -26,7 +26,7 @@ public class NetDriver extends EntitySystem {
 
     PacketBuffer updateBuffer = new PacketBuffer(8);
     PacketBuffer eventBuffer = new PacketBuffer(4);
-    private PacketReader packetReader = new PacketReader(this);
+    private MessageReader messageReader = new MessageReader(this);
     private PacketTransport transport = new PacketTransport(this);
     private NetSerialization serialization = new NetSerialization(transport);
     private Packet syncPacket = new Packet(Net.DATA_MAX_SIZE);
@@ -90,7 +90,7 @@ public class NetDriver extends EntitySystem {
         }
         else {
             if (eventBuffer.get(syncPacket)) {
-                getEngine().getSystem(EventsSystem.class).queueEvent(packetReader.readEvent(syncPacket));
+                messageReader.readEvent(syncPacket.getMessage(), getEngine(), syncPacket.connectionId);
                 syncPacket.clear();
             }
         }
@@ -179,15 +179,11 @@ public class NetDriver extends EntitySystem {
                     return;
                 }
 
-                if (packet.getMessage().getType() == Message.MessageType.Normal)  {
-                    if (updateBuffer != null) {
-                        updateBuffer.receive(packet);
-                    }
+                if (packet.getMessage().getType() == Message.MessageType.Event)  {
+                    eventBuffer.receive(packet);
                 }
                 else {
-                    if (eventBuffer != null) {
-                        eventBuffer.receive(packet);
-                    }
+                    updateBuffer.receive(packet);
                 }
             }
         }
@@ -237,7 +233,7 @@ public class NetDriver extends EntitySystem {
         if (server.getConnections().length == 0) return;
 
         if (t % SERVER_UPDATE_FREQUENCY == 0)
-            packetReader.serialize(sendPacket, getEngine(), 1);
+            messageReader.serialize(sendPacket.getMessage(), getEngine(), Message.MessageType.Update);
         packetBits = 0;
 //        DebugUtils.log("Packet", DebugUtils.bytesHex(sendBuffer.array()));
         boolean snapshot = false;
@@ -245,16 +241,17 @@ public class NetDriver extends EntitySystem {
         for (Connection connection : server.getConnections()) {
             if (needsSnapshot.contains(connection.getID())) {
                 if (!snapshot) {
-                    packetReader.serialize(snapshotPacket, getEngine(), 2);
+                    messageReader.serialize(snapshotPacket.getMessage(), getEngine(), Message.MessageType.Snapshot);
                     snapshot = true;
                 }
                 needsSnapshot.removeValue(connection.getID());
-//                Log.info("Snapshot: [" + snapshotPacket.getMessage().getLength() + "] " + snapshotPacket);
+                snapshotPacket.connectionId = connection.getID();
                 connection.sendUDP(snapshotPacket);
                 packetBits += snapshotPacket.getBitSize();
             }
             else {
                 if (t % SERVER_UPDATE_FREQUENCY == 0) {
+                    sendPacket.connectionId = connection.getID();
                     connection.sendUDP(sendPacket);
     //                Log.info("Update", "[" + sendPacket.getLength() + "] " + sendPacket);
                     packetBits += sendPacket.getBitSize();
@@ -267,7 +264,8 @@ public class NetDriver extends EntitySystem {
         snapshotPacket.clear();
 
         for (ClientEvent clientEvent : clientEvents) {
-            packetReader.serializeEvent(sendPacket, clientEvent.event);
+            sendPacket.connectionId = clientEvent.connectionId;
+            messageReader.serializeEvent(sendPacket.getMessage(), clientEvent.event);
             for (Connection connection : server.getConnections()) {
                 if (connection.getID() == clientEvent.connectionId) {
                     connection.sendUDP(sendPacket);
@@ -282,18 +280,19 @@ public class NetDriver extends EntitySystem {
     public void syncWithServer() {
         if (mode != Mode.Client) return;
         if (eventBuffer.get(syncPacket)) {
-            getEngine().getSystem(EventsSystem.class).queueEvent(packetReader.readEvent(syncPacket));
+            messageReader.readEvent(syncPacket.getMessage(), getEngine(), 0);
         }
         boolean sent = false;
         syncPacket.clear();
+
         if (updateBuffer.get(syncPacket)) {
 //            Log.info("[" + syncPacket.getLength() + "] " + syncPacket);
-            packetReader.syncEngine(syncPacket, getEngine());
+            messageReader.deserialize(syncPacket.getMessage(), getEngine());
         }
         syncPacket.clear();
 
         for (ClientEvent clientEvent : clientEvents) {
-            packetReader.serializeEvent(sendPacket, clientEvent.event);
+            messageReader.serializeEvent(sendPacket.getMessage(), clientEvent.event);
             client.sendUDP(sendPacket);
             packetBits += sendPacket.getBitSize();
             sendPacket.clear();
@@ -302,11 +301,19 @@ public class NetDriver extends EntitySystem {
         clientEvents.clear();
 
         if (!sent) {
-            packetReader.serialize(sendPacket, getEngine(), 3);
+            messageReader.serialize(sendPacket.getMessage(), getEngine(), Message.MessageType.Empty);
             client.sendUDP(sendPacket);
             packetBits += sendPacket.getBitSize();
             sendPacket.clear();
         }
+    }
+
+    public void updateDropped() {
+        for (PacketTransport.PacketInfo packetInfo : transport.getDroppedPackets()) {
+            MessageInfo messageInfo = messageInfos[packetInfo.messageNum];
+            Log.warn("Dropped message: " + messageInfo.type);
+        }
+        transport.clearDropped();
     }
 
     public float updateBitRate(float deltaTime) {

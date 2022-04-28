@@ -41,12 +41,13 @@ public class GameEngine extends PooledEngine {
     @Override
     public void update(float deltaTime) {
         super.update(deltaTime);
+        netDriver.updateDropped();
         if (netDriver.getMode() == NetDriver.Mode.Server) {
             netDriver.syncClients(deltaTime);
         }
     }
 
-    private Vector2 tempVec = new Vector2();
+    private final Vector2 tempVec = new Vector2();
 
     public void addInputProcessor(InputMultiplexer inputMultiplexer, final Viewport viewport) {
         inputMultiplexer.addProcessor(new InputAdapter() {

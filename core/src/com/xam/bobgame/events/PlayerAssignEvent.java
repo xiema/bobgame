@@ -17,4 +17,9 @@ public class PlayerAssignEvent extends NetDriver.NetworkEvent {
     public void read(Message.MessageBuilder builder, boolean write) {
         entityId = readInt(builder, entityId, 0, 255, write);
     }
+
+    @Override
+    public String toString() {
+        return "PlayerAssignEvent playerId=" + getPlayerId() + " entityId=" + entityId;
+    }
 }

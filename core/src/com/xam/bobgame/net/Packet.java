@@ -39,6 +39,7 @@ public class Packet {
             crc32.update(remoteSeqNum);
             crc32.update(ack);
             crc32.update(message.messageNum);
+            crc32.update(message.getType().getValue());
             crc32.update(message.getLength());
             crc32.update(message.getBytes(), 0, message.getLength());
             crc = crc32.getValue();
@@ -47,29 +48,29 @@ public class Packet {
     }
 
     public void encode(ByteBuffer out) {
-        out.put((byte) (2 + message.getType().getValue()));
         out.putInt((int) getCrc());
         out.putInt(localSeqNum);
         out.putInt(remoteSeqNum);
         out.putInt(ack);
         out.putInt(message.messageNum);
+        out.putInt(message.getType().getValue());
         out.putInt(message.getLength());
         message.copyTo(out);
     }
 
     public int decode(ByteBuffer in) {
+        int i, length;
         clear();
 
-        int i = in.position();
-        byte type = in.get();
+        i = in.position();
         float packetCRC = in.getInt();
         localSeqNum = in.getInt();
         remoteSeqNum = in.getInt();
         ack = in.getInt();
         message.messageNum = in.getInt();
-        int length = in.getInt();
+        message.setType(Message.MessageType.values()[in.getInt()]);
+        length = in.getInt();
         message.set(in, length);
-        message.setType(Message.MessageType.values()[(type & 0x1)]);
 
         if (packetCRC != ((int) getCrc())) {
             Log.error("NetSerialization", "Bad CRC [" + length + "]: " + DebugUtils.bytesHex(in, i, length + 13));

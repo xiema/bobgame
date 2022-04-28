@@ -15,6 +15,8 @@ public class PacketTransport {
 
     private EndPointInfo[] endPointInfos = new EndPointInfo[32];
 
+    private final Array<PacketInfo> droppedPackets = new Array<>();
+
     public PacketTransport(NetDriver netDriver) {
         this.netDriver = netDriver;
     }
@@ -24,7 +26,14 @@ public class PacketTransport {
     }
 
     public PacketInfo setHeaders(Packet packet, int connectionId) {
-        return endPointInfos[getEndPointId(connectionId)].setHeaders(packet);
+        packet.connectionId = connectionId;
+        PacketInfo dropped = endPointInfos[getEndPointId(connectionId)].setHeaders(packet);
+        if (dropped != null) {
+            synchronized (droppedPackets) {
+                droppedPackets.add(dropped);
+            }
+        }
+        return dropped;
     }
 
     public boolean updateReceived(Packet packet, int connectionId) {
@@ -42,6 +51,16 @@ public class PacketTransport {
             if (endPointInfos[i].connectionId == connectionId) return i;
         }
         return -1;
+    }
+
+    public Array<PacketInfo> getDroppedPackets() {
+        return droppedPackets;
+    }
+
+    public void clearDropped() {
+        synchronized (droppedPackets) {
+            droppedPackets.clear();
+        }
     }
 
     private static class EndPointInfo {
@@ -94,22 +113,25 @@ public class PacketTransport {
     }
 
     public static class PacketInfo implements Pool.Poolable {
-        int seqNum = -1, messageNum = -1;
+        int seqNum = -1, messageNum = -1, connectionId = -1;
 
         void set(Packet packet) {
             seqNum = packet.localSeqNum;
             messageNum = packet.getMessage().messageNum;
+            connectionId = packet.connectionId;
         }
 
         void copyTo(PacketInfo other) {
             other.seqNum = seqNum;
             other.messageNum = messageNum;
+            other.connectionId = connectionId;
         }
 
         @Override
         public void reset() {
             seqNum = -1;
             messageNum = -1;
+            connectionId = -1;
         }
     }
 }
