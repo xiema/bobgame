@@ -1,11 +1,11 @@
 package com.xam.bobgame.net;
 
 public class MessageInfo {
-    public int seqNum;
+    public int messageId;
     public Message.MessageType type;
 
     public void set(Message message) {
-        seqNum = message.messageNum;
+        messageId = message.messageId;
         type = message.getType();
     }
 }

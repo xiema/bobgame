@@ -53,18 +53,22 @@ public class GameEngine extends PooledEngine {
         inputMultiplexer.addProcessor(new InputAdapter() {
             public void userInput(int x, int y, int button, boolean state) {
                 PlayerControlEvent event = Pools.obtain(PlayerControlEvent.class);
-                PlayerControlEvent netEvent = Pools.obtain(PlayerControlEvent.class);
                 tempVec.set(x, y);
                 viewport.unproject(tempVec);
                 event.x = tempVec.x;
                 event.y = tempVec.y;
                 event.buttonId = button;
                 event.buttonState = state;
-                event.controlId = 0;
-                event.entityId = getSystem(GameDirector.class).getPlayerEntityId();
+                event.controlId = gameDirector.getLocalPlayerId();
+                event.entityId = gameDirector.getPlayerEntityId();
+
+                if (netDriver.getMode() == NetDriver.Mode.Client) {
+                    PlayerControlEvent netEvent = Pools.obtain(PlayerControlEvent.class);
+                    event.copyTo(netEvent);
+                    netDriver.queueClientEvent(-1, netEvent);
+                }
+
                 eventsSystem.queueEvent(event);
-                event.copyTo(netEvent);
-                netDriver.queueClientEvent(0, netEvent);
             }
 
             @Override

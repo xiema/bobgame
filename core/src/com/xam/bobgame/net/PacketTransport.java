@@ -3,8 +3,8 @@ package com.xam.bobgame.net;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Pool;
 import com.badlogic.gdx.utils.Pools;
+import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.utils.DebugUtils;
 import com.xam.bobgame.utils.SequenceNumChecker;
 
 public class PacketTransport {
@@ -13,7 +13,7 @@ public class PacketTransport {
 
     private NetDriver netDriver;
 
-    private EndPointInfo[] endPointInfos = new EndPointInfo[32];
+    private EndPointInfo[] endPointInfos = new EndPointInfo[ConnectionManager.MAX_CLIENTS];
 
     private final Array<PacketInfo> droppedPackets = new Array<>();
 
@@ -21,13 +21,9 @@ public class PacketTransport {
         this.netDriver = netDriver;
     }
 
-    public void addConnection(int id, int connectionId) {
-        endPointInfos[id] = new EndPointInfo(connectionId);
-    }
-
-    public PacketInfo setHeaders(Packet packet, int connectionId) {
-        packet.connectionId = connectionId;
-        PacketInfo dropped = endPointInfos[getEndPointId(connectionId)].setHeaders(packet);
+    public PacketInfo setHeaders(Packet packet, Connection connection) {
+        packet.clientId = netDriver.getConnectionManager().getClientId(connection);
+        PacketInfo dropped = endPointInfos[packet.clientId].setHeaders(packet);
         if (dropped != null) {
             synchronized (droppedPackets) {
                 droppedPackets.add(dropped);
@@ -36,21 +32,14 @@ public class PacketTransport {
         return dropped;
     }
 
-    public boolean updateReceived(Packet packet, int connectionId) {
-        EndPointInfo endPointInfo = endPointInfos[getEndPointId(connectionId)];
+    public boolean updateReceived(Packet packet, int clientId) {
+        EndPointInfo endPointInfo = endPointInfos[clientId];
         endPointInfo.acks.set(packet.ack | 0x100000000L, (packet.remoteSeqNum + PACKET_SEQUENCE_LIMIT - 32) % PACKET_SEQUENCE_LIMIT, 33);
 //        Log.info("Rcv Ack: " + packet.remoteSeqNum + " : " + DebugUtils.bitString(packet.ack, 32));
 //        Log.info("New Ack: " + endPointInfo.acks);
         boolean b = endPointInfo.received.getAndSet(packet.localSeqNum);
         endPointInfo.remoteSeqNum = endPointInfo.received.gtWrapped(packet.localSeqNum, endPointInfo.remoteSeqNum) ? packet.localSeqNum : endPointInfo.remoteSeqNum;
         return b;
-    }
-
-    private int getEndPointId(int connectionId) {
-        for (int i = 0; i < endPointInfos.length; ++i) {
-            if (endPointInfos[i].connectionId == connectionId) return i;
-        }
-        return -1;
     }
 
     public Array<PacketInfo> getDroppedPackets() {
@@ -63,9 +52,18 @@ public class PacketTransport {
         }
     }
 
+    void addTransportConnection(int clientId) {
+        endPointInfos[clientId] = new EndPointInfo(clientId);
+    }
+
+    void removeTransportConnection(int clientId) {
+        Pools.free(endPointInfos[clientId]);
+        endPointInfos[clientId] = null;
+    }
+
     private static class EndPointInfo {
         SequenceNumChecker acks = new SequenceNumChecker(PACKET_SEQUENCE_LIMIT);
-        int connectionId;
+        int clientId;
 
         SequenceNumChecker received = new SequenceNumChecker(PACKET_SEQUENCE_LIMIT);
         int remoteSeqNum = 0;
@@ -73,8 +71,8 @@ public class PacketTransport {
         PacketInfo[] packetInfos = new PacketInfo[PACKET_SEQUENCE_LIMIT];
         int localSeqNum = 0;
 
-        public EndPointInfo(int connectionId) {
-            this.connectionId = connectionId;
+        public EndPointInfo(int clientId) {
+            this.clientId = clientId;
             for (int i = 0; i < packetInfos.length; ++i) {
                 packetInfos[i] = Pools.obtain(PacketInfo.class);
             }
@@ -96,8 +94,8 @@ public class PacketTransport {
             }
             else {
                 // debug
-                if (packet.getMessage().messageNum != packetInfos[localSeqNum].messageNum) {
-                    Log.warn("Connection " + connectionId + ": Packet " + localSeqNum + " doesn't match message (" + packet.getMessage().messageNum + ", " + packetInfos[localSeqNum].messageNum + ")");
+                if (packet.getMessage().messageId != packetInfos[localSeqNum].messageId) {
+                    Log.warn("Client " + clientId + ": Packet " + localSeqNum + " doesn't match message (" + packet.getMessage().messageId + ", " + packetInfos[localSeqNum].messageId + ")");
                 }
             }
             packet.remoteSeqNum = remoteSeqNum;
@@ -113,25 +111,25 @@ public class PacketTransport {
     }
 
     public static class PacketInfo implements Pool.Poolable {
-        int seqNum = -1, messageNum = -1, connectionId = -1;
+        int packetSeqNum = -1, messageId = -1, clientId = -1;
 
         void set(Packet packet) {
-            seqNum = packet.localSeqNum;
-            messageNum = packet.getMessage().messageNum;
-            connectionId = packet.connectionId;
+            packetSeqNum = packet.localSeqNum;
+            messageId = packet.getMessage().messageId;
+            clientId = packet.clientId;
         }
 
         void copyTo(PacketInfo other) {
-            other.seqNum = seqNum;
-            other.messageNum = messageNum;
-            other.connectionId = connectionId;
+            other.packetSeqNum = packetSeqNum;
+            other.messageId = messageId;
+            other.clientId = clientId;
         }
 
         @Override
         public void reset() {
-            seqNum = -1;
-            messageNum = -1;
-            connectionId = -1;
+            packetSeqNum = -1;
+            messageId = -1;
+            clientId = -1;
         }
     }
 }

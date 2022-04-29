@@ -26,7 +26,7 @@ public class NetTest {
         for (int i = 0; i < count; ++i) {
             packets[i] = new Packet(Net.DATA_MAX_SIZE);
             message = packets[i].getMessage();
-            message.messageNum = i;
+            message.messageId = i;
             pb.setMessage(message);
             crc32.reset();
             while (pb.hasRemaining()) {

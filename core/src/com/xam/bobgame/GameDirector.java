@@ -6,10 +6,7 @@ import com.badlogic.ashley.core.EntityListener;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.IntIntMap;
-import com.badlogic.gdx.utils.ObjectMap;
-import com.badlogic.gdx.utils.Pools;
+import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.entity.EntityFactory;
 import com.xam.bobgame.entity.EntityUtils;
@@ -29,6 +26,7 @@ public class GameDirector extends EntitySystem {
     };
 
     private int playerCount = 0;
+    private final IntMap<Entity> entityMap = new IntMap<>();
 
     public GameDirector(int priority) {
         super(priority);
@@ -36,18 +34,8 @@ public class GameDirector extends EntitySystem {
         listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
             @Override
             public void handleEvent(ClientConnectedEvent event) {
-                joinPlayer(event.connectionId);
-                getEngine().getSystem(NetDriver.class).flagSnapshot(event.connectionId);
-            }
-        });
-        listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
-            @Override
-            public void handleEvent(PlayerAssignEvent event) {
-                for (Entity entity : entities) {
-                    if (EntityUtils.getId(entity) == event.entityId) {
-                        setPlayerEntity(entity);
-                    }
-                }
+                joinPlayer(event.clientId);
+                getEngine().getSystem(NetDriver.class).flagSnapshot(event.clientId);
             }
         });
     }
@@ -58,11 +46,13 @@ public class GameDirector extends EntitySystem {
             @Override
             public void entityAdded(Entity entity) {
                 sortedEntities.add(entity);
+                entityMap.put(EntityUtils.getId(entity), entity);
             }
 
             @Override
             public void entityRemoved(Entity entity) {
                 sortedEntities.removeValue(entity, true);
+                entityMap.remove(EntityUtils.getId(entity));
             }
         });
         engine.getSystem(EventsSystem.class).addListeners(listeners);
@@ -71,59 +61,66 @@ public class GameDirector extends EntitySystem {
     @Override
     public void removedFromEngine(Engine engine) {
         engine.getSystem(EventsSystem.class).removeListeners(listeners);
+        entityMap.clear();
     }
 
     public ImmutableArray<Entity> getEntities () {
         return entities;
     }
 
-    private Entity playerEntity;
-    private int playerEntityId = -1;
+    private int localPlayerId = -1;
+//    private Entity playerEntity;
+//    private int playerEntityId = -1;
+
+    public Entity getEntityById(int entityId) {
+        return entityMap.get(entityId, null);
+    }
 
     public Entity getPlayerEntity() {
-        return playerEntity;
+        int entityId = getPlayerEntityId();
+        return entityId == -1 ? null : entityMap.get(entityId);
     }
 
     public int getPlayerEntityId() {
-        return playerEntityId;
+        if (localPlayerId == -1) return -1;
+        IntArray entityIds = getEngine().getSystem(ControlSystem.class).getControlledEntityIds(localPlayerId);
+        if (entityIds.size == 0) return -1;
+        return entityIds.get(0);
+    }
+
+    public int getLocalPlayerId() {
+        return localPlayerId;
     }
 
     public void setupGame() {
-        int playerId = playerCount;
-        playerCount++;
+        localPlayerId = playerCount++;
 
         Engine engine = getEngine();
 
-        Entity entity = EntityFactory.createPlayer(engine, playerColor[playerId % playerColor.length]);
+        Entity entity = EntityFactory.createPlayer(engine, playerColor[localPlayerId % playerColor.length]);
         engine.addEntity(entity);
 
         ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
-        controlSystem.registerEntity(entity, playerId);
-
-        setPlayerEntity(entity);
+        controlSystem.registerEntity(EntityUtils.getId(entity), localPlayerId);
     }
 
-    public void setPlayerEntity(Entity entity) {
-        this.playerEntity = entity;
-        playerEntityId = EntityUtils.getId(entity);
+    public void setLocalPlayerId(int playerId) {
+        localPlayerId = playerId;
+        Log.info("PlayerId set to " + playerId);
     }
 
-    public int joinPlayer(int connectionId) {
+    public int joinPlayer(int clientId) {
         int playerId = playerCount;
         playerCount++;
 
         Engine engine = getEngine();
         Entity entity = EntityFactory.createPlayer(engine, playerColor[playerId % playerColor.length]);
         engine.addEntity(entity);
-
+//
         ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
-        controlSystem.registerEntity(entity, playerId);
+        controlSystem.registerEntity(EntityUtils.getId(entity), playerId);
 
-        engine.getSystem(NetDriver.class).addPlayerConnection(playerId, connectionId);
-
-        PlayerAssignEvent event = Pools.obtain(PlayerAssignEvent.class);
-        event.entityId = EntityUtils.getId(entity);
-        engine.getSystem(NetDriver.class).queueClientEvent(connectionId, event);
+        engine.getSystem(NetDriver.class).getServer().acceptConnection(clientId, playerId);
 
         return playerId;
     }

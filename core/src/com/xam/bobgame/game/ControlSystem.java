@@ -5,6 +5,8 @@ import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.*;
+import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
@@ -14,7 +16,7 @@ import com.xam.bobgame.utils.DebugUtils;
 
 public class ControlSystem extends EntitySystem {
     private IntSet idSet = new IntSet();
-    private IntMap<IntMap<Entity>> controlMap = new IntMap<>();
+    private IntArray[] controlMap = new IntArray[32];
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
@@ -25,25 +27,10 @@ public class ControlSystem extends EntitySystem {
             @Override
             public void handleEvent(PlayerControlEvent event) {
                 control(event.controlId, event.entityId, event.x, event.y, event.buttonId, event.buttonState);
-//                NetDriver netDriver = getEngine().getSystem(NetDriver.class);
-//                PlayerControlEvent netEvent = Pools.obtain(PlayerControlEvent.class);
-//                event.copyTo(netEvent);
-//                if (netDriver.getMode() == NetDriver.Mode.Client) {
-//                    netDriver.queueClientEvent(0, netEvent);
-//                }
             }
         });
-        listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
-            @Override
-            public void handleEvent(PlayerAssignEvent event) {
-                for (Entity entity : getEngine().getEntities()) {
-                    if (EntityUtils.getId(entity) == event.entityId) {
-                        registerEntity(entity, 0);
-                        break;
-                    }
-                }
-            }
-        });
+
+        for (int i = 0; i < controlMap.length; ++i) controlMap[i] = new IntArray(false, 4);
     }
 
     @Override
@@ -57,32 +44,35 @@ public class ControlSystem extends EntitySystem {
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         eventsSystem.removeListeners(listeners);
         idSet.clear();
-        controlMap.clear();
+        for (IntArray entityIdArray : controlMap) entityIdArray.clear();
     }
 
-    public boolean registerEntity(Entity entity, int controlId) {
-        int id = EntityUtils.getId(entity);
-        if (idSet.contains(id)) {
+    public boolean registerEntity(int entityId, int controlId) {
+        Log.info("Register entity " + entityId + " to player " + controlId);
+        if (idSet.contains(entityId)) {
             DebugUtils.error("ControlSystem", "Attempted to register duplicate entity");
             return false;
         }
 
-        IntMap<Entity> entityMap = controlMap.get(controlId, null);
-        if (entityMap == null) controlMap.put(controlId, entityMap = new IntMap<>());
-        entityMap.put(id, entity);
+        idSet.add(entityId);
+        controlMap[controlId].add(entityId);
 
         return true;
+    }
+
+    public void clearRegistry() {
+        idSet.clear();
+        for (IntArray entityIds : controlMap) entityIds.clear();
     }
 
     private Vector2 tempVec = new Vector2();
 
     private void control(int controlId, int entityId, float x, float y, int buttonId, boolean buttonState) {
-        IntMap<Entity> entityMap = controlMap.get(controlId, null);
-        if (entityMap == null) {
+        if (controlId < 0 || controlId >= controlMap.length) {
             DebugUtils.error("ControlSystem", "Invalid controlId: " + controlId);
             return;
         }
-        Entity entity = entityMap.get(entityId, null);
+        Entity entity = getEngine().getSystem(GameDirector.class).getEntityById(entityId);
         if (entity == null) {
             DebugUtils.error("ControlSystem", "Invalid entityId: " + entityId);
             return;
@@ -93,5 +83,9 @@ public class ControlSystem extends EntitySystem {
             tempVec.set(x, y).sub(pb.body.getPosition()).nor().scl(500f);
             pb.body.applyForceToCenter(tempVec, true);
         }
+    }
+
+    public IntArray getControlledEntityIds(int controlId) {
+        return controlMap[controlId];
     }
 }

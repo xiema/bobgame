@@ -10,5 +10,5 @@ public class Net {
     public static final int HEADER_SIZE = HEADER_WORDS * 4;
     public static final int PACKET_MAX_SIZE = PACKET_MAX_WORDS * 4;
 
-
+    public static final float BUFFER_TIME_LIMIT = 0.5f;
 }

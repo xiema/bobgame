@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
+import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
@@ -17,9 +18,9 @@ import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.EventsSystem;
+import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.game.ShapeDef;
 import com.xam.bobgame.graphics.TextureDef;
-import com.xam.bobgame.utils.DebugUtils;
 
 @SuppressWarnings("UnusedReturnValue")
 public class MessageReader {
@@ -30,19 +31,27 @@ public class MessageReader {
     public static final float RES_COLOR = 1e-4f;
     public static final float MAX_ORIENTATION = 3.14159f;
 
+    public static final int MAX_MESSAGE_HISTORY = 256;
+
     NetDriver netDriver;
     Message.MessageBuilder builder;
     Engine engine;
 
+    private MessageInfo[] messageInfos = new MessageInfo[MAX_MESSAGE_HISTORY];
+    private int messageIdCounter = 0;
+
     public MessageReader(NetDriver netDriver) {
         builder = new Message.MessageBuilder();
         this.netDriver = netDriver;
+        for (int i = 0; i < messageInfos.length; ++i) {
+            messageInfos[i] = new MessageInfo();
+        }
     }
 
-    private boolean write = false;
+    private boolean send = false;
 
     private int readInt(int i, int min, int max) {
-        if (write) {
+        if (send) {
             builder.packInt(i, min, max);
             return i;
         }
@@ -52,7 +61,7 @@ public class MessageReader {
     }
 
     private float readFloat(float f, float min, float max, float res) {
-        if (write) {
+        if (send) {
             builder.packFloat(f, min, max, res);
             return f;
         }
@@ -62,7 +71,7 @@ public class MessageReader {
     }
 
     private byte readByte(byte b) {
-        if (write) {
+        if (send) {
             builder.packByte(b);
             return b;
         }
@@ -71,10 +80,20 @@ public class MessageReader {
         }
     }
 
+    public void setMessageInfo(Message message) {
+        message.messageId = messageIdCounter;
+        messageInfos[messageIdCounter % messageInfos.length].set(message);
+        messageIdCounter++;
+    }
+
+    public MessageInfo getMessageInfo(int messageId) {
+        return messageInfos[messageId % MAX_MESSAGE_HISTORY];
+    }
+
     public int deserialize(Message message, Engine engine) {
         this.engine = engine;
         builder.setMessage(message);
-        write = false;
+        send = false;
 
         switch (message.getType()) {
             case Update:
@@ -84,6 +103,7 @@ public class MessageReader {
                 break;
             case Snapshot:
                 readSystemSnapshot();
+                if (readPlayerId(null) == -1) return -1;
                 readFooter();
                 ((GameEngine) engine).setLastSnapshotFrame();
                 break;
@@ -98,12 +118,12 @@ public class MessageReader {
         return 0;
     }
 
-    public int serialize(Message message, Engine engine, Message.MessageType type) {
+    public int serialize(Message message, Engine engine, Message.MessageType type, ConnectionManager.ConnectionSlot connectionSlot) {
         this.engine = engine;
         builder.setMessage(message);
-        write = true;
+        send = true;
 
-        netDriver.setMessageInfo(message);
+        setMessageInfo(message);
         message.setType(type);
         switch (type) {
             case Update:
@@ -111,6 +131,7 @@ public class MessageReader {
                 break;
             case Snapshot:
                 if (readSystemSnapshot() == -1) return -1;
+                if (readPlayerId(connectionSlot) == -1) return -1;
                 break;
             case Empty:
                 break;
@@ -123,35 +144,44 @@ public class MessageReader {
 
     public int serializeEvent(Message message, NetDriver.NetworkEvent event) {
         builder.setMessage(message);
-        write = true;
+        send = true;
 
-        netDriver.setMessageInfo(message);
+        setMessageInfo(message);
         message.setType(Message.MessageType.Event);
         builder.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
         event.netDriver = netDriver;
-        event.connectionId = -1;
         event.read(builder, true);
         builder.flush(true);
 
         return 0;
     }
 
-    public int readEvent(Message message, Engine engine, int connectionId) {
+    public int readEvent(Message message, Engine engine, int clientId) {
         this.engine = engine;
         builder.setMessage(message);
-        write = false;
+        send = false;
 
         int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);
         //noinspection unchecked
         NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
         event.netDriver = netDriver;
-        event.connectionId = connectionId;
+//        Log.info("clientID=0 playerId=" + netDriver.getConnectionManager().getPlayerId(0));
         event.read(builder, false);
 
-        if (!write) {
+        if (!send) {
             engine.getSystem(EventsSystem.class).queueEvent(event);
         }
 
+        return 0;
+    }
+
+    private int readPlayerId(ConnectionManager.ConnectionSlot connectionSlot) {
+        if (send) {
+            builder.packInt(connectionSlot.playerId, 0, 32);
+        }
+        else {
+            engine.getSystem(GameDirector.class).setLocalPlayerId(builder.unpackInt(0, 32));
+        }
         return 0;
     }
 
@@ -185,10 +215,10 @@ public class MessageReader {
     private int readSystemSnapshot() {
         ImmutableArray<Entity> entities = engine.getSystem(GameDirector.class).getEntities();
         int cnt = readInt(entities.size(), 0, 255);
-        int i = 0;
+        int i = 0, j;
         while (cnt-- > 0) {
             Entity entity;
-            if (write) {
+            if (send) {
                 entity = entities.get(i++);
                 readEntity(entity);
             }
@@ -196,6 +226,21 @@ public class MessageReader {
                 entity = engine.createEntity();
                 readEntity(entity);
                 engine.addEntity(entity);
+            }
+        }
+
+        ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
+        if (!send) controlSystem.clearRegistry();
+
+        for (i = 0; i < 32; ++i) {
+            IntArray entityIds = controlSystem.getControlledEntityIds(i);
+            int b = readInt(entityIds.size == 0 ? 0 : 1, 0, 1);
+            if (b == 0) continue;
+            cnt = readInt(entityIds.size, 0, 255);
+            int entityId;
+            for (j = 0; j < cnt; ++j) {
+                entityId = readInt(entityIds.size == 0 ? -1 : entityIds.get(j), 0, 255);
+                if (!send) controlSystem.registerEntity(entityId, i);
             }
         }
 
@@ -224,7 +269,7 @@ public class MessageReader {
 
 //        Log.info("m=" + m + " cx=" + c1 + " cy=" + c2 + " i=" + i);
 
-        if (!write) {
+        if (!send) {
             pb.body.setTransform(t1, t2, t3);
             pb.body.setLinearVelocity(v1, v2);
             pb.body.setAngularVelocity(v3);
@@ -243,7 +288,7 @@ public class MessageReader {
         GraphicsComponent graphics;
         IdentityComponent iden;
 
-        if (!write) {
+        if (!send) {
             pb = engine.createComponent(PhysicsBodyComponent.class);
             pb.bodyDef = new BodyDef();
             pb.fixtureDef = new FixtureDef();
@@ -279,7 +324,7 @@ public class MessageReader {
         float w = readFloat(graphics.spriteActor.getSprite().getWidth(), 0, 16, RES_POSITION);
         float h = readFloat(graphics.spriteActor.getSprite().getHeight(), 0, 16, RES_POSITION);
 
-        if (!write) {
+        if (!send) {
             graphics.textureDef.color.set(r, g, b, a);
             Sprite sprite = graphics.spriteActor.getSprite();
             sprite.setRegion(new TextureRegion(graphics.textureDef.createTexture()));

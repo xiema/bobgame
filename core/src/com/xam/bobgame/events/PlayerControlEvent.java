@@ -20,7 +20,7 @@ public class PlayerControlEvent extends NetDriver.NetworkEvent {
 
     @Override
     public void read(Message.MessageBuilder builder, boolean write) {
-        controlId = getPlayerId();
+        controlId = readInt(builder, controlId, -1, 31, write);
         entityId = readInt(builder, entityId, 0, 255, write);
         x = readFloat(builder, x, -3,  13, MessageReader.RES_POSITION, write);
         y = readFloat(builder, y, -3,  13, MessageReader.RES_POSITION, write);
@@ -38,5 +38,10 @@ public class PlayerControlEvent extends NetDriver.NetworkEvent {
         other.buttonId = buttonId;
         other.buttonState = buttonState;
         return super.copyTo(event);
+    }
+
+    @Override
+    public String toString() {
+        return "PlayerControlEvent controlId=" + controlId + " entityId=" + entityId;
     }
 }

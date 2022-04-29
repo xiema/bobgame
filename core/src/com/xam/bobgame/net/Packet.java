@@ -12,12 +12,11 @@ public class Packet {
     private long crc = -1;
 
     int localSeqNum = -1;
-    boolean needsAck = false;
 
     int remoteSeqNum = -1;
     int ack = 0;
 
-    int connectionId = -1;
+    int clientId = -1;
 
     public Packet(int size) {
         message = new Message(size);
@@ -38,7 +37,7 @@ public class Packet {
             crc32.update(localSeqNum);
             crc32.update(remoteSeqNum);
             crc32.update(ack);
-            crc32.update(message.messageNum);
+            crc32.update(message.messageId);
             crc32.update(message.getType().getValue());
             crc32.update(message.getLength());
             crc32.update(message.getBytes(), 0, message.getLength());
@@ -52,7 +51,7 @@ public class Packet {
         out.putInt(localSeqNum);
         out.putInt(remoteSeqNum);
         out.putInt(ack);
-        out.putInt(message.messageNum);
+        out.putInt(message.messageId);
         out.putInt(message.getType().getValue());
         out.putInt(message.getLength());
         message.copyTo(out);
@@ -67,7 +66,7 @@ public class Packet {
         localSeqNum = in.getInt();
         remoteSeqNum = in.getInt();
         ack = in.getInt();
-        message.messageNum = in.getInt();
+        message.messageId = in.getInt();
         message.setType(Message.MessageType.values()[in.getInt()]);
         length = in.getInt();
         message.set(in, length);
@@ -82,10 +81,9 @@ public class Packet {
     public void copyTo(Packet packet) {
         message.copyTo(packet.message);
         packet.localSeqNum = localSeqNum;
-        packet.needsAck = needsAck;
         packet.remoteSeqNum = remoteSeqNum;
         packet.ack = ack;
-        packet.connectionId = connectionId;
+        packet.clientId = clientId;
         packet.crc = crc;
     }
 
@@ -96,15 +94,14 @@ public class Packet {
     public void clear() {
         message.clear();
         localSeqNum = -1;
-        needsAck = false;
         remoteSeqNum = -1;
         ack = 0;
-        connectionId = -1;
+        clientId = -1;
         crc = -1;
     }
 
     @Override
     public String toString() {
-        return DebugUtils.intHex(message.messageNum) + DebugUtils.intHex(message.getLength()) + DebugUtils.intHex((int) getCrc()) + DebugUtils.bytesHex(message.getBytes());
+        return DebugUtils.intHex(message.messageId) + DebugUtils.intHex(message.getLength()) + DebugUtils.intHex((int) getCrc()) + DebugUtils.bytesHex(message.getBytes());
     }
 }

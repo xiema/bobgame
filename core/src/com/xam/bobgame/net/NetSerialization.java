@@ -3,30 +3,35 @@ package com.xam.bobgame.net;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.KryoSerialization;
 import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.utils.DebugUtils;
 
 import java.nio.ByteBuffer;
 
 public class NetSerialization extends KryoSerialization {
 
-    PacketTransport transport;
+    NetDriver netDriver;
+    final PacketTransport transport;
     Packet returnPacket = new Packet(Net.DATA_MAX_SIZE);
 
-    public NetSerialization(PacketTransport transport) {
+    public NetSerialization(NetDriver netDriver, PacketTransport transport) {
         super();
+        this.netDriver = netDriver;
         this.transport = transport;
     }
 
     @Override
     public void write(Connection connection, ByteBuffer byteBuffer, Object o) {
         if (o instanceof Packet) {
-            byteBuffer.put((byte) 1);
             Packet packet = (Packet) o;
-            PacketTransport.PacketInfo dropped = transport.setHeaders(packet, connection.getID());
+            if (packet.getMessage().messageId == -1) {
+                Log.error("Attempted to send message with unset messageId ");
+                return;
+            }
+            byteBuffer.put((byte) 1);
+            PacketTransport.PacketInfo dropped = transport.setHeaders(packet, connection);
             packet.encode(byteBuffer);
-//            Log.info("Sending Packet " + packet.localSeqNum + " Message " + packet.getMessage().messageNum);
+//            Log.info("Sending Packet " + packet.localSeqNum + ": " + packet.getMessage());
             if (dropped != null) {
-                Log.info("Packet dropped: " + dropped.seqNum + " (" + dropped.messageNum + ")");
+//                Log.info("Packet dropped: " + dropped.packetSeqNum + " (" + dropped.messageSeqNum + ")");
             }
         }
         else {
@@ -39,10 +44,12 @@ public class NetSerialization extends KryoSerialization {
     public Object read(Connection connection, ByteBuffer byteBuffer) {
         if (byteBuffer.get() > 0) {
             if (returnPacket.decode(byteBuffer) == -1) return null;
-            returnPacket.connectionId = connection.getID();
-//            Log.info("Received Packet " + returnPacket.localSeqNum + " Message " + returnPacket.getMessage().messageNum);
-            if (transport.updateReceived(returnPacket, connection.getID())) {
-                return null;
+            returnPacket.clientId = netDriver.getConnectionManager().getClientId(connection);
+//            Log.info("Received Packet " + returnPacket.localSeqNum + ": " + returnPacket.getMessage());
+            synchronized (transport) {
+                if (transport.updateReceived(returnPacket, returnPacket.clientId)) {
+                    return null;
+                }
             }
             return returnPacket;
         }

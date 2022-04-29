@@ -16,8 +16,11 @@ public class Message {
     private int length = 0;
 
     private MessageType type = MessageType.Update;
-    int messageNum = -1;
-//    boolean needsAck = false;
+
+    /**
+     * Unique identifier for message. Does not vary across clients.
+     */
+    int messageId = -1;
 
     public Message(int size) {
         byteBuffer = ByteBuffer.allocate(size);
@@ -54,7 +57,7 @@ public class Message {
     public void copyTo(Message out) {
         out.set(byteBuffer, length);
         out.type = type;
-        out.messageNum = messageNum;
+        out.messageId = messageId;
         byteBuffer.rewind();
     }
 
@@ -71,7 +74,7 @@ public class Message {
         byteBuffer.clear();
         length = 0;
         type = MessageType.Update;
-        messageNum = -1;
+        messageId = -1;
 //        needsAck = false;
     }
 
@@ -82,6 +85,11 @@ public class Message {
             }
         }
         return true;
+    }
+
+    @Override
+    public String toString() {
+        return "<" + messageId + "> " + type;
     }
 
     public enum MessageType {
