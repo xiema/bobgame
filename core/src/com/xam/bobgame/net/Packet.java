@@ -7,6 +7,8 @@ import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
 
 public class Packet {
+    PacketType type;
+
     private Message message;
     private CRC32 crc32 = new CRC32();
     private long crc = -1;
@@ -31,12 +33,17 @@ public class Packet {
         return message;
     }
 
+    public PacketType getType() {
+        return type;
+    }
+
     public long getCrc() {
         if (crc < 0) {
             crc32.reset();
             crc32.update(localSeqNum);
             crc32.update(remoteSeqNum);
             crc32.update(ack);
+            crc32.update(type.getValue());
             crc32.update(message.messageId);
             crc32.update(message.getType().getValue());
             crc32.update(message.getLength());
@@ -51,6 +58,7 @@ public class Packet {
         out.putInt(localSeqNum);
         out.putInt(remoteSeqNum);
         out.putInt(ack);
+        out.putInt(type.getValue());
         out.putInt(message.messageId);
         out.putInt(message.getType().getValue());
         out.putInt(message.getLength());
@@ -66,6 +74,7 @@ public class Packet {
         localSeqNum = in.getInt();
         remoteSeqNum = in.getInt();
         ack = in.getInt();
+        type = PacketType.values()[in.getInt()];
         message.messageId = in.getInt();
         message.setType(Message.MessageType.values()[in.getInt()]);
         length = in.getInt();
@@ -102,6 +111,22 @@ public class Packet {
 
     @Override
     public String toString() {
-        return DebugUtils.intHex(message.messageId) + DebugUtils.intHex(message.getLength()) + DebugUtils.intHex((int) getCrc()) + DebugUtils.bytesHex(message.getBytes());
+//        return DebugUtils.intHex(message.messageId) + DebugUtils.intHex(message.getLength()) + DebugUtils.intHex((int) getCrc()) + DebugUtils.bytesHex(message.getBytes());
+        return "[Packet " + localSeqNum + "] " + message;
+    }
+
+    public enum PacketType {
+        ConnectionRequest(0), ConnectionChallenge(1), ConnectionChallengeResponse(2),
+        Data(3), Disconnect(4),;
+
+        private final int value;
+
+        PacketType(int value) {
+            this.value = value;
+        }
+
+        int getValue() {
+            return value;
+        }
     }
 }

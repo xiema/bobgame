@@ -33,7 +33,7 @@ public class NetDriver extends EntitySystem {
     private Packet syncPacket = new Packet(Net.DATA_MAX_SIZE);
     private Packet sendPacket = new Packet(Net.DATA_MAX_SIZE);
     private Packet snapshotPacket = new Packet(Net.SNAPSHOT_MAX_SIZE);
-    private final SequenceNumChecker messageNumChecker = new SequenceNumChecker(128);
+    final SequenceNumChecker messageNumChecker = new SequenceNumChecker(128);
 
 //    private IntIntMap playerConnectionMap = new IntIntMap();
 //    private IntIntMap connectionPlayerMap = new IntIntMap();
@@ -117,16 +117,8 @@ public class NetDriver extends EntitySystem {
 
     public void connect(String host) {
         if (mode != Mode.Client || client != null) return;
-        client = new Client(8192, 2048, serialization);
+        client = new NetClient(this, serialization);
         client.start();
-        client.addListener(new Listener() {
-            @Override
-            public void connected(Connection connection) {
-                int clientId = connectionManager.addConnection(connection);
-                connectionManager.acceptHostConnection(clientId);
-            }
-        });
-        client.addListener(packetReceiveListener);
         try {
             client.connect(5000, host, PORT_TCP, PORT_UDP);
             Log.info("Connected to " + host);
@@ -137,35 +129,9 @@ public class NetDriver extends EntitySystem {
         }
     }
 
-    private Listener packetReceiveListener = new Listener() {
-        @Override
-        public void received(Connection connection, Object o) {
-            if (o instanceof Packet) {
-                Packet packet = (Packet) o;
-                Message message = packet.getMessage();
-
-                // message already seen or old and assumed seen
-                synchronized (messageNumChecker) {
-                    if (messageNumChecker.getAndSet(message.messageId)) {
-                        Log.info("Discarded message num=" + message.messageId);
-                        return;
-                    }
-                }
-
-//                if (packet.getMessage().getType() == Message.MessageType.Event)  {
-//                    eventBuffer.receive(packet);
-//                }
-//                else {
-                    updateBuffer.receive(packet);
-//                }
-            }
-        }
-    };
-
     public void startServer() {
         if (mode != Mode.Server || server != null) return;
         server = new NetServer(this, serialization);
-        server.addListener(packetReceiveListener);
         server.start();
         try {
             server.bind(PORT_TCP, PORT_UDP);
@@ -209,15 +175,12 @@ public class NetDriver extends EntitySystem {
                         snapshot = true;
                     }
                     connectionSlot.needsSnapshot = false;
-                    snapshotPacket.clientId = clientId;
-                    connectionSlot.connection.sendUDP(snapshotPacket);
+                    connectionSlot.sendDataPacket(snapshotPacket);
 //                    Log.info("Send snapshot " + snapshotPacket.getMessage());
                     packetBits += snapshotPacket.getBitSize();
                 }
                 else {
-                    // TODO: think of more integrated way to set this
-                    sendPacket.clientId = clientId;
-                    connectionSlot.connection.sendUDP(sendPacket);
+                    connectionSlot.sendDataPacket(sendPacket);
                     packetBits += sendPacket.getBitSize();
                 }
             }
@@ -228,10 +191,9 @@ public class NetDriver extends EntitySystem {
 
         for (ClientEvent clientEvent : clientEvents) {
             ConnectionManager.ConnectionSlot connectionSlot = connectionManager.getConnectionSlot(clientEvent.clientId);
-            sendPacket.clientId = clientEvent.clientId;
             messageReader.serializeEvent(sendPacket.getMessage(), clientEvent.event);
 //            Log.info("Send event " + sendPacket.getMessage());
-            connectionSlot.connection.sendUDP(sendPacket);
+            connectionSlot.sendDataPacket(sendPacket);
             packetBits += sendPacket.getBitSize();
             sendPacket.clear();
         }
@@ -258,10 +220,12 @@ public class NetDriver extends EntitySystem {
 
         boolean sent = false;
         if (connectionManager.getHostClientId() != -1) {
+            ConnectionManager.ConnectionSlot connectionSlot = connectionManager.getHostConnectionSlot();
+
             for (ClientEvent clientEvent : clientEvents) {
                 messageReader.serializeEvent(sendPacket.getMessage(), clientEvent.event);
 //                Log.info("Send event " + sendPacket.getMessage());
-                client.sendUDP(sendPacket);
+                connectionSlot.sendDataPacket(sendPacket);
                 packetBits += sendPacket.getBitSize();
                 sendPacket.clear();
                 sent = true;
@@ -270,7 +234,7 @@ public class NetDriver extends EntitySystem {
 
             if (!sent) {
                 messageReader.serialize(sendPacket.getMessage(), getEngine(), Message.MessageType.Empty, connectionManager.getHostConnectionSlot());
-                client.sendUDP(sendPacket);
+                connectionSlot.sendDataPacket(sendPacket);
                 packetBits += sendPacket.getBitSize();
                 sendPacket.clear();
             }

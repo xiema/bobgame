@@ -22,6 +22,7 @@ public class ConnectionManager {
         for (int i = 0; i < MAX_CLIENTS; ++i) {
             if (connectionSlots[i] == null) {
                 ConnectionManager.ConnectionSlot connectionSlot = Pools.obtain(ConnectionManager.ConnectionSlot.class);
+                connectionSlot.clientId = i;
                 connectionSlot.connection = connection;
                 connectionSlot.state = ConnectionManager.ConnectionState.Pending;
                 connectionSlots[i] = connectionSlot;
@@ -71,6 +72,7 @@ public class ConnectionManager {
 
     public static class ConnectionSlot implements Pool.Poolable {
         Connection connection = null;
+        int clientId = -1;
         int playerId = -1;
         ConnectionState state = ConnectionState.Disconnected;
 
@@ -86,9 +88,16 @@ public class ConnectionManager {
             return playerId;
         }
 
+        public void sendDataPacket(Packet packet) {
+            packet.type = Packet.PacketType.Data;
+            packet.clientId = clientId;
+            connection.sendUDP(packet);
+        }
+
         @Override
         public void reset() {
             connection = null;
+            clientId = -1;
             playerId = -1;
             state = ConnectionState.Disconnected;
             needsSnapshot = true;
