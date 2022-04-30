@@ -22,13 +22,14 @@ public class ComponentFactory {
         return ic;
     }
 
-    public static PhysicsBodyComponent physicsBody(Engine engine, BodyDef.BodyType bodyType, float xPos, float yPos,
+    public static PhysicsBodyComponent physicsBody(Engine engine, BodyDef.BodyType bodyType, float xPos, float yPos, float linearDamping,
                                                    int shapeType, float shapeVal1, float density, float friction, float restitution) {
         PhysicsBodyComponent pb = engine.createComponent(PhysicsBodyComponent.class);
 
         pb.bodyDef = new BodyDef();
         pb.bodyDef.type = bodyType;
         pb.bodyDef.position.set(xPos, yPos);
+        pb.bodyDef.linearDamping = linearDamping;
 
         pb.shapeDef = new ShapeDef();
         pb.shapeDef.type = ShapeDef.ShapeType.values()[shapeType];

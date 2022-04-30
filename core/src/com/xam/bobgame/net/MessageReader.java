@@ -250,6 +250,8 @@ public class MessageReader {
     private static final MassData tempMassData = new MassData();
 
     private int readPhysicsBody(PhysicsBodyComponent pb) {
+        boolean zero;
+
         Transform tfm = pb.body.getTransform();
 
         float t1 = readFloat(tfm.vals[0], -3, 13, RES_POSITION);
@@ -257,15 +259,22 @@ public class MessageReader {
         float t3 = readFloat(tfm.getRotation(), 0, MAX_ORIENTATION, RES_ORIENTATION);
 
         Vector2 vel = pb.body.getLinearVelocity();
-        float v1 = readFloat(vel.x, -1000, 1000, RES_VELOCITY);
-        float v2 = readFloat(vel.y, -1000, 1000, RES_VELOCITY);
-        float v3 = readFloat(pb.body.getAngularVelocity(), -1000, 1000, RES_VELOCITY);
+        zero = readInt(vel.x == 0 ? 0 : 1, 0, 1) == 0;
+        float v1 = zero ? 0 : readFloat(vel.x, -1000, 1000, RES_VELOCITY);
+        zero = readInt(vel.y == 0 ? 0 : 1, 0, 1) == 0;
+        float v2 = zero ? 0 : readFloat(vel.y, -1000, 1000, RES_VELOCITY);
+
+        float angularVel = pb.body.getAngularVelocity();
+        zero = readInt(angularVel == 0 ? 0 : 1, 0, 1) == 0;
+        float v3 = zero ? 0 : readFloat(angularVel, -1000, 1000, RES_VELOCITY);
 
         MassData md = pb.body.getMassData();
-        float m = readFloat(md.mass, 0, 10, RES_MASS);
+        zero = readInt(md.mass == 0 ? 0 : 1, 0, 1) == 0;
+        float m = zero ? 0 : readFloat(md.mass, 0, 10, RES_MASS);
         float c1 = readFloat(md.center.x, -3, 13, RES_POSITION);
         float c2 = readFloat(md.center.y, -3, 13, RES_POSITION);
-        float i = readFloat(md.I, 0, 10, RES_MASS);
+        zero = readInt(md.I == 0 ? 0 : 1, 0, 1) == 0;
+        float i = zero ? 0 : readFloat(md.I, 0, 10, RES_MASS);
 
 //        Log.info("m=" + m + " cx=" + c1 + " cy=" + c2 + " i=" + i);
 
@@ -308,6 +317,7 @@ public class MessageReader {
         pb.bodyDef.type = BodyDef.BodyType.values()[readInt(pb.bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length)];
         pb.bodyDef.position.x = readFloat(pb.bodyDef.position.x, -3, 13, RES_POSITION);
         pb.bodyDef.position.y = readFloat(pb.bodyDef.position.y, -3, 13, RES_POSITION);
+        pb.bodyDef.linearDamping = readFloat(pb.bodyDef.linearDamping, 0, 1, RES_MASS);
         pb.shapeDef.type = ShapeDef.ShapeType.values()[readInt(pb.shapeDef.type.getValue(), 0, ShapeDef.ShapeType.values().length)];
         pb.shapeDef.shapeVal1 = readFloat(pb.shapeDef.shapeVal1, 0, 16, RES_POSITION);
         pb.fixtureDef.density = readFloat(pb.fixtureDef.density, 0, 16, RES_MASS);

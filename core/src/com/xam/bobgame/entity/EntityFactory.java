@@ -24,7 +24,7 @@ public class EntityFactory {
         Entity entity = engine.createEntity();
 
         IdentityComponent identity = createIdentity(engine);
-        PhysicsBodyComponent physicsBody = ComponentFactory.physicsBody(engine, BodyDef.BodyType.DynamicBody,  5, 5,
+        PhysicsBodyComponent physicsBody = ComponentFactory.physicsBody(engine, BodyDef.BodyType.DynamicBody,  5, 5, 0.1f,
                 0, 0.5f, 0.5f, 0.1f, 0.8f);
 //        Texture tx = ComponentFactory.textureCircle(32, 16, Color.WHITE);
         TextureDef textureDef = new TextureDef();
