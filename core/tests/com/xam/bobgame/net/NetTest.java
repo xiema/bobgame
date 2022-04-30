@@ -3,6 +3,7 @@ package com.xam.bobgame.net;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.utils.BitPacker;
 import org.junit.jupiter.api.Test;
 
 import java.util.zip.CRC32;
@@ -12,7 +13,7 @@ public class NetTest {
     public void test1() {
         NetDriver serverDriver = new NetDriver();
         serverDriver.setMode(NetDriver.Mode.Server);
-        serverDriver.startServer();
+        serverDriver.getServer().start();
 
         NetDriver clientDriver = new NetDriver();
 
@@ -23,7 +24,7 @@ public class NetTest {
         BitPacker pb = new BitPacker();
         Message message;
         for (int i = 0; i < count; ++i) {
-            packets[i] = new Packet(Net.DATA_MAX_SIZE);
+            packets[i] = new Packet(NetDriver.DATA_MAX_SIZE);
             message = packets[i].getMessage();
             message.messageId = i;
             pb.setBuffer(message.getByteBuffer());
@@ -36,7 +37,7 @@ public class NetTest {
             Log.info("Packet " + i + ": " + packets[i]);
         }
 
-        clientDriver.connect("127.0.0.1");
+        clientDriver.getClient().connect("127.0.0.1");
 
 //        Packet packet = new Packet(Net.DATA_MAX_SIZE);
 //        for (int i = 0; i < count; ++i) {

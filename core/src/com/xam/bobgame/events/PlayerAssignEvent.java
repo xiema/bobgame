@@ -1,6 +1,6 @@
 package com.xam.bobgame.events;
 
-import com.xam.bobgame.net.BitPacker;
+import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.net.NetDriver;
 
 public class PlayerAssignEvent extends NetDriver.NetworkEvent {

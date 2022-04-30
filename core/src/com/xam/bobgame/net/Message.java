@@ -1,11 +1,9 @@
 package com.xam.bobgame.net;
 
-import com.badlogic.gdx.math.MathUtils;
 import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.utils.DebugUtils;
+import com.xam.bobgame.utils.BitPacker;
 
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 public class Message {
     private ByteBuffer byteBuffer;

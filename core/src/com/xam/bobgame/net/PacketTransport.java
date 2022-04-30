@@ -9,11 +9,9 @@ import com.xam.bobgame.utils.SequenceNumChecker;
 
 public class PacketTransport {
 
-    public static final int PACKET_SEQUENCE_LIMIT = 128;
-
     private NetDriver netDriver;
 
-    private EndPointInfo[] endPointInfos = new EndPointInfo[ConnectionManager.MAX_CLIENTS];
+    private EndPointInfo[] endPointInfos = new EndPointInfo[NetDriver.MAX_CLIENTS];
 
     private final Array<PacketInfo> droppedPackets = new Array<>();
 
@@ -22,8 +20,8 @@ public class PacketTransport {
     }
 
     public PacketInfo setHeaders(Packet packet, Connection connection) {
-        packet.clientId = netDriver.getConnectionManager().getClientId(connection);
-        PacketInfo dropped = endPointInfos[packet.clientId].setHeaders(packet);
+        int clientId = netDriver.connectionManager.getClientId(connection);
+        PacketInfo dropped = endPointInfos[clientId].setHeaders(packet, clientId);
         if (dropped != null) {
             synchronized (droppedPackets) {
                 droppedPackets.add(dropped);
@@ -34,7 +32,7 @@ public class PacketTransport {
 
     public boolean updateReceived(Packet packet, int clientId) {
         EndPointInfo endPointInfo = endPointInfos[clientId];
-        endPointInfo.acks.set(packet.ack | 0x100000000L, (packet.remoteSeqNum + PACKET_SEQUENCE_LIMIT - 32) % PACKET_SEQUENCE_LIMIT, 33);
+        endPointInfo.acks.set(packet.ack | 0x100000000L, (packet.remoteSeqNum + NetDriver.PACKET_SEQUENCE_LIMIT - 32) % NetDriver.PACKET_SEQUENCE_LIMIT, 33);
 //        Log.info("Rcv Ack: " + packet.remoteSeqNum + " : " + DebugUtils.bitString(packet.ack, 32));
 //        Log.info("New Ack: " + endPointInfo.acks);
         boolean b = endPointInfo.received.getAndSet(packet.localSeqNum);
@@ -62,13 +60,13 @@ public class PacketTransport {
     }
 
     private static class EndPointInfo {
-        SequenceNumChecker acks = new SequenceNumChecker(PACKET_SEQUENCE_LIMIT);
+        SequenceNumChecker acks = new SequenceNumChecker(NetDriver.PACKET_SEQUENCE_LIMIT);
         int clientId;
 
-        SequenceNumChecker received = new SequenceNumChecker(PACKET_SEQUENCE_LIMIT);
+        SequenceNumChecker received = new SequenceNumChecker(NetDriver.PACKET_SEQUENCE_LIMIT);
         int remoteSeqNum = 0;
 
-        PacketInfo[] packetInfos = new PacketInfo[PACKET_SEQUENCE_LIMIT];
+        PacketInfo[] packetInfos = new PacketInfo[NetDriver.PACKET_SEQUENCE_LIMIT];
         int localSeqNum = 0;
 
         public EndPointInfo(int clientId) {
@@ -79,7 +77,7 @@ public class PacketTransport {
             acks.setAll();
         }
 
-        PacketInfo setHeaders(Packet packet) {
+        PacketInfo setHeaders(Packet packet, int clientId) {
             PacketInfo r = null;
             if (packet.localSeqNum == -1) {
                 if (!acks.get(localSeqNum)) {
@@ -88,9 +86,9 @@ public class PacketTransport {
                 }
                 // new packet, add to history
                 packet.localSeqNum = localSeqNum;
-                packetInfos[localSeqNum].set(packet);
+                packetInfos[localSeqNum].set(packet, clientId);
                 acks.unset(localSeqNum);
-                localSeqNum = (localSeqNum + 1) % PACKET_SEQUENCE_LIMIT;
+                localSeqNum = (localSeqNum + 1) % NetDriver.PACKET_SEQUENCE_LIMIT;
             }
             else {
                 // debug
@@ -106,17 +104,17 @@ public class PacketTransport {
         }
 
         int getAck() {
-            return (int) received.getBitMask((received.getHigh() + PACKET_SEQUENCE_LIMIT - 33) % PACKET_SEQUENCE_LIMIT, 32);
+            return (int) received.getBitMask((received.getHigh() + NetDriver.PACKET_SEQUENCE_LIMIT - 33) % NetDriver.PACKET_SEQUENCE_LIMIT, 32);
         }
     }
 
     public static class PacketInfo implements Pool.Poolable {
         int packetSeqNum = -1, messageId = -1, clientId = -1;
 
-        void set(Packet packet) {
+        void set(Packet packet, int clientId) {
             packetSeqNum = packet.localSeqNum;
             messageId = packet.getMessage().messageId;
-            clientId = packet.clientId;
+            this.clientId = clientId;
         }
 
         void copyTo(PacketInfo other) {

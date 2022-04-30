@@ -9,11 +9,10 @@ import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.utils.SequenceNumChecker;
 
 public class ConnectionManager {
-    public static final int MAX_CLIENTS = 32;
 
     private NetDriver netDriver;
 
-    private ConnectionSlot[] connectionSlots = new ConnectionSlot[MAX_CLIENTS];
+    private ConnectionSlot[] connectionSlots = new ConnectionSlot[NetDriver.MAX_CLIENTS];
 
     private int hostClientId = -1;
 
@@ -22,7 +21,7 @@ public class ConnectionManager {
     }
 
     public void update(float deltaTime) {
-        for (int i = 0; i < MAX_CLIENTS; ++i) {
+        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
             ConnectionSlot connectionSlot = connectionSlots[i];
             if (connectionSlot != null) {
                 connectionSlot.state.update(connectionSlot, deltaTime);
@@ -31,7 +30,7 @@ public class ConnectionManager {
     }
 
     public void update2() {
-        for (int i = 0; i < MAX_CLIENTS; ++i) {
+        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
             if (connectionSlots[i] != null) {
                 connectionSlots[i].state.update2(connectionSlots[i]);
             }
@@ -39,7 +38,7 @@ public class ConnectionManager {
     }
 
     public void clear() {
-        for (int i = 0; i < MAX_CLIENTS; ++i) {
+        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
             ConnectionSlot slot = connectionSlots[i];
             if (slot != null) {
                 slot.reset();
@@ -49,7 +48,7 @@ public class ConnectionManager {
     }
 
     public int addConnection(Connection connection) {
-        for (int i = 0; i < MAX_CLIENTS; ++i) {
+        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
             if (connectionSlots[i] == null) {
                 ConnectionManager.ConnectionSlot connectionSlot = Pools.obtain(ConnectionManager.ConnectionSlot.class);
                 connectionSlot.initialize(netDriver);
@@ -58,7 +57,7 @@ public class ConnectionManager {
                 connectionSlot.state = netDriver.getMode() == NetDriver.Mode.Server ? ConnectionState.ServerEmpty : ConnectionState.ClientEmpty;
                 connectionSlots[i] = connectionSlot;
 
-                netDriver.getTransport().addTransportConnection(i);
+                netDriver.transport.addTransportConnection(i);
 
                 return i;
             }
@@ -106,7 +105,7 @@ public class ConnectionManager {
     }
 
     public int getClientId(Connection connection) {
-        for (int i = 0; i < MAX_CLIENTS; ++i) {
+        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
             if (connectionSlots[i].connection == connection) return i;
         }
         return -1;
@@ -124,8 +123,8 @@ public class ConnectionManager {
 
         int messageSeqCounter = 0;
 
-        Packet sendPacket = new Packet(Net.DATA_MAX_SIZE);
-        Packet syncPacket = new Packet(Net.DATA_MAX_SIZE);
+        Packet sendPacket = new Packet(NetDriver.DATA_MAX_SIZE);
+        Packet syncPacket = new Packet(NetDriver.DATA_MAX_SIZE);
 
         PacketBuffer packetBuffer;
 
@@ -154,12 +153,10 @@ public class ConnectionManager {
 
         public void sendDataPacket(Packet packet) {
             packet.type = Packet.PacketType.Data;
-            packet.clientId = clientId;
             connection.sendUDP(packet);
         }
 
         public void sendTransportPacket(Packet packet) {
-            packet.clientId = clientId;
             connection.sendUDP(packet);
         }
 
@@ -219,7 +216,7 @@ public class ConnectionManager {
             @Override
             int read(ConnectionSlot slot, Packet in) {
                 if (in.getMessage().getType() == Message.MessageType.Event) {
-                    slot.netDriver.messageReader.readEvent(in.getMessage(), slot.netDriver.getEngine(), in.clientId);
+                    slot.netDriver.messageReader.readEvent(in.getMessage(), slot.netDriver.getEngine(), slot.clientId);
                 }
                 else {
                     slot.netDriver.messageReader.deserialize(in.getMessage(), slot.netDriver.getEngine());
@@ -236,7 +233,7 @@ public class ConnectionManager {
 
             @Override
             int update2(ConnectionSlot slot) {
-                slot.netDriver.syncClient(slot);
+                slot.netDriver.getServer().syncClient(slot);
                 return 0;
             }
         },
@@ -299,7 +296,7 @@ public class ConnectionManager {
             @Override
             int read(ConnectionSlot slot, Packet in) {
                 if (in.getMessage().getType() == Message.MessageType.Event) {
-                    slot.netDriver.messageReader.readEvent(in.getMessage(), slot.netDriver.getEngine(), in.clientId);
+                    slot.netDriver.messageReader.readEvent(in.getMessage(), slot.netDriver.getEngine(), slot.clientId);
                 }
                 else {
                     slot.netDriver.messageReader.deserialize(in.getMessage(), slot.netDriver.getEngine());

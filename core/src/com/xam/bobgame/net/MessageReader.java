@@ -20,28 +20,18 @@ import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.game.ShapeDef;
 import com.xam.bobgame.graphics.TextureDef;
+import com.xam.bobgame.utils.BitPacker;
 
 @SuppressWarnings("UnusedReturnValue")
 public class MessageReader {
-    public static final float RES_POSITION = 1e-4f;
-    public static final float RES_ORIENTATION = 1e-4f;
-    public static final float RES_VELOCITY = 1e-4f;
-    public static final float RES_MASS = 1e-4f;
-    public static final float RES_COLOR = 1e-4f;
-    public static final float MAX_ORIENTATION = 3.14159f;
 
-    public static final int MAX_MESSAGE_HISTORY = 256;
+    private BitPacker builder = new BitPacker();
+    private Engine engine;
 
-    NetDriver netDriver;
-    BitPacker builder;
-    Engine engine;
-
-    private MessageInfo[] messageInfos = new MessageInfo[MAX_MESSAGE_HISTORY];
+    private MessageInfo[] messageInfos = new MessageInfo[NetDriver.MAX_MESSAGE_HISTORY];
     private int messageIdCounter = 0;
 
-    public MessageReader(NetDriver netDriver) {
-        builder = new BitPacker();
-        this.netDriver = netDriver;
+    public MessageReader() {
         for (int i = 0; i < messageInfos.length; ++i) {
             messageInfos[i] = new MessageInfo();
         }
@@ -86,7 +76,7 @@ public class MessageReader {
     }
 
     public MessageInfo getMessageInfo(int messageId) {
-        return messageInfos[messageId % MAX_MESSAGE_HISTORY];
+        return messageInfos[messageId % NetDriver.MAX_MESSAGE_HISTORY];
     }
 
     public int deserialize(Message message, Engine engine) {
@@ -149,7 +139,6 @@ public class MessageReader {
         setMessageInfo(message);
         message.setType(Message.MessageType.Event);
         builder.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
-        event.netDriver = netDriver;
         event.read(builder, true);
         builder.flush(true);
         message.setLength(builder.getTotalBytes());
@@ -165,7 +154,6 @@ public class MessageReader {
         int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);
         //noinspection unchecked
         NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
-        event.netDriver = netDriver;
 //        Log.info("clientID=0 playerId=" + netDriver.getConnectionManager().getPlayerId(0));
         event.read(builder, false);
 
@@ -255,27 +243,27 @@ public class MessageReader {
 
         Transform tfm = pb.body.getTransform();
 
-        float t1 = readFloat(tfm.vals[0], -3, 13, RES_POSITION);
-        float t2 = readFloat(tfm.vals[1], -3, 13, RES_POSITION);
-        float t3 = readFloat(tfm.getRotation(), 0, MAX_ORIENTATION, RES_ORIENTATION);
+        float t1 = readFloat(tfm.vals[0], -3, 13, NetDriver.RES_POSITION);
+        float t2 = readFloat(tfm.vals[1], -3, 13, NetDriver.RES_POSITION);
+        float t3 = readFloat(tfm.getRotation(), 0, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
 
         Vector2 vel = pb.body.getLinearVelocity();
         zero = readInt(vel.x == 0 ? 0 : 1, 0, 1) == 0;
-        float v1 = zero ? 0 : readFloat(vel.x, -1000, 1000, RES_VELOCITY);
+        float v1 = zero ? 0 : readFloat(vel.x, -1000, 1000, NetDriver.RES_VELOCITY);
         zero = readInt(vel.y == 0 ? 0 : 1, 0, 1) == 0;
-        float v2 = zero ? 0 : readFloat(vel.y, -1000, 1000, RES_VELOCITY);
+        float v2 = zero ? 0 : readFloat(vel.y, -1000, 1000, NetDriver.RES_VELOCITY);
 
         float angularVel = pb.body.getAngularVelocity();
         zero = readInt(angularVel == 0 ? 0 : 1, 0, 1) == 0;
-        float v3 = zero ? 0 : readFloat(angularVel, -1000, 1000, RES_VELOCITY);
+        float v3 = zero ? 0 : readFloat(angularVel, -1000, 1000, NetDriver.RES_VELOCITY);
 
         MassData md = pb.body.getMassData();
         zero = readInt(md.mass == 0 ? 0 : 1, 0, 1) == 0;
-        float m = zero ? 0 : readFloat(md.mass, 0, 10, RES_MASS);
-        float c1 = readFloat(md.center.x, -3, 13, RES_POSITION);
-        float c2 = readFloat(md.center.y, -3, 13, RES_POSITION);
+        float m = zero ? 0 : readFloat(md.mass, 0, 10, NetDriver.RES_MASS);
+        float c1 = readFloat(md.center.x, -3, 13, NetDriver.RES_POSITION);
+        float c2 = readFloat(md.center.y, -3, 13, NetDriver.RES_POSITION);
         zero = readInt(md.I == 0 ? 0 : 1, 0, 1) == 0;
-        float i = zero ? 0 : readFloat(md.I, 0, 10, RES_MASS);
+        float i = zero ? 0 : readFloat(md.I, 0, 10, NetDriver.RES_MASS);
 
 //        Log.info("m=" + m + " cx=" + c1 + " cy=" + c2 + " i=" + i);
 
@@ -316,24 +304,24 @@ public class MessageReader {
         iden.id = readInt(iden.id, 0, 255);
 
         pb.bodyDef.type = BodyDef.BodyType.values()[readInt(pb.bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length)];
-        pb.bodyDef.position.x = readFloat(pb.bodyDef.position.x, -3, 13, RES_POSITION);
-        pb.bodyDef.position.y = readFloat(pb.bodyDef.position.y, -3, 13, RES_POSITION);
-        pb.bodyDef.linearDamping = readFloat(pb.bodyDef.linearDamping, 0, 1, RES_MASS);
+        pb.bodyDef.position.x = readFloat(pb.bodyDef.position.x, -3, 13, NetDriver.RES_POSITION);
+        pb.bodyDef.position.y = readFloat(pb.bodyDef.position.y, -3, 13, NetDriver.RES_POSITION);
+        pb.bodyDef.linearDamping = readFloat(pb.bodyDef.linearDamping, 0, 1, NetDriver.RES_MASS);
         pb.shapeDef.type = ShapeDef.ShapeType.values()[readInt(pb.shapeDef.type.getValue(), 0, ShapeDef.ShapeType.values().length)];
-        pb.shapeDef.shapeVal1 = readFloat(pb.shapeDef.shapeVal1, 0, 16, RES_POSITION);
-        pb.fixtureDef.density = readFloat(pb.fixtureDef.density, 0, 16, RES_MASS);
-        pb.fixtureDef.friction = readFloat(pb.fixtureDef.friction, 0, 16, RES_MASS);
-        pb.fixtureDef.restitution = readFloat(pb.fixtureDef.restitution, 0, 16, RES_MASS);
+        pb.shapeDef.shapeVal1 = readFloat(pb.shapeDef.shapeVal1, 0, 16, NetDriver.RES_POSITION);
+        pb.fixtureDef.density = readFloat(pb.fixtureDef.density, 0, 16, NetDriver.RES_MASS);
+        pb.fixtureDef.friction = readFloat(pb.fixtureDef.friction, 0, 16, NetDriver.RES_MASS);
+        pb.fixtureDef.restitution = readFloat(pb.fixtureDef.restitution, 0, 16, NetDriver.RES_MASS);
 
         graphics.textureDef.type = TextureDef.TextureType.values()[readInt(graphics.textureDef.type.getValue(), 0, TextureDef.TextureType.values().length)];
         graphics.textureDef.wh = readInt(graphics.textureDef.wh, 0, 128);
         graphics.textureDef.textureVal1 = readInt(graphics.textureDef.textureVal1, 0, 128);
-        float r = readFloat(graphics.textureDef.color.r, 0, 1, RES_COLOR);
-        float g = readFloat(graphics.textureDef.color.g, 0, 1, RES_COLOR);
-        float b = readFloat(graphics.textureDef.color.b, 0, 1, RES_COLOR);
-        float a = readFloat(graphics.textureDef.color.a, 0, 1, RES_COLOR);
-        float w = readFloat(graphics.spriteActor.getSprite().getWidth(), 0, 16, RES_POSITION);
-        float h = readFloat(graphics.spriteActor.getSprite().getHeight(), 0, 16, RES_POSITION);
+        float r = readFloat(graphics.textureDef.color.r, 0, 1, NetDriver.RES_COLOR);
+        float g = readFloat(graphics.textureDef.color.g, 0, 1, NetDriver.RES_COLOR);
+        float b = readFloat(graphics.textureDef.color.b, 0, 1, NetDriver.RES_COLOR);
+        float a = readFloat(graphics.textureDef.color.a, 0, 1, NetDriver.RES_COLOR);
+        float w = readFloat(graphics.spriteActor.getSprite().getWidth(), 0, 16, NetDriver.RES_POSITION);
+        float h = readFloat(graphics.spriteActor.getSprite().getHeight(), 0, 16, NetDriver.RES_POSITION);
 
         if (!send) {
             graphics.textureDef.color.set(r, g, b, a);
@@ -348,5 +336,15 @@ public class MessageReader {
         }
 
         return 0;
+    }
+
+    public static class MessageInfo {
+        public int messageId;
+        public Message.MessageType type;
+
+        public void set(Message message) {
+            messageId = message.messageId;
+            type = message.getType();
+        }
     }
 }

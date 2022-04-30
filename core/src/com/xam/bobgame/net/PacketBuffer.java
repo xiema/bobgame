@@ -21,7 +21,7 @@ public class PacketBuffer{
         this.bufferLength = bufferLength;
         buffer = new Packet[bufferLength];
         for (int i = 0; i < bufferLength; ++i) {
-            buffer[i] = new Packet(Net.DATA_MAX_SIZE);
+            buffer[i] = new Packet(NetDriver.DATA_MAX_SIZE);
         }
         bufferFlag = new boolean[bufferLength];
         receiveTime = new float[bufferLength];
@@ -73,7 +73,7 @@ public class PacketBuffer{
                 getIndex = (getIndex + 1) % bufferLength;
                 b = true;
             }
-            else if (bufferFlag[oldestReceivedIndex] && netDriver.getCurTime() - receiveTime[oldestReceivedIndex] > Net.BUFFER_TIME_LIMIT) {
+            else if (bufferFlag[oldestReceivedIndex] && netDriver.getCurTime() - receiveTime[oldestReceivedIndex] > NetDriver.BUFFER_TIME_LIMIT) {
                 buffer[oldestReceivedIndex].copyTo(out);
                 bufferFlag[oldestReceivedIndex] = false;
                 Log.info("get: Skipping packets " + getIndex + "-" + oldestReceivedIndex);

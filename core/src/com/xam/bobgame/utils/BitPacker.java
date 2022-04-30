@@ -1,4 +1,4 @@
-package com.xam.bobgame.net;
+package com.xam.bobgame.utils;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.esotericsoftware.minlog.Log;

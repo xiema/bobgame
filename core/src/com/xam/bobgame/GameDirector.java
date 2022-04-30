@@ -35,7 +35,7 @@ public class GameDirector extends EntitySystem {
             @Override
             public void handleEvent(ClientConnectedEvent event) {
                 joinPlayer(event.clientId);
-                getEngine().getSystem(NetDriver.class).flagSnapshot(event.clientId);
+                getEngine().getSystem(NetDriver.class).getServer().flagSnapshot(event.clientId);
             }
         });
     }

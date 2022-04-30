@@ -5,7 +5,6 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -76,10 +75,10 @@ public class BoBGame extends ApplicationAdapter {
 
 		if (mode == 1) {
 			netDriver.setMode(NetDriver.Mode.Server);
-			netDriver.startServer();
+			netDriver.getServer().start(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
 		}
 		else {
-			netDriver.connect("127.0.0.1");
+			netDriver.getClient().connect("127.0.0.1");
 		}
 
 		if (mode != 2) {
@@ -94,7 +93,6 @@ public class BoBGame extends ApplicationAdapter {
 		float deltaTime = Gdx.graphics.getDeltaTime();
 
 		engine.update(deltaTime);
-		netDriver.updateBitRate(deltaTime);
 		bitrateLabel.setText(String.valueOf(netDriver.getAverageBitrate()));
 
 		stage.act(deltaTime);
@@ -117,7 +115,8 @@ public class BoBGame extends ApplicationAdapter {
 	@Override
 	public void dispose () {
 		batch.dispose();
-		netDriver.stop();
+		netDriver.getClient().stop();
+		netDriver.getServer().stop();
 	}
 
 	public static long getCounter() {

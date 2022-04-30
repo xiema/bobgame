@@ -1,6 +1,7 @@
 package com.xam.bobgame.net;
 
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.utils.DebugUtils;
 
 import java.nio.ByteBuffer;
@@ -18,17 +19,10 @@ public class Packet {
     int remoteSeqNum = -1;
     int ack = 0;
 
-    int clientId = -1;
-
     private final BitPacker bitPacker = new BitPacker();
 
     public Packet(int size) {
         message = new Message(size);
-    }
-
-    public int getBitSize() {
-        // crc, localSeqNum, remoteSeqNum, ack, messageNum, messageLength, payload
-        return (6 * 4 + message.getLength()) * 8;
     }
 
     public Message getMessage() {
@@ -59,13 +53,13 @@ public class Packet {
         bitPacker.setBuffer(out);
 
         bitPacker.packInt((int) getCrc());
-        bitPacker.packInt(localSeqNum, 0, PacketTransport.PACKET_SEQUENCE_LIMIT);
-        bitPacker.packInt(remoteSeqNum, 0, PacketTransport.PACKET_SEQUENCE_LIMIT);
+        bitPacker.packInt(localSeqNum, 0, NetDriver.PACKET_SEQUENCE_LIMIT);
+        bitPacker.packInt(remoteSeqNum, 0, NetDriver.PACKET_SEQUENCE_LIMIT);
         bitPacker.packInt(ack);
         bitPacker.packInt(type.getValue(), 0, PacketType.values().length-1);
         bitPacker.packInt(message.messageId);
         bitPacker.packInt(message.getType().getValue(), 0, Message.MessageType.values().length-1);
-        bitPacker.packInt(message.getLength(), 0, Net.DATA_MAX_SIZE);
+        bitPacker.packInt(message.getLength(), 0, NetDriver.DATA_MAX_SIZE);
         bitPacker.padToLong();
         message.copyTo(bitPacker);
         bitPacker.flush(false);
@@ -78,14 +72,14 @@ public class Packet {
 
         i = in.position();
         float packetCRC = bitPacker.unpackInt();
-        localSeqNum = bitPacker.unpackInt(0, PacketTransport.PACKET_SEQUENCE_LIMIT);
-        remoteSeqNum = bitPacker.unpackInt(0, PacketTransport.PACKET_SEQUENCE_LIMIT);
+        localSeqNum = bitPacker.unpackInt(0, NetDriver.PACKET_SEQUENCE_LIMIT);
+        remoteSeqNum = bitPacker.unpackInt(0, NetDriver.PACKET_SEQUENCE_LIMIT);
         ack = bitPacker.unpackInt();
         type = PacketType.values()[bitPacker.unpackInt(0, PacketType.values().length-1)];
 
         message.messageId = bitPacker.unpackInt();
         message.setType(Message.MessageType.values()[bitPacker.unpackInt(0, Message.MessageType.values().length-1)]);
-        length = bitPacker.unpackInt(0, Net.DATA_MAX_SIZE);
+        length = bitPacker.unpackInt(0, NetDriver.DATA_MAX_SIZE);
         bitPacker.skipToLong();
         message.set(bitPacker, length);
 
@@ -102,7 +96,6 @@ public class Packet {
         packet.localSeqNum = localSeqNum;
         packet.remoteSeqNum = remoteSeqNum;
         packet.ack = ack;
-        packet.clientId = clientId;
         packet.crc = crc;
     }
 
@@ -116,7 +109,6 @@ public class Packet {
         localSeqNum = -1;
         remoteSeqNum = -1;
         ack = 0;
-        clientId = -1;
         crc = -1;
     }
 

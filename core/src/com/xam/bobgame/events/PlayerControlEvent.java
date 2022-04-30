@@ -1,8 +1,7 @@
 package com.xam.bobgame.events;
 
-import com.xam.bobgame.net.BitPacker;
+import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.net.NetDriver;
-import com.xam.bobgame.net.MessageReader;
 
 public class PlayerControlEvent extends NetDriver.NetworkEvent {
     public int controlId = -1;
@@ -22,8 +21,8 @@ public class PlayerControlEvent extends NetDriver.NetworkEvent {
     public void read(BitPacker builder, boolean write) {
         controlId = readInt(builder, controlId, -1, 31, write);
         entityId = readInt(builder, entityId, 0, 255, write);
-        x = readFloat(builder, x, -3,  13, MessageReader.RES_POSITION, write);
-        y = readFloat(builder, y, -3,  13, MessageReader.RES_POSITION, write);
+        x = readFloat(builder, x, -3,  13, NetDriver.RES_POSITION, write);
+        y = readFloat(builder, y, -3,  13, NetDriver.RES_POSITION, write);
         buttonId = readInt(builder, buttonId, 0, 1, write);
         buttonState = readInt(builder, buttonState ? 1 : 0, 0, 1, write) > 0;
     }

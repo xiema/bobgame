@@ -6,6 +6,8 @@ import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Serialization;
 import com.esotericsoftware.minlog.Log;
 
+import java.io.IOException;
+
 public class NetClient extends Client {
 
     private final NetDriver netDriver;
@@ -16,27 +18,37 @@ public class NetClient extends Client {
         addListener(listener);
     }
 
+    public void connect(String host) {
+        if (isConnected()) return;
+        start();
+        try {
+            connect(5000, host, NetDriver.PORT_TCP, NetDriver.PORT_UDP);
+            Log.info("Connected to " + host);
+        } catch (IOException e) {
+            stop();
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void stop() {
+        if (!isConnected()) return;
+        super.stop();
+        netDriver.connectionManager.clear();
+    }
+
     private Listener listener = new Listener() {
         @Override
         public void connected(Connection connection) {
-            int clientId = netDriver.getConnectionManager().addConnection(connection);
-//            netDriver.getConnectionManager().acceptHostConnection(clientId);
-            netDriver.getConnectionManager().initiateHandshake(clientId);
+            int clientId = netDriver.connectionManager.addConnection(connection);
+            netDriver.connectionManager.initiateHandshake(clientId);
         }
 
         @Override
         public void received(Connection connection, Object o) {
             if (!(o instanceof Packet)) return;
             Packet packet = (Packet) o;
-            netDriver.getConnectionManager().getConnectionSlot(connection).packetBuffer.receive(packet);
-//            if (packet.getType() == Packet.PacketType.Data) {
-//                netDriver.getConnectionManager().getConnectionSlot(connection).packetBuffer.receive(packet);
-//            }
-//            else {
-//                int clientId = netDriver.getConnectionManager().getClientId(connection);
-//                ConnectionManager.ConnectionSlot connectionSlot = netDriver.getConnectionManager().getConnectionSlot(clientId);
-//                connectionSlot.state.read(connectionSlot, packet);
-//            }
+            netDriver.connectionManager.getConnectionSlot(connection).packetBuffer.receive(packet);
         }
     };
 }

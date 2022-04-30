@@ -1,7 +1,9 @@
-package com.xam.bobgame.net;
+package com.xam.bobgame.utils;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.net.Message;
+import com.xam.bobgame.utils.BitPacker;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
 
