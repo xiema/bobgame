@@ -68,9 +68,10 @@ public class ConnectionManager {
     }
 
     public void initiateHandshake(int clientId) {
-        // TODO: check if in client mode
         ConnectionSlot connectionSlot = connectionSlots[clientId];
-        connectionSlot.state.read(connectionSlot, null);
+        if (connectionSlot.state == ConnectionState.ClientEmpty) {
+            connectionSlot.state.start(connectionSlot);
+        }
     }
 
     public void removeConnection(int clientId) {
@@ -193,7 +194,6 @@ public class ConnectionManager {
 
             @Override
             int timeout(ConnectionSlot slot) {
-                slot.t = 0;
                 return -1;
             }
         },
@@ -242,7 +242,7 @@ public class ConnectionManager {
         },
         ClientEmpty(-1) {
             @Override
-            int read(ConnectionSlot slot, Packet in) {
+            int start(ConnectionSlot slot) {
                 slot.transitionState(ClientPending1);
                 slot.sendPacket.type = Packet.PacketType.ConnectionRequest;
                 slot.sendTransportPacket(slot.sendPacket);
@@ -251,8 +251,12 @@ public class ConnectionManager {
             }
 
             @Override
+            int read(ConnectionSlot slot, Packet in) {
+                return 0;
+            }
+
+            @Override
             int timeout(ConnectionSlot slot) {
-                slot.t = 0;
                 return -1;
             }
         },
@@ -343,15 +347,20 @@ public class ConnectionManager {
 
         abstract int read(ConnectionSlot slot, Packet in);
         abstract int timeout(ConnectionSlot slot);
+        int start(ConnectionSlot slot) {
+            return 0;
+        }
         int update(ConnectionSlot slot, float t) {
             slot.t += t;
-            if (slot.t > timeoutThreshold) return timeout(slot);
+            if (timeoutThreshold > 0 && slot.t > timeoutThreshold) return timeout(slot);
             while (slot.packetBuffer.get(slot.syncPacket)) {
-                synchronized (slot.messageNumChecker) {
-                    if (slot.messageNumChecker.getAndSet(slot.syncPacket.getMessage().messageId)) {
-                        // message already seen or old and assumed seen
-                        Log.info("Discarded message num=" + slot.syncPacket.getMessage().messageId);
-                        return 0;
+                if (slot.syncPacket.type == Packet.PacketType.Data) {
+                    synchronized (slot.messageNumChecker) {
+                        if (slot.messageNumChecker.getAndSet(slot.syncPacket.getMessage().messageId)) {
+                            // message already seen or old and assumed seen
+                            Log.info("Discarded message num=" + slot.syncPacket.getMessage().messageId);
+                            return 0;
+                        }
                     }
                 }
                 slot.state.read(slot, slot.syncPacket);

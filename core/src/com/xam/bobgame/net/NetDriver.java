@@ -84,6 +84,7 @@ public class NetDriver extends EntitySystem {
 //            Log.info("Send event " + sendPacket.getMessage());
                 connectionSlot.sendDataPacket(eventPacket);
                 eventPacket.clear();
+                Pools.free(clientEvent);
             }
             clientEvents.clear();
         }

@@ -20,21 +20,23 @@ public class NetClient extends Client {
         @Override
         public void connected(Connection connection) {
             int clientId = netDriver.getConnectionManager().addConnection(connection);
-            netDriver.getConnectionManager().acceptHostConnection(clientId);
+//            netDriver.getConnectionManager().acceptHostConnection(clientId);
+            netDriver.getConnectionManager().initiateHandshake(clientId);
         }
 
         @Override
         public void received(Connection connection, Object o) {
             if (!(o instanceof Packet)) return;
             Packet packet = (Packet) o;
-            if (packet.getType() == Packet.PacketType.Data) {
-                netDriver.getConnectionManager().getConnectionSlot(connection).packetBuffer.receive(packet);
-            }
-            else {
-                int clientId = netDriver.getConnectionManager().getClientId(connection);
-                ConnectionManager.ConnectionSlot connectionSlot = netDriver.getConnectionManager().getConnectionSlot(clientId);
-    //            connectionSlot.state = connectionSlot.state.read(packet);
-            }
+            netDriver.getConnectionManager().getConnectionSlot(connection).packetBuffer.receive(packet);
+//            if (packet.getType() == Packet.PacketType.Data) {
+//                netDriver.getConnectionManager().getConnectionSlot(connection).packetBuffer.receive(packet);
+//            }
+//            else {
+//                int clientId = netDriver.getConnectionManager().getClientId(connection);
+//                ConnectionManager.ConnectionSlot connectionSlot = netDriver.getConnectionManager().getConnectionSlot(clientId);
+//                connectionSlot.state.read(connectionSlot, packet);
+//            }
         }
     };
 }

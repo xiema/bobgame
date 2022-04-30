@@ -24,29 +24,31 @@ public class NetServer extends Server {
     private Listener listener = new Listener() {
         @Override
         public void connected(Connection connection) {
-            if (netDriver.getEngine() == null) return;
-            EventsSystem eventsSystem = netDriver.getEngine().getSystem(EventsSystem.class);
-            if (eventsSystem == null) return;
+//            if (netDriver.getEngine() == null) return;
+//            EventsSystem eventsSystem = netDriver.getEngine().getSystem(EventsSystem.class);
+//            if (eventsSystem == null) return;
 
             int clientId = netDriver.getConnectionManager().addConnection(connection);
 
-            ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);
-            event.clientId = clientId;
-            eventsSystem.queueEvent(event);
+//            ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);
+//            event.clientId = clientId;
+//            eventsSystem.queueEvent(event);
         }
 
         @Override
         public void received(Connection connection, Object o) {
             if (!(o instanceof Packet)) return;
             Packet packet = (Packet) o;
-            if (packet.getType() == Packet.PacketType.Data) {
-                netDriver.getConnectionManager().getConnectionSlot(connection).packetBuffer.receive(packet);
-            }
-            else {
-                int clientId = netDriver.getConnectionManager().getClientId(connection);
-                ConnectionManager.ConnectionSlot connectionSlot = netDriver.getConnectionManager().getConnectionSlot(clientId);
-    //            connectionSlot.state = connectionSlot.state.read(packet);
-            }
+            ConnectionManager.ConnectionSlot slot = netDriver.getConnectionManager().getConnectionSlot(connection);
+            slot.packetBuffer.receive(packet);
+//            if (packet.getType() == Packet.PacketType.Data) {
+//                netDriver.getConnectionManager().getConnectionSlot(connection).packetBuffer.receive(packet);
+//            }
+//            else {
+//                int clientId = netDriver.getConnectionManager().getClientId(connection);
+//                ConnectionManager.ConnectionSlot connectionSlot = netDriver.getConnectionManager().getConnectionSlot(clientId);
+//                connectionSlot.state.read(connectionSlot, packet);
+//            }
         }
     };
 
