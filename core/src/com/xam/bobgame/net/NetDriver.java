@@ -26,12 +26,11 @@ public class NetDriver extends EntitySystem {
     MessageReader messageReader = new MessageReader(this);
     private Packet eventPacket = new Packet(Net.DATA_MAX_SIZE);
     private Packet updatePacket = new Packet(Net.DATA_MAX_SIZE);
-    private Packet snapshotPacket = new Packet(Net.SNAPSHOT_MAX_SIZE);
+    private Packet snapshotPacket = new Packet(Net.DATA_MAX_SIZE);
     private boolean hasUpdatePacket = false;
     private boolean hasSnapshotPacket = false;
 
     private DebugUtils.ExpoMovingAverage movingAverage = new DebugUtils.ExpoMovingAverage(0.1f);
-    float packetBits = 0;
     private float bitrate = 0;
 
     private int t = 0;
@@ -61,7 +60,7 @@ public class NetDriver extends EntitySystem {
 
     @Override
     public void update(float deltaTime) {
-        packetBits = 0;
+        serialization.clearBits();
         curTime += (curTimeDelta = deltaTime);
         connectionManager.update(deltaTime);
         if (hasUpdatePacket) {
@@ -84,7 +83,6 @@ public class NetDriver extends EntitySystem {
                 messageReader.serializeEvent(eventPacket.getMessage(), clientEvent.event);
 //            Log.info("Send event " + sendPacket.getMessage());
                 connectionSlot.sendDataPacket(eventPacket);
-                packetBits += eventPacket.getBitSize();
                 eventPacket.clear();
             }
             clientEvents.clear();
@@ -153,7 +151,6 @@ public class NetDriver extends EntitySystem {
                 connectionSlot.needsSnapshot = false;
                 connectionSlot.sendDataPacket(snapshotPacket);
 //                    Log.info("Send snapshot " + snapshotPacket.getMessage());
-                packetBits += snapshotPacket.getBitSize();
             }
             else {
                 if (!hasUpdatePacket) {
@@ -161,7 +158,6 @@ public class NetDriver extends EntitySystem {
                     hasUpdatePacket = true;
                 }
                 connectionSlot.sendDataPacket(updatePacket);
-                packetBits += updatePacket.getBitSize();
             }
         }
 
@@ -184,7 +180,7 @@ public class NetDriver extends EntitySystem {
     }
 
     public float updateBitRate(float deltaTime) {
-        bitrate = packetBits / deltaTime;
+        bitrate = serialization.sentBytes * 8 / deltaTime;
         if (Float.isNaN(bitrate)) return movingAverage.getAverage();
         return movingAverage.update(bitrate);
     }

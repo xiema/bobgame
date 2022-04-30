@@ -20,6 +20,8 @@ public class Packet {
 
     int clientId = -1;
 
+    private final BitPacker bitPacker = new BitPacker();
+
     public Packet(int size) {
         message = new Message(size);
     }
@@ -54,31 +56,38 @@ public class Packet {
     }
 
     public void encode(ByteBuffer out) {
-        out.putInt((int) getCrc());
-        out.putInt(localSeqNum);
-        out.putInt(remoteSeqNum);
-        out.putInt(ack);
-        out.putInt(type.getValue());
-        out.putInt(message.messageId);
-        out.putInt(message.getType().getValue());
-        out.putInt(message.getLength());
-        message.copyTo(out);
+        bitPacker.setBuffer(out);
+
+        bitPacker.packInt((int) getCrc());
+        bitPacker.packInt(localSeqNum, 0, PacketTransport.PACKET_SEQUENCE_LIMIT);
+        bitPacker.packInt(remoteSeqNum, 0, PacketTransport.PACKET_SEQUENCE_LIMIT);
+        bitPacker.packInt(ack);
+        bitPacker.packInt(type.getValue(), 0, PacketType.values().length-1);
+        bitPacker.packInt(message.messageId);
+        bitPacker.packInt(message.getType().getValue(), 0, Message.MessageType.values().length-1);
+        bitPacker.packInt(message.getLength(), 0, Net.DATA_MAX_SIZE);
+        bitPacker.padToLong();
+        message.copyTo(bitPacker);
+        bitPacker.flush(false);
     }
 
     public int decode(ByteBuffer in) {
         int i, length;
         clear();
+        bitPacker.setBuffer(in);
 
         i = in.position();
-        float packetCRC = in.getInt();
-        localSeqNum = in.getInt();
-        remoteSeqNum = in.getInt();
-        ack = in.getInt();
-        type = PacketType.values()[in.getInt()];
-        message.messageId = in.getInt();
-        message.setType(Message.MessageType.values()[in.getInt()]);
-        length = in.getInt();
-        message.set(in, length);
+        float packetCRC = bitPacker.unpackInt();
+        localSeqNum = bitPacker.unpackInt(0, PacketTransport.PACKET_SEQUENCE_LIMIT);
+        remoteSeqNum = bitPacker.unpackInt(0, PacketTransport.PACKET_SEQUENCE_LIMIT);
+        ack = bitPacker.unpackInt();
+        type = PacketType.values()[bitPacker.unpackInt(0, PacketType.values().length-1)];
+
+        message.messageId = bitPacker.unpackInt();
+        message.setType(Message.MessageType.values()[bitPacker.unpackInt(0, Message.MessageType.values().length-1)]);
+        length = bitPacker.unpackInt(0, Net.DATA_MAX_SIZE);
+        bitPacker.skipToLong();
+        message.set(bitPacker, length);
 
         if (packetCRC != ((int) getCrc())) {
             Log.error("NetSerialization", "Bad CRC [" + length + "]: " + DebugUtils.bytesHex(in, i, length + 13));

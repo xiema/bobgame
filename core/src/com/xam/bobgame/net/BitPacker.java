@@ -8,7 +8,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public class BitPacker {
-//    private Message message;
     private ByteBuffer buffer;
     private ByteOrder order;
     private long scratch = 0;
@@ -97,14 +96,12 @@ public class BitPacker {
             while (byteCount-- > 0) {
                 p -= 8;
                 buffer.put((byte) ((scratch >> p) & 255));
-//                message.length++;
             }
             scratch = 0;
         } else {
             while (byteCount-- > 0) {
                 buffer.put((byte) (scratch & 255));
                 scratch >>= 8;
-//                message.length++;
             }
         }
         scratchBits = 0;
@@ -124,8 +121,52 @@ public class BitPacker {
         totalBits = 0;
     }
 
+    public int padToLong() {
+        int padding = 64 - scratchBits;
+        if (padding != 0) packIntBits(0, padding, 0);
+        return padding;
+    }
+
+    public int skipToLong() {
+        int padding = ((-totalBits % 64) + 64) % 64;
+        if (padding != 0) unpackIntBits(padding, 0);
+        return padding;
+    }
+
+    public int padToNextByte() {
+        int padding = 8 - (scratchBits % 8);
+        packIntBits(0, padding, 0);
+        return padding;
+    }
+
+    public int skipToNextByte() {
+        int padding = 8 - (scratchBits % 8);
+        unpackIntBits(padding, 0);
+        return padding;
+    }
+
     public int unpackIntBits(int packBits, int min) {
         int i = min;
+
+        if (order == ByteOrder.BIG_ENDIAN) {
+            if (scratchBits < packBits) getBitsB(packBits);
+            i += (int) (scratch >> (scratchBits - packBits));
+            scratchBits -= packBits;
+            scratch &= ((1L << scratchBits) - 1L);
+        } else {
+            if (scratchBits < packBits) getBitsL(packBits);
+            i += (int) (scratch & mask(packBits));
+            scratch >>= packBits;
+            scratchBits -= packBits;
+        }
+
+        totalBits += packBits;
+
+        return i;
+    }
+
+    public long unpackBits(int packBits, long min) {
+        long i = min;
 
         if (order == ByteOrder.BIG_ENDIAN) {
             if (scratchBits < packBits) getBitsB(packBits);
@@ -149,6 +190,11 @@ public class BitPacker {
         int packBits = r < 0 ? 32 : calcBits(r);
         return unpackIntBits(packBits, min);
     }
+
+    public int unpackInt() {
+        return unpackIntBits(32, 0);
+    }
+
 
     public void packIntBits(int i, int packBits, int min) {
         int p;
@@ -179,6 +225,64 @@ public class BitPacker {
         totalBits += packBits;
     }
 
+    public void packBits(long i, int packBits, int min) {
+        int p;
+        i -= min;
+        if (order == ByteOrder.BIG_ENDIAN) {
+            if (scratchBits + packBits <= 64) {
+                scratch = (scratch << packBits) | i;
+                scratchBits += packBits;
+            } else {
+                p = 64 - scratchBits;
+                scratchBits = packBits - p;
+                buffer.putLong((scratch << p) | (i >> scratchBits));
+                scratch = i & mask(scratchBits);
+            }
+        } else {
+            if (scratchBits + packBits <= 64) {
+                scratch |= i << packBits;
+                scratchBits += packBits;
+            } else {
+                buffer.putLong(scratch | ((i & 4294967295L) << scratchBits));
+                scratchBits += packBits - 64;
+                scratch = i >> scratchBits;
+            }
+        }
+
+        totalBits += packBits;
+    }
+
+    public int packBytes(ByteBuffer in, int l) {
+        int count = l;
+        if (scratchBits % 8 == 0) {
+            flush(false);
+            while (count-- > 0) {
+                buffer.put(in.get());
+                totalBits += 8;
+            }
+        }
+        else {
+            while (count-- > 0) {
+                packByte(in.get());
+            }
+        }
+        return l;
+    }
+
+    public void unpackBytes(ByteBuffer out, int l) {
+        byte b;
+        if (scratchBits % 8 == 0) {
+            while (scratchBits > 0 && l > 0) {
+                out.put(unpackByte());
+                l--;
+            }
+            while (l > 0) {
+                out.put(buffer.get());
+                l--;
+            }
+        }
+    }
+
     private static int calcBits(long l) {
         int r = 0;
         while (l > 0) {
@@ -193,6 +297,11 @@ public class BitPacker {
         int packBits = r < 0 ? 32 : calcBits(r);
         packIntBits(i, packBits, min);
         return packBits;
+    }
+
+    public int packInt(int i) {
+        packBits(i & 0xFFFFFFFFL, 32, 0);
+        return 32;
     }
 
     public int packFloat(float f, float min, float max, float res) {

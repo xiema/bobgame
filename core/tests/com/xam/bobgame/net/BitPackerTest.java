@@ -1,8 +1,11 @@
 package com.xam.bobgame.net;
 
 import com.badlogic.gdx.math.MathUtils;
+import com.esotericsoftware.minlog.Log;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
+
+import java.nio.ByteBuffer;
 
 public class BitPackerTest {
 
@@ -48,6 +51,85 @@ public class BitPackerTest {
 //        System.out.println("" + buffer.get());
         System.out.println("" + bitPacker.unpackInt(-1, 30));
 //        System.out.println("" + packetBuilder.unpackInt(0, 2));
+    }
+    @Test
+    public void testNatural() {
+        int count = 50;
+        ByteBuffer byteBuffer1 = ByteBuffer.allocate(count * 8);
+        ByteBuffer byteBuffer2 = ByteBuffer.allocate(count * 8);
+        BitPacker bitPacker = new BitPacker(byteBuffer1);
+
+        int[] nums = new int[count];
+
+//        CRC32 crc32 = new CRC32();
+
+        for (int i = 0; i < count; ++i) {
+            int x = (int) MathUtils.random((long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE);
+
+            nums[i] = x;
+//            byteBuffer1.putInt(x);
+//            byteBuffer2.putInt(x);
+            bitPacker.packInt(x);
+//            crc32.update(x);
+
+//            Log.info("b1=" + byteBuffer1.getLong(byteBuffer1.position() - 8) + " b2=" + byteBuffer2.getInt(byteBuffer2.position() - 8));
+        }
+
+//        byteBuffer1.flip();
+//        byteBuffer2.flip();
+//        bitPacker.setBuffer(byteBuffer2);
+        bitPacker.flush(true);
+
+//        Assertions.assertEquals(crc32.getValue(), bitPacker.getCRC(), "Check CRC");
+
+        for (int i = 0; i < count; ++i) {
+//            int b1 = byteBuffer1.getInt();
+            int b2 = bitPacker.unpackInt();
+
+            Assertions.assertEquals(nums[i], b2, "Failed index " + i);
+//            Log.info("b1=" + byteBuffer1.getLong(byteBuffer1.position() - 8) + " b2=" + byteBuffer2.getInt(byteBuffer2.position() - 8));
+        }
+    }
+
+    @Test
+    public void testSkip() {
+        ByteBuffer buffer = ByteBuffer.allocate(64);
+        BitPacker bitPacker = new BitPacker(buffer);
+
+        bitPacker.packInt(23);
+        bitPacker.packInt(32);
+        bitPacker.padToLong();
+        bitPacker.packInt(1, 0, 1);
+        bitPacker.padToLong();
+        bitPacker.packInt(4, 0, 7);
+        bitPacker.padToLong();
+        bitPacker.packInt(23, 0, 31);
+        bitPacker.flush(true);
+
+        bitPacker.setBuffer(buffer);
+        Assertions.assertEquals(23, bitPacker.unpackInt());
+        Assertions.assertEquals(32, bitPacker.unpackInt());
+        bitPacker.skipToLong();
+        Assertions.assertEquals(1, bitPacker.unpackInt(0, 1));
+        bitPacker.skipToLong();
+        Assertions.assertEquals(4, bitPacker.unpackInt(0, 7));
+        bitPacker.skipToLong();
+        Assertions.assertEquals(23, bitPacker.unpackInt(0, 31));
+    }
+
+    @Test
+    public void testIntBytes() {
+        ByteBuffer buffer = ByteBuffer.allocate(64);
+        BitPacker bitPacker = new BitPacker(buffer);
+        bitPacker.packInt(120);
+        bitPacker.packInt(120);
+        bitPacker.flush(true);
+//        buffer.putInt(120);
+//        buffer.putInt(120);
+
+        for (int i = 0; i < 8; ++i) {
+            Log.info("byte " + i + ": " + buffer.array()[i]);
+        }
     }
 
     @Test

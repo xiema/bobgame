@@ -68,6 +68,11 @@ public class Message {
         byteBuffer.rewind();
     }
 
+    public void copyTo(BitPacker bitPacker) {
+        bitPacker.packBytes(byteBuffer, length);
+        byteBuffer.rewind();
+    }
+
     public void copyTo(Message out) {
         out.set(byteBuffer, length);
         out.type = type;
@@ -81,6 +86,13 @@ public class Message {
         while (length-- > 0) {
             byteBuffer.put(in.get());
         }
+        byteBuffer.flip();
+    }
+
+    public void set(BitPacker bitPacker, int length) {
+        byteBuffer.clear();
+        this.length = length;
+        bitPacker.unpackBytes(byteBuffer, length);
         byteBuffer.flip();
     }
 

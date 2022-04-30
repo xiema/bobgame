@@ -319,7 +319,6 @@ public class ConnectionManager {
                     slot.netDriver.messageReader.serializeEvent(slot.sendPacket.getMessage(), clientEvent.event);
 //                Log.info("Send event " + sendPacket.getMessage());
                     slot.sendDataPacket(slot.sendPacket);
-                    slot.netDriver.packetBits += slot.sendPacket.getBitSize();
                     slot.sendPacket.clear();
                     sent = true;
                 }
@@ -329,7 +328,6 @@ public class ConnectionManager {
                 if (!sent) {
                     slot.netDriver.messageReader.serialize(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), Message.MessageType.Empty, slot);
                     slot.sendDataPacket(slot.sendPacket);
-                    slot.netDriver.packetBits += slot.sendPacket.getBitSize();
                     slot.sendPacket.clear();
                 }
                 return 0;
