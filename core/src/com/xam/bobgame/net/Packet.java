@@ -88,6 +88,7 @@ public class Packet {
     }
 
     public void copyTo(Packet packet) {
+        packet.type = type;
         message.copyTo(packet.message);
         packet.localSeqNum = localSeqNum;
         packet.remoteSeqNum = remoteSeqNum;
@@ -101,6 +102,7 @@ public class Packet {
     }
 
     public void clear() {
+        type = null;
         message.clear();
         localSeqNum = -1;
         remoteSeqNum = -1;
@@ -112,7 +114,8 @@ public class Packet {
     @Override
     public String toString() {
 //        return DebugUtils.intHex(message.messageId) + DebugUtils.intHex(message.getLength()) + DebugUtils.intHex((int) getCrc()) + DebugUtils.bytesHex(message.getBytes());
-        return "[Packet " + localSeqNum + "] " + message;
+        if (type == PacketType.Data) return "[Packet " + localSeqNum + "] " + message;
+        else return "[Packet " + localSeqNum + "] " + type;
     }
 
     public enum PacketType {

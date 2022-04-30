@@ -28,16 +28,7 @@ public class NetClient extends Client {
             if (!(o instanceof Packet)) return;
             Packet packet = (Packet) o;
             if (packet.getType() == Packet.PacketType.Data) {
-                Message message = packet.getMessage();
-
-                synchronized (netDriver.messageNumChecker) {
-                    if (netDriver.messageNumChecker.getAndSet(message.messageId)) {
-                        // message already seen or old and assumed seen
-                        Log.info("Discarded message num=" + message.messageId);
-                        return;
-                    }
-                }
-                netDriver.updateBuffer.receive(packet);
+                netDriver.getConnectionManager().getConnectionSlot(connection).packetBuffer.receive(packet);
             }
             else {
                 int clientId = netDriver.getConnectionManager().getClientId(connection);

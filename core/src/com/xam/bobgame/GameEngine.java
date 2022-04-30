@@ -41,10 +41,10 @@ public class GameEngine extends PooledEngine {
     @Override
     public void update(float deltaTime) {
         super.update(deltaTime);
-        netDriver.updateDropped();
-        if (netDriver.getMode() == NetDriver.Mode.Server) {
-            netDriver.syncClients(deltaTime);
-        }
+        netDriver.update2();
+//        if (netDriver.getMode() == NetDriver.Mode.Server) {
+//            netDriver.syncClients(deltaTime);
+//        }
     }
 
     private final Vector2 tempVec = new Vector2();

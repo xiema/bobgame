@@ -78,6 +78,9 @@ public class BoBGame extends ApplicationAdapter {
 			netDriver.setMode(NetDriver.Mode.Server);
 			netDriver.startServer();
 		}
+		else {
+			netDriver.connect("127.0.0.1");
+		}
 
 		if (mode != 2) {
 			engine.gameSetup();

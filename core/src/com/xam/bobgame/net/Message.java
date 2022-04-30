@@ -15,7 +15,7 @@ public class Message {
      */
     private int length = 0;
 
-    private MessageType type = MessageType.Update;
+    private MessageType type = MessageType.Empty;
 
     /**
      * Unique identifier for message. Does not vary across clients.
@@ -73,7 +73,7 @@ public class Message {
     public void clear() {
         byteBuffer.clear();
         length = 0;
-        type = MessageType.Update;
+        type = MessageType.Empty;
         messageId = -1;
 //        needsAck = false;
     }

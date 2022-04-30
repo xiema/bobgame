@@ -3,8 +3,6 @@ package com.xam.bobgame.net;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.kryonet.Client;
-import com.esotericsoftware.kryonet.Connection;
-import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.utils.DebugUtils;
@@ -21,25 +19,21 @@ public class NetDriver extends EntitySystem {
 
     private ConnectionManager connectionManager = new ConnectionManager(this);
 
-    NetServer server;
-    Client client;
-    private Array<ClientEvent> clientEvents = new Array<>();
-
-    PacketBuffer updateBuffer = new PacketBuffer(this, 8);
-//    PacketBuffer eventBuffer = new PacketBuffer(this, 4);
-    private MessageReader messageReader = new MessageReader(this);
-    private PacketTransport transport = new PacketTransport(this);
+    PacketTransport transport = new PacketTransport(this);
     private NetSerialization serialization = new NetSerialization(this, transport);
-    private Packet syncPacket = new Packet(Net.DATA_MAX_SIZE);
-    private Packet sendPacket = new Packet(Net.DATA_MAX_SIZE);
-    private Packet snapshotPacket = new Packet(Net.SNAPSHOT_MAX_SIZE);
-    final SequenceNumChecker messageNumChecker = new SequenceNumChecker(128);
+    NetServer server = new NetServer(this, serialization);
+    NetClient client = new NetClient(this, serialization);
+    Array<ClientEvent> clientEvents = new Array<>();
 
-//    private IntIntMap playerConnectionMap = new IntIntMap();
-//    private IntIntMap connectionPlayerMap = new IntIntMap();
+    MessageReader messageReader = new MessageReader(this);
+    private Packet eventPacket = new Packet(Net.DATA_MAX_SIZE);
+    private Packet updatePacket = new Packet(Net.DATA_MAX_SIZE);
+    private Packet snapshotPacket = new Packet(Net.SNAPSHOT_MAX_SIZE);
+    private boolean hasUpdatePacket = false;
+    private boolean hasSnapshotPacket = false;
 
     private DebugUtils.ExpoMovingAverage movingAverage = new DebugUtils.ExpoMovingAverage(0.1f);
-    private float packetBits = 0;
+    float packetBits = 0;
     private float bitrate = 0;
 
     private int t = 0;
@@ -71,27 +65,32 @@ public class NetDriver extends EntitySystem {
     public void update(float deltaTime) {
         packetBits = 0;
         curTime += (curTimeDelta = deltaTime);
-        if (mode == Mode.Client) {
-            if (isConnected()) {
-                syncWithServer();
-            }
-            else if (t % 100 == 0) {
-                connect("127.0.0.1");
-            }
+        connectionManager.update(deltaTime);
+        if (hasUpdatePacket) {
+            hasUpdatePacket = false;
+            updatePacket.clear();
         }
-        else {
-//            eventBuffer.debug("eventBuffer");
-            while (updateBuffer.get(syncPacket)) {
-                if (syncPacket.getMessage().getType() == Message.MessageType.Event) {
-                    messageReader.readEvent(syncPacket.getMessage(), getEngine(), syncPacket.clientId);
-                }
-                else {
-                    messageReader.deserialize(syncPacket.getMessage(), getEngine());
-                }
-                syncPacket.clear();
-            }
+        if (hasSnapshotPacket) {
+            hasSnapshotPacket = false;
+            snapshotPacket.clear();
         }
         t++;
+    }
+
+    public void update2() {
+        updateDropped();
+        connectionManager.update2();
+        if (mode == Mode.Server) {
+            for (ClientEvent clientEvent : clientEvents) {
+                ConnectionManager.ConnectionSlot connectionSlot = connectionManager.getConnectionSlot(clientEvent.clientId);
+                messageReader.serializeEvent(eventPacket.getMessage(), clientEvent.event);
+//            Log.info("Send event " + sendPacket.getMessage());
+                connectionSlot.sendDataPacket(eventPacket);
+                packetBits += eventPacket.getBitSize();
+                eventPacket.clear();
+            }
+            clientEvents.clear();
+        }
     }
 
     public void flagSnapshot(int clientId) {
@@ -105,18 +104,8 @@ public class NetDriver extends EntitySystem {
         clientEvents.add(clientEvent);
     }
 
-//    synchronized NetworkEvent sendClientEvent(int connectionId, NetworkEvent event) {
-//        packetReader.serializeEvent(sendPacket, event);
-//        for (Connection connection : server.getConnections()) {
-//            if (connection.getID() == connectionId) {
-//                connection.sendUDP(sendPacket);
-//            }
-//        }
-//        sendPacket.clear();
-//    }
-
     public void connect(String host) {
-        if (mode != Mode.Client || client != null) return;
+        if (mode != Mode.Client || client.isConnected()) return;
         client = new NetClient(this, serialization);
         client.start();
         try {
@@ -130,8 +119,7 @@ public class NetDriver extends EntitySystem {
     }
 
     public void startServer() {
-        if (mode != Mode.Server || server != null) return;
-        server = new NetServer(this, serialization);
+        if (mode != Mode.Server || server.isRunning()) return;
         server.start();
         try {
             server.bind(PORT_TCP, PORT_UDP);
@@ -152,93 +140,35 @@ public class NetDriver extends EntitySystem {
             client.stop();
             client = null;
         }
-        updateBuffer.reset();
+        connectionManager.clear();
     }
 
-    public void syncClients(float deltaTime) {
+    public void syncClient(ConnectionManager.ConnectionSlot connectionSlot) {
         if (server.getConnections().length == 0) return;
 
-        if (t % SERVER_UPDATE_FREQUENCY == 0)
-            messageReader.serialize(sendPacket.getMessage(), getEngine(), Message.MessageType.Update, null);
-        packetBits = 0;
-//        DebugUtils.log("Packet", DebugUtils.bytesHex(sendBuffer.array()));
-        boolean snapshot = false;
-
         if (t % SERVER_UPDATE_FREQUENCY == 0) {
-            for (int clientId = 0; clientId < ConnectionManager.MAX_CLIENTS; ++clientId) {
-                ConnectionManager.ConnectionSlot connectionSlot = connectionManager.getConnectionSlot(clientId);
-                if (connectionSlot == null) continue;
-
-                if (connectionSlot.needsSnapshot) {
-                    if (!snapshot) {
-                        messageReader.serialize(snapshotPacket.getMessage(), getEngine(), Message.MessageType.Snapshot, connectionSlot);
-                        snapshot = true;
-                    }
-                    connectionSlot.needsSnapshot = false;
-                    connectionSlot.sendDataPacket(snapshotPacket);
+            if (connectionSlot.needsSnapshot) {
+                if (!hasSnapshotPacket) {
+                    messageReader.serialize(snapshotPacket.getMessage(), getEngine(), Message.MessageType.Snapshot, connectionSlot);
+                    hasSnapshotPacket = true;
+                }
+                connectionSlot.needsSnapshot = false;
+                connectionSlot.sendDataPacket(snapshotPacket);
 //                    Log.info("Send snapshot " + snapshotPacket.getMessage());
-                    packetBits += snapshotPacket.getBitSize();
-                }
-                else {
-                    connectionSlot.sendDataPacket(sendPacket);
-                    packetBits += sendPacket.getBitSize();
-                }
-            }
-        }
-
-        sendPacket.clear();
-        snapshotPacket.clear();
-
-        for (ClientEvent clientEvent : clientEvents) {
-            ConnectionManager.ConnectionSlot connectionSlot = connectionManager.getConnectionSlot(clientEvent.clientId);
-            messageReader.serializeEvent(sendPacket.getMessage(), clientEvent.event);
-//            Log.info("Send event " + sendPacket.getMessage());
-            connectionSlot.sendDataPacket(sendPacket);
-            packetBits += sendPacket.getBitSize();
-            sendPacket.clear();
-        }
-        clientEvents.clear();
-    }
-
-    public void syncWithServer() {
-        if (mode != Mode.Client) return;
-//        while (eventBuffer.get(syncPacket)) {
-//            messageReader.readEvent(syncPacket.getMessage(), getEngine(), 0);
-//            syncPacket.clear();
-//        }
-
-        while (updateBuffer.get(syncPacket)) {
-//            Log.info("[" + syncPacket.getLength() + "] " + syncPacket);
-            if (syncPacket.getMessage().getType() == Message.MessageType.Event) {
-                messageReader.readEvent(syncPacket.getMessage(), getEngine(), 0);
+                packetBits += snapshotPacket.getBitSize();
             }
             else {
-                messageReader.deserialize(syncPacket.getMessage(), getEngine());
-            }
-            syncPacket.clear();
-        }
-
-        boolean sent = false;
-        if (connectionManager.getHostClientId() != -1) {
-            ConnectionManager.ConnectionSlot connectionSlot = connectionManager.getHostConnectionSlot();
-
-            for (ClientEvent clientEvent : clientEvents) {
-                messageReader.serializeEvent(sendPacket.getMessage(), clientEvent.event);
-//                Log.info("Send event " + sendPacket.getMessage());
-                connectionSlot.sendDataPacket(sendPacket);
-                packetBits += sendPacket.getBitSize();
-                sendPacket.clear();
-                sent = true;
-            }
-            clientEvents.clear();
-
-            if (!sent) {
-                messageReader.serialize(sendPacket.getMessage(), getEngine(), Message.MessageType.Empty, connectionManager.getHostConnectionSlot());
-                connectionSlot.sendDataPacket(sendPacket);
-                packetBits += sendPacket.getBitSize();
-                sendPacket.clear();
+                if (!hasUpdatePacket) {
+                    messageReader.serialize(updatePacket.getMessage(), getEngine(), Message.MessageType.Update, null);
+                    hasUpdatePacket = true;
+                }
+                connectionSlot.sendDataPacket(updatePacket);
+                packetBits += updatePacket.getBitSize();
             }
         }
+
+        updatePacket.clear();
+        snapshotPacket.clear();
     }
 
     public void updateDropped() {
@@ -301,7 +231,7 @@ public class NetDriver extends EntitySystem {
         return connectionManager;
     }
 
-    private static class ClientEvent implements Pool.Poolable {
+    static class ClientEvent implements Pool.Poolable {
         NetworkEvent event;
         int clientId;
 

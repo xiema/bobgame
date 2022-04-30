@@ -22,14 +22,14 @@ public class NetSerialization extends KryoSerialization {
     public void write(Connection connection, ByteBuffer byteBuffer, Object o) {
         if (o instanceof Packet) {
             Packet packet = (Packet) o;
-            if (packet.getMessage().messageId == -1) {
-                Log.error("Attempted to send message with unset messageId ");
+            if (packet.type == Packet.PacketType.Data && packet.getMessage().messageId == -1) {
+                Log.error("Attempted to send data packet with unset messageId ");
                 return;
             }
             byteBuffer.put((byte) 1);
             PacketTransport.PacketInfo dropped = transport.setHeaders(packet, connection);
             packet.encode(byteBuffer);
-//            Log.info("Sending Packet " + packet.localSeqNum + ": " + packet.getMessage());
+//            Log.info("Sending Packet " + packet);
             if (dropped != null) {
 //                Log.info("Packet dropped: " + dropped.packetSeqNum + " (" + dropped.messageSeqNum + ")");
             }

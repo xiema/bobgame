@@ -12,6 +12,7 @@ import com.xam.bobgame.events.EventsSystem;
 public class NetServer extends Server {
 
     private NetDriver netDriver;
+    private boolean running = false;
 
     public NetServer(NetDriver netDriver, Serialization serialization) {
         super(8192, 2048, serialization);
@@ -39,16 +40,7 @@ public class NetServer extends Server {
             if (!(o instanceof Packet)) return;
             Packet packet = (Packet) o;
             if (packet.getType() == Packet.PacketType.Data) {
-                Message message = packet.getMessage();
-
-                synchronized (netDriver.messageNumChecker) {
-                    if (netDriver.messageNumChecker.getAndSet(message.messageId)) {
-                        // message already seen or old and assumed seen
-                        Log.info("Discarded message num=" + message.messageId);
-                        return;
-                    }
-                }
-                netDriver.updateBuffer.receive(packet);
+                netDriver.getConnectionManager().getConnectionSlot(connection).packetBuffer.receive(packet);
             }
             else {
                 int clientId = netDriver.getConnectionManager().getClientId(connection);
@@ -65,4 +57,19 @@ public class NetServer extends Server {
         Log.info("Player " + playerId + " connected in slot " + clientId);
     }
 
+    @Override
+    public void start() {
+        super.start();
+        running = true;
+    }
+
+    @Override
+    public void stop() {
+        super.stop();
+        running = false;
+    }
+
+    public boolean isRunning() {
+        return running;
+    }
 }
