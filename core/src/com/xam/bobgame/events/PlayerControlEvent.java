@@ -1,7 +1,7 @@
 package com.xam.bobgame.events;
 
+import com.xam.bobgame.net.BitPacker;
 import com.xam.bobgame.net.NetDriver;
-import com.xam.bobgame.net.Message;
 import com.xam.bobgame.net.MessageReader;
 
 public class PlayerControlEvent extends NetDriver.NetworkEvent {
@@ -19,7 +19,7 @@ public class PlayerControlEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
-    public void read(Message.MessageBuilder builder, boolean write) {
+    public void read(BitPacker builder, boolean write) {
         controlId = readInt(builder, controlId, -1, 31, write);
         entityId = readInt(builder, entityId, 0, 255, write);
         x = readFloat(builder, x, -3,  13, MessageReader.RES_POSITION, write);

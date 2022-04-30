@@ -9,7 +9,6 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.utils.Pools;
-import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.components.GraphicsComponent;
@@ -34,14 +33,14 @@ public class MessageReader {
     public static final int MAX_MESSAGE_HISTORY = 256;
 
     NetDriver netDriver;
-    Message.MessageBuilder builder;
+    BitPacker builder;
     Engine engine;
 
     private MessageInfo[] messageInfos = new MessageInfo[MAX_MESSAGE_HISTORY];
     private int messageIdCounter = 0;
 
     public MessageReader(NetDriver netDriver) {
-        builder = new Message.MessageBuilder();
+        builder = new BitPacker();
         this.netDriver = netDriver;
         for (int i = 0; i < messageInfos.length; ++i) {
             messageInfos[i] = new MessageInfo();
@@ -92,7 +91,7 @@ public class MessageReader {
 
     public int deserialize(Message message, Engine engine) {
         this.engine = engine;
-        builder.setMessage(message);
+        builder.setBuffer(message.getByteBuffer());
         send = false;
 
         switch (message.getType()) {
@@ -120,7 +119,7 @@ public class MessageReader {
 
     public int serialize(Message message, Engine engine, Message.MessageType type, ConnectionManager.ConnectionSlot connectionSlot) {
         this.engine = engine;
-        builder.setMessage(message);
+        builder.setBuffer(message.getByteBuffer());
         send = true;
 
         setMessageInfo(message);
@@ -138,12 +137,13 @@ public class MessageReader {
         }
         readFooter();
         builder.flush(true);
+        message.setLength(builder.getTotalBytes());
 
         return 0;
     }
 
     public int serializeEvent(Message message, NetDriver.NetworkEvent event) {
-        builder.setMessage(message);
+        builder.setBuffer(message.getByteBuffer());
         send = true;
 
         setMessageInfo(message);
@@ -152,13 +152,14 @@ public class MessageReader {
         event.netDriver = netDriver;
         event.read(builder, true);
         builder.flush(true);
+        message.setLength(builder.getTotalBytes());
 
         return 0;
     }
 
     public int readEvent(Message message, Engine engine, int clientId) {
         this.engine = engine;
-        builder.setMessage(message);
+        builder.setBuffer(message.getByteBuffer());
         send = false;
 
         int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);

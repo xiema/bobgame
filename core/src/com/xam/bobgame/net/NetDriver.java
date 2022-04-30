@@ -2,11 +2,9 @@ package com.xam.bobgame.net;
 
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.utils.*;
-import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.utils.DebugUtils;
-import com.xam.bobgame.utils.SequenceNumChecker;
 
 import java.io.IOException;
 
@@ -251,7 +249,7 @@ public class NetDriver extends EntitySystem {
 
         NetDriver netDriver = null;
 
-        protected int readInt(Message.MessageBuilder builder, int i, int min, int max, boolean write) {
+        protected int readInt(BitPacker builder, int i, int min, int max, boolean write) {
             if (write) {
                 builder.packInt(i, min, max);
                 return i;
@@ -261,7 +259,7 @@ public class NetDriver extends EntitySystem {
             }
         }
 
-        protected float readFloat(Message.MessageBuilder builder, float f, float min, float max, float res, boolean write) {
+        protected float readFloat(BitPacker builder, float f, float min, float max, float res, boolean write) {
             if (write) {
                 builder.packFloat(f, min, max, res);
                 return f;
@@ -271,7 +269,7 @@ public class NetDriver extends EntitySystem {
             }
         }
 
-        protected byte readByte(Message.MessageBuilder builder, byte b, boolean write) {
+        protected byte readByte(BitPacker builder, byte b, boolean write) {
             if (write) {
                 builder.packByte(b);
                 return b;
@@ -281,7 +279,7 @@ public class NetDriver extends EntitySystem {
             }
         }
 
-        public void read(Message.MessageBuilder builder, boolean write){
+        public void read(BitPacker builder, boolean write){
 
         }
 

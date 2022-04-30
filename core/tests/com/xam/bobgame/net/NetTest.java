@@ -3,7 +3,6 @@ package com.xam.bobgame.net;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.esotericsoftware.minlog.Log;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.zip.CRC32;
@@ -21,13 +20,13 @@ public class NetTest {
 
         int count = 10;
         Packet[] packets = new Packet[count];
-        Message.MessageBuilder pb = new Message.MessageBuilder();
+        BitPacker pb = new BitPacker();
         Message message;
         for (int i = 0; i < count; ++i) {
             packets[i] = new Packet(Net.DATA_MAX_SIZE);
             message = packets[i].getMessage();
             message.messageId = i;
-            pb.setMessage(message);
+            pb.setBuffer(message.getByteBuffer());
             crc32.reset();
             while (pb.hasRemaining()) {
                 pb.packByte((byte) MathUtils.random(0, 0xFF));
