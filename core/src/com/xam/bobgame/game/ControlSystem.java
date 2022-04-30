@@ -42,7 +42,7 @@ public class ControlSystem extends EntitySystem {
     @Override
     public void removedFromEngine(Engine engine) {
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
-        eventsSystem.removeListeners(listeners);
+        if (eventsSystem != null) eventsSystem.removeListeners(listeners);
         idSet.clear();
         for (IntArray entityIdArray : controlMap) entityIdArray.clear();
     }

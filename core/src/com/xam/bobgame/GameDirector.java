@@ -60,8 +60,10 @@ public class GameDirector extends EntitySystem {
 
     @Override
     public void removedFromEngine(Engine engine) {
-        engine.getSystem(EventsSystem.class).removeListeners(listeners);
+        EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
+        if (eventsSystem != null) eventsSystem.removeListeners(listeners);
         entityMap.clear();
+        sortedEntities.clear();
     }
 
     public ImmutableArray<Entity> getEntities () {

@@ -84,7 +84,7 @@ public class Packet {
         message.set(bitPacker, length);
 
         if (packetCRC != ((int) getCrc())) {
-            Log.error("NetSerialization", "Bad CRC [" + length + "]: " + DebugUtils.bytesHex(in, i, length + 13));
+            Log.error("Packet", "Bad CRC [" + length + "]: " + DebugUtils.bytesHex(in, i, length + 13));
             return -1;
         }
         return 0;

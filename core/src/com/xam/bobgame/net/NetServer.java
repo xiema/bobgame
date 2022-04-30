@@ -77,7 +77,6 @@ public class NetServer extends Server {
         if (!running) return;
         super.stop();
         running = false;
-        netDriver.connectionManager.clear();
     }
 
     public void syncClient(ConnectionManager.ConnectionSlot connectionSlot) {

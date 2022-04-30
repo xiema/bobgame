@@ -6,9 +6,7 @@ import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
@@ -16,6 +14,7 @@ import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.graphics.GraphicsRenderer;
 import com.xam.bobgame.net.NetDriver;
+import com.xam.bobgame.ui.UIStage;
 
 import java.util.Map;
 
@@ -31,7 +30,6 @@ public class BoBGame extends ApplicationAdapter {
 
 	Stage uiStage;
 	Viewport uiViewport;
-	Label bitrateLabel;
 
 	private static long counter = 0;
 
@@ -66,25 +64,16 @@ public class BoBGame extends ApplicationAdapter {
 		netDriver = engine.getSystem(NetDriver.class);
 
 		Skin skin = new Skin(Gdx.files.internal("skin/uiskin.json"));
-		uiViewport = new FitViewport(500, 500);
-		uiStage = new Stage(uiViewport, batch);
-		bitrateLabel = new Label("0", skin);
-		bitrateLabel.setName("bitrateLabel");
-		uiStage.addActor(bitrateLabel);
-		bitrateLabel.setPosition(0, 0, Align.bottomLeft);
+		uiViewport = new FitViewport(800, 500);
+		uiStage = new UIStage(this, uiViewport, batch, skin);
 
 		if (mode == 1) {
 			netDriver.setMode(NetDriver.Mode.Server);
 			netDriver.getServer().start(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
-		}
-		else {
-			netDriver.getClient().connect("127.0.0.1");
-		}
-
-		if (mode != 2) {
 			engine.gameSetup();
 			engine.getSystem(GameDirector.class).getPlayerEntity().getComponent(PhysicsBodyComponent.class).body.applyForceToCenter(MathUtils.random() * 1000f, MathUtils.random() * 100f, true);
 		}
+
 		engine.getSystem(PhysicsSystem.class).setEnabled(true);
 	}
 
@@ -93,7 +82,6 @@ public class BoBGame extends ApplicationAdapter {
 		float deltaTime = Gdx.graphics.getDeltaTime();
 
 		engine.update(deltaTime);
-		bitrateLabel.setText(String.valueOf(netDriver.getAverageBitrate()));
 
 		stage.act(deltaTime);
 		ScreenUtils.clear(0, 0, 0, 1);
@@ -121,5 +109,9 @@ public class BoBGame extends ApplicationAdapter {
 
 	public static long getCounter() {
 		return counter;
+	}
+
+	public GameEngine getEngine() {
+		return engine;
 	}
 }

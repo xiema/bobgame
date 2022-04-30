@@ -1,16 +1,15 @@
 package com.xam.bobgame;
 
-import com.badlogic.ashley.core.Engine;
+import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.ashley.core.PooledEngine;
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.InputMultiplexer;
-import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
 import com.badlogic.gdx.utils.viewport.Viewport;
-import com.xam.bobgame.events.EventsSystem;
-import com.xam.bobgame.events.PlayerControlEvent;
+import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.net.NetDriver;
@@ -22,8 +21,16 @@ public class GameEngine extends PooledEngine {
 
     private int lastSnapshot = -1;
 
+    private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
+
     public GameEngine() {
         super();
+        listeners.put(DisconnectEvent.class, new EventListenerAdapter<DisconnectEvent>() {
+            @Override
+            public void handleEvent(DisconnectEvent event) {
+                restart();
+            }
+        });
     }
 
     public void initialize() {
@@ -32,6 +39,8 @@ public class GameEngine extends PooledEngine {
         addSystem(gameDirector = new GameDirector(10));
         addSystem(new ControlSystem(20));
         addSystem(new PhysicsSystem(30));
+
+        eventsSystem.addListeners(listeners);
     }
 
     public void gameSetup() {
@@ -49,6 +58,23 @@ public class GameEngine extends PooledEngine {
 
     private final Vector2 tempVec = new Vector2();
 
+    public void restart() {
+        removeAllEntities();
+
+        Array<EntitySystem> systems = new Array<>();
+        removeSystem(netDriver);
+        removeSystem(eventsSystem);
+        removeSystem(gameDirector);
+        for (EntitySystem system : getSystems()) systems.add(system);
+
+        addSystem(netDriver);
+        addSystem(eventsSystem);
+        addSystem(gameDirector);
+        for (EntitySystem system : systems) addSystem(system);
+
+        eventsSystem.addListeners(listeners);
+    }
+
     public void addInputProcessor(InputMultiplexer inputMultiplexer, final Viewport viewport) {
         inputMultiplexer.addProcessor(new InputAdapter() {
             public void userInput(int x, int y, int button, boolean state) {
@@ -62,7 +88,7 @@ public class GameEngine extends PooledEngine {
                 event.controlId = gameDirector.getLocalPlayerId();
                 event.entityId = gameDirector.getPlayerEntityId();
 
-                if (netDriver.getMode() == NetDriver.Mode.Client) {
+                if (netDriver.getMode() == NetDriver.Mode.Client && netDriver.getClient().isConnected()) {
                     PlayerControlEvent netEvent = Pools.obtain(PlayerControlEvent.class);
                     event.copyTo(netEvent);
                     netDriver.queueClientEvent(-1, netEvent);

@@ -13,7 +13,7 @@ import com.xam.bobgame.entity.ComponentMappers;
 public class PhysicsSystem extends EntitySystem {
     private ImmutableArray<Entity> entities;
 
-    private World world = new World(new Vector2(0, 0), true);
+    private World world;
     private Body[] walls = new Body[4];
     private boolean enabled = false;
 
@@ -50,6 +50,7 @@ public class PhysicsSystem extends EntitySystem {
 
     @Override
     public void addedToEngine(Engine engine) {
+        world = new World(new Vector2(0, 0), true);
         createWalls();
 
         entities = engine.getEntitiesFor(Family.all(PhysicsBodyComponent.class).get());
@@ -71,13 +72,14 @@ public class PhysicsSystem extends EntitySystem {
         });
     }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
     @Override
     public void removedFromEngine(Engine engine) {
         entities = null;
+        world.dispose();
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 
     @Override

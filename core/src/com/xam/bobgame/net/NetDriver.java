@@ -1,5 +1,6 @@
 package com.xam.bobgame.net;
 
+import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.kryonet.Connection;
@@ -71,6 +72,16 @@ public class NetDriver extends EntitySystem {
     }
 
     @Override
+    public void removedFromEngine(Engine engine) {
+        for (ClientEvent clientEvent : clientEvents) Pools.free(clientEvent);
+        clientEvents.clear();
+        movingAverage.reset();
+        curTime = 0;
+        connectionManager.clear();
+        transport.clearDropped();
+    }
+
+    @Override
     public void update(float deltaTime) {
         serialization.clearBits();
         curTime += (curTimeDelta = deltaTime);
@@ -136,11 +147,11 @@ public class NetDriver extends EntitySystem {
     }
 
     public NetServer getServer() {
-        return server;
+        return mode == Mode.Server ? server : null;
     }
 
     public NetClient getClient() {
-        return client;
+        return mode == Mode.Client ? client : null;
     }
 
     static class ClientEvent implements Pool.Poolable {
@@ -238,12 +249,14 @@ public class NetDriver extends EntitySystem {
             Object r = null;
             int i = byteBuffer.position();
             if (byteBuffer.get() > 0) {
-                if (returnPacket.decode(byteBuffer) != -1) {
-                    int clientId = connectionManager.getClientId(connection);
-        //            Log.info("Received Packet " + returnPacket.localSeqNum + ": " + returnPacket.getMessage());
-                    synchronized (transport) {
-                        if (!transport.updateReceived(returnPacket, clientId)) {
-                            r = returnPacket;
+                int clientId = connectionManager.getClientId(connection);
+                if (clientId != -1) {
+                    if (returnPacket.decode(byteBuffer) != -1) {
+            //            Log.info("Received Packet " + returnPacket.localSeqNum + ": " + returnPacket.getMessage());
+                        synchronized (transport) {
+                            if (!transport.updateReceived(returnPacket, clientId)) {
+                                r = returnPacket;
+                            }
                         }
                     }
                 }

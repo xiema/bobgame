@@ -21,6 +21,10 @@ public class PacketTransport {
 
     public PacketInfo setHeaders(Packet packet, Connection connection) {
         int clientId = netDriver.connectionManager.getClientId(connection);
+        if (clientId == -1) {
+            Log.error("PacketTransport", "No connection with " + connection.getRemoteAddressTCP().getAddress().getHostAddress() + " (" + connection.getID() + ")");
+            return null;
+        }
         PacketInfo dropped = endPointInfos[clientId].setHeaders(packet, clientId);
         if (dropped != null) {
             synchronized (droppedPackets) {
@@ -50,12 +54,16 @@ public class PacketTransport {
         }
     }
 
+    public void clear() {
+        droppedPackets.clear();
+        for (int i = 0; i < endPointInfos.length; ++i) endPointInfos[i] = null;
+    }
+
     void addTransportConnection(int clientId) {
         endPointInfos[clientId] = new EndPointInfo(clientId);
     }
 
     void removeTransportConnection(int clientId) {
-        Pools.free(endPointInfos[clientId]);
         endPointInfos[clientId] = null;
     }
 
@@ -72,7 +80,7 @@ public class PacketTransport {
         public EndPointInfo(int clientId) {
             this.clientId = clientId;
             for (int i = 0; i < packetInfos.length; ++i) {
-                packetInfos[i] = Pools.obtain(PacketInfo.class);
+                packetInfos[i] = new PacketInfo();
             }
             acks.setAll();
         }
@@ -92,7 +100,7 @@ public class PacketTransport {
             }
             else {
                 // debug
-                if (packet.getMessage().messageId != packetInfos[localSeqNum].messageId) {
+                if (packet.type != Packet.PacketType.Disconnect && packet.getMessage().messageId != packetInfos[localSeqNum].messageId) {
                     Log.warn("Client " + clientId + ": Packet " + localSeqNum + " doesn't match message (" + packet.getMessage().messageId + ", " + packetInfos[localSeqNum].messageId + ")");
                 }
             }
@@ -108,7 +116,7 @@ public class PacketTransport {
         }
     }
 
-    public static class PacketInfo implements Pool.Poolable {
+    public static class PacketInfo {
         int packetSeqNum = -1, messageId = -1, clientId = -1;
 
         void set(Packet packet, int clientId) {
@@ -121,13 +129,6 @@ public class PacketTransport {
             other.packetSeqNum = packetSeqNum;
             other.messageId = messageId;
             other.clientId = clientId;
-        }
-
-        @Override
-        public void reset() {
-            packetSeqNum = -1;
-            messageId = -1;
-            clientId = -1;
         }
     }
 }

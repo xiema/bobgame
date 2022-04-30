@@ -54,6 +54,7 @@ public class ConnectionManager {
                 connectionSlot.initialize(netDriver);
                 connectionSlot.clientId = i;
                 connectionSlot.connection = connection;
+                connectionSlot.hostAddress = connection.getRemoteAddressTCP().getAddress().getHostAddress();
                 connectionSlot.state = netDriver.getMode() == NetDriver.Mode.Server ? ConnectionState.ServerEmpty : ConnectionState.ClientEmpty;
                 connectionSlots[i] = connectionSlot;
 
@@ -73,9 +74,23 @@ public class ConnectionManager {
         }
     }
 
+    public void sendDisconnect(int clientId) {
+        ConnectionSlot slot = connectionSlots[clientId];
+        slot.sendPacket.type = Packet.PacketType.Disconnect;
+        int count = 10;
+        while (count-- > 0) {
+            slot.sendTransportPacket(slot.sendPacket);
+        }
+        slot.sendPacket.clear();
+        removeConnection(clientId);
+    }
+
     public void removeConnection(int clientId) {
         // TODO: clean disconnect
+        Log.info("Disconnecting from " + connectionSlots[clientId].hostAddress + " (slot " + clientId + ")");
         Pools.free(connectionSlots[clientId]);
+        connectionSlots[clientId] = null;
+        netDriver.transport.removeTransportConnection(clientId);
     }
 
     public void acceptConnection(int clientId) {
@@ -106,7 +121,7 @@ public class ConnectionManager {
 
     public int getClientId(Connection connection) {
         for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
-            if (connectionSlots[i].connection == connection) return i;
+            if (connectionSlots[i] != null && connectionSlots[i].connection == connection) return i;
         }
         return -1;
     }
@@ -115,6 +130,7 @@ public class ConnectionManager {
     public static class ConnectionSlot implements Pool.Poolable {
         NetDriver netDriver = null;
         Connection connection = null;
+        String hostAddress = null;
         int clientId = -1;
         int playerId = -1;
 
@@ -215,11 +231,18 @@ public class ConnectionManager {
         ServerConnected(5) {
             @Override
             int read(ConnectionSlot slot, Packet in) {
-                if (in.getMessage().getType() == Message.MessageType.Event) {
-                    slot.netDriver.messageReader.readEvent(in.getMessage(), slot.netDriver.getEngine(), slot.clientId);
+                if (in.type == Packet.PacketType.Data) {
+                    if (in.getMessage().getType() == Message.MessageType.Event) {
+                        slot.netDriver.messageReader.readEvent(in.getMessage(), slot.netDriver.getEngine(), slot.clientId);
+                    }
+                    else {
+                        slot.netDriver.messageReader.deserialize(in.getMessage(), slot.netDriver.getEngine());
+                    }
                 }
                 else {
-                    slot.netDriver.messageReader.deserialize(in.getMessage(), slot.netDriver.getEngine());
+                    if (in.type == Packet.PacketType.Disconnect) {
+                        slot.netDriver.connectionManager.removeConnection(slot.clientId);
+                    }
                 }
 //                return readData(slot, in);
                 return 0;
@@ -281,6 +304,7 @@ public class ConnectionManager {
                 if (in.type == Packet.PacketType.Data) {
                     slot.transitionState(ClientConnected);
                     Log.info("Connected to " + slot.connection.getRemoteAddressUDP().getAddress().getHostAddress());
+                    slot.netDriver.getClient().setHostId(slot.clientId);
                     return ClientConnected.read(slot, in);
                 }
                 return 0;
