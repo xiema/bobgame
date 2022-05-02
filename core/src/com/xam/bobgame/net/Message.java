@@ -20,6 +20,8 @@ public class Message {
      */
     int messageId = -1;
 
+    int frameNum = -1;
+
     public Message(int size) {
         byteBuffer = ByteBuffer.allocate(size);
     }
@@ -75,6 +77,7 @@ public class Message {
         out.set(byteBuffer, length);
         out.type = type;
         out.messageId = messageId;
+        out.frameNum = frameNum;
         byteBuffer.rewind();
     }
 
@@ -99,6 +102,7 @@ public class Message {
         length = 0;
         type = MessageType.Empty;
         messageId = -1;
+        frameNum = -1;
 //        needsAck = false;
     }
 

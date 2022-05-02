@@ -313,6 +313,7 @@ public class ConnectionManager {
                 Log.info("Connected to " + slot.connection.getRemoteAddressUDP().getAddress().getHostAddress());
                 slot.netDriver.getClient().setHostId(slot.clientId);
                 ClientConnected.readMessage(slot, message);
+                slot.messageBuffer.syncFrameNum = message.frameNum - NetDriver.JITTER_BUFFER_SIZE;
 //                slot.packetBuffer.frameOffset = message.frameNum - ((GameEngine) slot.netDriver.getEngine()).getCurrentFrame() - NetDriver.JITTER_BUFFER_SIZE;
                 return 0;
             }
@@ -358,6 +359,7 @@ public class ConnectionManager {
 
             @Override
             int update(ConnectionSlot slot, float t) {
+                slot.messageBuffer.syncFrameNum++;
                 if (super.update(slot, t) == -1) return -1;
 
                 // send events

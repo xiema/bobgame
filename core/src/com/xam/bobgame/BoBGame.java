@@ -9,6 +9,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import com.xam.bobgame.dev.DevTools;
 import com.xam.bobgame.graphics.GraphicsRenderer;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.ui.UIStage;
@@ -28,6 +29,10 @@ public class BoBGame extends ApplicationAdapter {
 
 	Stage uiStage;
 	Viewport uiViewport;
+
+	Skin skin;
+
+	DevTools devTools;
 
 	public BoBGame() {
 		this(null);
@@ -59,11 +64,14 @@ public class BoBGame extends ApplicationAdapter {
 		engine.initialize();
 		netDriver = engine.getSystem(NetDriver.class);
 
-		Skin skin = new Skin(Gdx.files.internal("skin/uiskin.json"));
+		skin = new Skin(Gdx.files.internal("skin/uiskin.json"));
 		uiViewport = new FitViewport(800, 500);
 		uiStage = new UIStage(this, uiViewport, batch, skin);
 
 		engine.setMode(mode == 1 ? NetDriver.Mode.Server : NetDriver.Mode.Client);
+
+		devTools = new DevTools(this);
+		devTools.loadUI();
 	}
 
 	@Override
@@ -80,11 +88,14 @@ public class BoBGame extends ApplicationAdapter {
 		uiStage.act(deltaTime);
 		uiViewport.apply(true);
 		uiStage.draw();
+
+		devTools.render(deltaTime);
 	}
 
 	@Override
 	public void resize(int width, int height) {
 		viewport.update(width, height);
+		devTools.resize(width, height);
 	}
 
 	@Override
@@ -96,5 +107,13 @@ public class BoBGame extends ApplicationAdapter {
 
 	public GameEngine getEngine() {
 		return engine;
+	}
+
+	public Skin getSkin() {
+		return skin;
+	}
+
+	public Viewport getWorldViewport() {
+		return viewport;
 	}
 }

@@ -19,7 +19,6 @@ public class Packet {
     int remoteSeqNum = -1;
     int ack = 0;
 
-    int frameNum = -1;
     float simulationTime = 0;
 
     private final BitPacker bitPacker = new BitPacker();
@@ -43,7 +42,6 @@ public class Packet {
             crc32.update(remoteSeqNum);
             crc32.update(ack);
             crc32.update(type.getValue());
-            crc32.update(frameNum);
             crc32.update(Float.floatToRawIntBits(simulationTime));
             crc32.update(message.messageId);
             crc32.update(message.getType().getValue());
@@ -62,9 +60,9 @@ public class Packet {
         bitPacker.packInt(remoteSeqNum, 0, NetDriver.PACKET_SEQUENCE_LIMIT);
         bitPacker.packInt(ack);
         bitPacker.packInt(type.getValue(), 0, PacketType.values().length-1);
-        bitPacker.packInt(frameNum);
         bitPacker.packFloat(simulationTime);
         bitPacker.packInt(message.messageId);
+        bitPacker.packInt(message.frameNum);
         bitPacker.packInt(message.getType().getValue(), 0, Message.MessageType.values().length-1);
         bitPacker.packInt(message.getLength(), 0, NetDriver.DATA_MAX_SIZE);
         bitPacker.padToLong();
@@ -84,9 +82,9 @@ public class Packet {
         ack = bitPacker.unpackInt();
         type = PacketType.values()[bitPacker.unpackInt(0, PacketType.values().length-1)];
 
-        frameNum = bitPacker.unpackInt();
         simulationTime = bitPacker.unpackFloat();
         message.messageId = bitPacker.unpackInt();
+        message.frameNum = bitPacker.unpackInt();
         message.setType(Message.MessageType.values()[bitPacker.unpackInt(0, Message.MessageType.values().length-1)]);
         length = bitPacker.unpackInt(0, NetDriver.DATA_MAX_SIZE);
         bitPacker.skipToLong();
@@ -105,7 +103,6 @@ public class Packet {
         packet.localSeqNum = localSeqNum;
         packet.remoteSeqNum = remoteSeqNum;
         packet.ack = ack;
-        packet.frameNum = frameNum;
         packet.simulationTime = simulationTime;
         packet.crc = crc;
     }
@@ -120,7 +117,6 @@ public class Packet {
         localSeqNum = -1;
         remoteSeqNum = -1;
         ack = 0;
-        frameNum = -1;
         simulationTime = 0;
         crc = -1;
     }

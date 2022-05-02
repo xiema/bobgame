@@ -83,6 +83,7 @@ public class MessageReader {
 
     public void setMessageInfo(Message message) {
         message.messageId = messageIdCounter;
+        message.frameNum = ((GameEngine) engine).getCurrentFrame();
         messageInfos[messageIdCounter % messageInfos.length].set(message);
         messageIdCounter++;
     }
@@ -275,7 +276,8 @@ public class MessageReader {
 
         float angularVel = pb.body.getAngularVelocity();
         zero = readInt(angularVel == 0 ? 0 : 1, 0, 1) == 0;
-        float v3 = zero ? 0 : readFloat(angularVel, -1000, 1000, NetDriver.RES_VELOCITY);
+//        float v3 = zero ? 0 : readFloat(angularVel, -1000, 1000, NetDriver.RES_VELOCITY);
+        float v3 = zero ? 0 : readFloat(angularVel);
 
         MassData md = pb.body.getMassData();
         zero = readInt(md.mass == 0 ? 0 : 1, 0, 1) == 0;

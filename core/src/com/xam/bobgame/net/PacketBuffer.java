@@ -71,8 +71,6 @@ public class PacketBuffer{
             }
         }
 
-        remoteFrameNum = Math.max(remoteFrameNum, packet.frameNum);
-
         remoteSimulationTime = Math.max(remoteSimulationTime, packet.simulationTime);
 
         return packet.getMessage().getLength();

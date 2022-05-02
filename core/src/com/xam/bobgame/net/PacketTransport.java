@@ -97,7 +97,6 @@ public class PacketTransport {
                 }
                 // new packet, add to history
                 packet.localSeqNum = localSeqNum;
-                packet.frameNum = ((GameEngine) netDriver.getEngine()).getCurrentFrame();
                 packet.simulationTime = ((GameEngine) netDriver.getEngine()).getSimulationTime();
                 packetInfos[localSeqNum].set(packet, clientId);
                 acks.unset(localSeqNum);

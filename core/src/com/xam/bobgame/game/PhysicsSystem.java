@@ -37,7 +37,7 @@ public class PhysicsSystem extends EntitySystem {
         listeners.put(PlayerControlEvent.class, new EventListenerAdapter<PlayerControlEvent>() {
             @Override
             public void handleEvent(PlayerControlEvent event) {
-                if (enabled && event.buttonState) {
+                if (enabled && event.buttonId == 0 && event.buttonState) {
                     Entity entity = getEngine().getSystem(GameDirector.class).getEntityById(event.entityId);
                     PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
                     tempVec.set(event.x, event.y).sub(pb.body.getPosition()).nor().scl(500f * forceFactor);
@@ -85,7 +85,7 @@ public class PhysicsSystem extends EntitySystem {
             public void entityAdded(Entity entity) {
                 PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
                 physicsBody.body = world.createBody(physicsBody.bodyDef);
-                PhysicsHistory physicsHistory = new PhysicsHistory();
+                PhysicsHistory physicsHistory = new PhysicsHistory(entity);
                 physicsBody.body.setUserData(physicsHistory);
                 Shape shape = physicsBody.shapeDef.createShape();
                 physicsBody.fixtureDef.shape = shape;
@@ -139,6 +139,7 @@ public class PhysicsSystem extends EntitySystem {
                     MathUtils2.quantize(tfm.vals[1], NetDriver.RES_POSITION),
                     MathUtils2.quantize(tfm.getRotation(), NetDriver.RES_ORIENTATION));
             body.setLinearVelocity(MathUtils2.quantize(linearVel.x, NetDriver.RES_VELOCITY), MathUtils2.quantize(linearVel.y, NetDriver.RES_VELOCITY));
+            body.setAngularVelocity(MathUtils2.quantize(body.getAngularVelocity(), NetDriver.RES_ORIENTATION));
 
 //            tfm = body.getTransform();
 //            linearVel = body.getLinearVelocity();
@@ -182,11 +183,32 @@ public class PhysicsSystem extends EntitySystem {
         return simUpdateStep;
     }
 
+    private Entity queryEntity = null;
+
+    public Entity queryAABB(float x1, float y1, float x2, float y2) {
+        queryEntity = null;
+        world.QueryAABB(entityQueryCallback, x1, y1, x2, y2);
+        return queryEntity;
+    }
+
+    private QueryCallback entityQueryCallback = new QueryCallback() {
+        @Override
+        public boolean reportFixture(Fixture fixture) {
+            queryEntity = ((PhysicsHistory) fixture.getBody().getUserData()).entity;
+            return false;
+        }
+    };
+
     public static class PhysicsHistory {
         public final DebugUtils.ExpoMovingAverage posXError = new DebugUtils.ExpoMovingAverage(0.1f);
         public final DebugUtils.ExpoMovingAverage posYError = new DebugUtils.ExpoMovingAverage(0.1f);
 
         public final Vector2 displacement = new Vector2();
+        public final Entity entity;
+
+        public PhysicsHistory(Entity entity) {
+            this.entity = entity;
+        }
 //        public final Vector2 position = new Vector2(0, 0);
 //        public final Vector2 linearVelocity = new Vector2(0, 0);
     }
