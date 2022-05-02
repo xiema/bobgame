@@ -6,12 +6,15 @@ import com.badlogic.ashley.core.EntityListener;
 import com.badlogic.ashley.core.Family;
 import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.components.GraphicsComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
-import com.xam.bobgame.utils.DebugUtils;
+import com.xam.bobgame.game.PhysicsSystem;
+import com.xam.bobgame.utils.MathUtils2;
 
 public class GraphicsRenderer {
     private ImmutableArray<Entity> entities;
@@ -38,7 +41,13 @@ public class GraphicsRenderer {
         for (Entity entity: entities) {
             PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
             GraphicsComponent graphics = ComponentMappers.graphics.get(entity);
-            graphics.spriteActor.getSprite().setOriginBasedPosition(physicsBody.body.getPosition().x, physicsBody.body.getPosition().y);
+            Body body = physicsBody.body;
+            PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) body.getUserData();
+            Vector2 pos = body.getPosition();
+//            graphics.spriteActor.getSprite().setOriginBasedPosition(pos.x - physicsHistory.position.x, pos.y - physicsHistory.position.y);
+            graphics.spriteActor.getSprite().setOriginBasedPosition(MathUtils2.quantize(pos.x + physicsHistory.posXError.getAverage(), 0.02f), MathUtils2.quantize(pos.y + physicsHistory.posYError.getAverage(), 0.02f));
+//            graphics.spriteActor.getSprite().setOriginBasedPosition(pos.x, pos.y);
+//            Log.info("error " + EntityUtils.getId(entity) + " x=" + physicsHistory.posXError.getAverage() + " y=" + physicsHistory.posYError.getAverage());
         }
         stage.draw();
     }

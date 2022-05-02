@@ -18,8 +18,6 @@ public class NetServer extends Server {
     private Packet snapshotPacket = new Packet(NetDriver.DATA_MAX_SIZE);
     private Packet eventPacket = new Packet(NetDriver.DATA_MAX_SIZE);
 
-    private MessageReader messageReader;
-
     private int counter = 0;
     private boolean hasUpdatePacket = false;
     private boolean hasSnapshotPacket = false;
@@ -27,7 +25,6 @@ public class NetServer extends Server {
     public NetServer(NetDriver netDriver, Serialization serialization) {
         super(8192, 2048, serialization);
         this.netDriver = netDriver;
-        messageReader = new MessageReader();
 
         addListener(listener);
     }
@@ -89,7 +86,7 @@ public class NetServer extends Server {
         if (netDriver.counter % NetDriver.SERVER_UPDATE_FREQUENCY == 0) {
             if (connectionSlot.needsSnapshot) {
                 if (!hasSnapshotPacket) {
-                    messageReader.serialize(snapshotPacket.getMessage(), netDriver.getEngine(), Message.MessageType.Snapshot, connectionSlot);
+                    netDriver.messageReader.serialize(snapshotPacket.getMessage(), netDriver.getEngine(), Message.MessageType.Snapshot, connectionSlot);
                     hasSnapshotPacket = true;
                 }
                 connectionSlot.needsSnapshot = false;
@@ -98,7 +95,7 @@ public class NetServer extends Server {
             }
             else {
                 if (!hasUpdatePacket) {
-                    messageReader.serialize(updatePacket.getMessage(), netDriver.getEngine(), Message.MessageType.Update, null);
+                    netDriver.messageReader.serialize(updatePacket.getMessage(), netDriver.getEngine(), Message.MessageType.Update, null);
                     hasUpdatePacket = true;
                 }
                 connectionSlot.sendDataPacket(updatePacket);

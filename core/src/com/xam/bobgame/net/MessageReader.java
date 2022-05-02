@@ -9,6 +9,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.utils.Pools;
+import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.components.GraphicsComponent;
@@ -18,6 +19,7 @@ import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.game.ControlSystem;
+import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.game.ShapeDef;
 import com.xam.bobgame.graphics.TextureDef;
 import com.xam.bobgame.utils.BitPacker;
@@ -49,6 +51,16 @@ public class MessageReader {
         }
     }
 
+    private float readFloat(float f) {
+        if (send) {
+            builder.packFloat(f);
+            return f;
+        }
+        else {
+            return builder.unpackFloat();
+        }
+    }
+
     private float readFloat(float f, float min, float max, float res) {
         if (send) {
             builder.packFloat(f, min, max, res);
@@ -76,7 +88,7 @@ public class MessageReader {
     }
 
     public MessageInfo getMessageInfo(int messageId) {
-        return messageInfos[messageId % NetDriver.MAX_MESSAGE_HISTORY];
+        return messageInfos[messageId % messageInfos.length];
     }
 
     public int deserialize(Message message, Engine engine) {
@@ -112,8 +124,8 @@ public class MessageReader {
         builder.setBuffer(message.getByteBuffer());
         send = true;
 
-        setMessageInfo(message);
         message.setType(type);
+        setMessageInfo(message);
         switch (type) {
             case Update:
                 if (readSystemUpdate() == -1) return -1;
@@ -136,8 +148,8 @@ public class MessageReader {
         builder.setBuffer(message.getByteBuffer());
         send = true;
 
-        setMessageInfo(message);
         message.setType(Message.MessageType.Event);
+        setMessageInfo(message);
         builder.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
         event.read(builder, true);
         builder.flush(true);
@@ -198,6 +210,8 @@ public class MessageReader {
             i = (i + 1) % entities.size();
         }
 
+        engine.getSystem(PhysicsSystem.class).clearForces();
+
         return 0;
     }
 
@@ -237,21 +251,27 @@ public class MessageReader {
     }
 
     private static final MassData tempMassData = new MassData();
+    private static final Vector2 tempVec = new Vector2();
 
     private int readPhysicsBody(PhysicsBodyComponent pb) {
         boolean zero;
 
         Transform tfm = pb.body.getTransform();
 
-        float t1 = readFloat(tfm.vals[0], -3, 13, NetDriver.RES_POSITION);
-        float t2 = readFloat(tfm.vals[1], -3, 13, NetDriver.RES_POSITION);
-        float t3 = readFloat(tfm.getRotation(), 0, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
+//        float t1 = readFloat(tfm.vals[0], -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
+//        float t2 = readFloat(tfm.vals[1], -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
+        float t1 = readFloat(tfm.vals[0]);
+        float t2 = readFloat(tfm.vals[1]);
+//        float t3 = readFloat(tfm.getRotation(), 0, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
+        float t3 = readFloat(tfm.getRotation());
 
         Vector2 vel = pb.body.getLinearVelocity();
         zero = readInt(vel.x == 0 ? 0 : 1, 0, 1) == 0;
-        float v1 = zero ? 0 : readFloat(vel.x, -1000, 1000, NetDriver.RES_VELOCITY);
+//        float v1 = zero ? 0 : readFloat(vel.x, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
+        float v1 = zero ? 0 : readFloat(vel.x);
         zero = readInt(vel.y == 0 ? 0 : 1, 0, 1) == 0;
-        float v2 = zero ? 0 : readFloat(vel.y, -1000, 1000, NetDriver.RES_VELOCITY);
+//        float v2 = zero ? 0 : readFloat(vel.y, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
+        float v2 = zero ? 0 : readFloat(vel.y);
 
         float angularVel = pb.body.getAngularVelocity();
         zero = readInt(angularVel == 0 ? 0 : 1, 0, 1) == 0;
@@ -262,12 +282,24 @@ public class MessageReader {
         float m = zero ? 0 : readFloat(md.mass, 0, 10, NetDriver.RES_MASS);
         float c1 = readFloat(md.center.x, -3, 13, NetDriver.RES_POSITION);
         float c2 = readFloat(md.center.y, -3, 13, NetDriver.RES_POSITION);
+//        float c1 = readFloat(md.center.x);
+//        float c2 = readFloat(md.center.y);
         zero = readInt(md.I == 0 ? 0 : 1, 0, 1) == 0;
         float i = zero ? 0 : readFloat(md.I, 0, 10, NetDriver.RES_MASS);
 
 //        Log.info("m=" + m + " cx=" + c1 + " cy=" + c2 + " i=" + i);
 
         if (!send) {
+            PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) pb.body.getUserData();
+            physicsHistory.posXError.update(t1 - (tfm.vals[0] + physicsHistory.posXError.getAverage()));
+            physicsHistory.posYError.update(t2 - (tfm.vals[1] + physicsHistory.posYError.getAverage()));
+            tempVec.set(t1 - tfm.vals[0], t2 - tfm.vals[1]);
+//            if (tempVec.x * physicsHistory.displacement.x < 0 || tempVec.y * physicsHistory.displacement.y < 0) {
+//                Log.info("bounce x=" + (tempVec.x * physicsHistory.displacement.x < 0) + " y=" + (tempVec.y * physicsHistory.displacement.y < 0));
+//            }
+            physicsHistory.displacement.set(tempVec);
+//            physicsHistory.position.set((tfm.vals[0] - t1) * 0.5f, (tfm.vals[1] - t2) * 0.5f);
+//            physicsHistory.linearVelocity.set(vel.x, vel.y);
             pb.body.setTransform(t1, t2, t3);
             pb.body.setLinearVelocity(v1, v2);
             pb.body.setAngularVelocity(v3);
@@ -330,6 +362,10 @@ public class MessageReader {
             sprite.setSize(w, h);
             sprite.setOriginCenter();
 
+            pb.fixtureDef.friction *= NetDriver.FRICTION_FACTOR;
+            pb.fixtureDef.restitution *= NetDriver.RESTITUTION_FACTOR;
+            pb.bodyDef.linearDamping *= NetDriver.DAMPING_FACTOR;
+
             entity.add(iden);
             entity.add(pb);
             entity.add(graphics);
@@ -339,8 +375,8 @@ public class MessageReader {
     }
 
     public static class MessageInfo {
-        public int messageId;
-        public Message.MessageType type;
+        public int messageId = -1;
+        public Message.MessageType type = null;
 
         public void set(Message message) {
             messageId = message.messageId;

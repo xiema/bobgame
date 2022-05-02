@@ -5,7 +5,10 @@ import com.badlogic.gdx.utils.Pool;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.utils.SequenceNumChecker;
+
+import java.util.Arrays;
 
 public class PacketTransport {
 
@@ -56,7 +59,7 @@ public class PacketTransport {
 
     public void clear() {
         droppedPackets.clear();
-        for (int i = 0; i < endPointInfos.length; ++i) endPointInfos[i] = null;
+        Arrays.fill(endPointInfos, null);
     }
 
     void addTransportConnection(int clientId) {
@@ -67,7 +70,7 @@ public class PacketTransport {
         endPointInfos[clientId] = null;
     }
 
-    private static class EndPointInfo {
+    private class EndPointInfo {
         SequenceNumChecker acks = new SequenceNumChecker(NetDriver.PACKET_SEQUENCE_LIMIT);
         int clientId;
 
@@ -88,12 +91,14 @@ public class PacketTransport {
         PacketInfo setHeaders(Packet packet, int clientId) {
             PacketInfo r = null;
             if (packet.localSeqNum == -1) {
-                if (!acks.get(localSeqNum)) {
+                if (!acks.get(localSeqNum) && packetInfos[localSeqNum].messageId != -1) {
                     r = Pools.obtain(PacketInfo.class);
                     packetInfos[localSeqNum].copyTo(r);
                 }
                 // new packet, add to history
                 packet.localSeqNum = localSeqNum;
+                packet.frameNum = ((GameEngine) netDriver.getEngine()).getCurrentFrame();
+                packet.simulationTime = ((GameEngine) netDriver.getEngine()).getSimulationTime();
                 packetInfos[localSeqNum].set(packet, clientId);
                 acks.unset(localSeqNum);
                 localSeqNum = (localSeqNum + 1) % NetDriver.PACKET_SEQUENCE_LIMIT;

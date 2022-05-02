@@ -3,15 +3,10 @@ package com.xam.bobgame.game;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.core.EntitySystem;
-import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
-import com.xam.bobgame.components.PhysicsBodyComponent;
-import com.xam.bobgame.entity.ComponentMappers;
-import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
-import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.DebugUtils;
 
 public class ControlSystem extends EntitySystem {
@@ -20,13 +15,15 @@ public class ControlSystem extends EntitySystem {
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
+    private boolean enabled = false;
+
     public ControlSystem(int priority) {
         super(priority);
 
         listeners.put(PlayerControlEvent.class, new EventListenerAdapter<PlayerControlEvent>() {
             @Override
             public void handleEvent(PlayerControlEvent event) {
-                control(event.controlId, event.entityId, event.x, event.y, event.buttonId, event.buttonState);
+                if (enabled) control(event.controlId, event.entityId, event.x, event.y, event.buttonId, event.buttonState);
             }
         });
 
@@ -50,7 +47,7 @@ public class ControlSystem extends EntitySystem {
     public boolean registerEntity(int entityId, int controlId) {
         Log.info("Register entity " + entityId + " to player " + controlId);
         if (idSet.contains(entityId)) {
-            DebugUtils.error("ControlSystem", "Attempted to register duplicate entity");
+            Log.error("ControlSystem", "Attempted to register duplicate entity");
             return false;
         }
 
@@ -65,27 +62,27 @@ public class ControlSystem extends EntitySystem {
         for (IntArray entityIds : controlMap) entityIds.clear();
     }
 
-    private Vector2 tempVec = new Vector2();
-
     private void control(int controlId, int entityId, float x, float y, int buttonId, boolean buttonState) {
         if (controlId < 0 || controlId >= controlMap.length) {
-            DebugUtils.error("ControlSystem", "Invalid controlId: " + controlId);
+            Log.error("ControlSystem", "Invalid controlId: " + controlId);
             return;
         }
         Entity entity = getEngine().getSystem(GameDirector.class).getEntityById(entityId);
         if (entity == null) {
-            DebugUtils.error("ControlSystem", "Invalid entityId: " + entityId);
+            Log.error("ControlSystem", "Invalid entityId: " + entityId);
             return;
-        }
-
-        if (buttonState) {
-            PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
-            tempVec.set(x, y).sub(pb.body.getPosition()).nor().scl(500f);
-            pb.body.applyForceToCenter(tempVec, true);
         }
     }
 
     public IntArray getControlledEntityIds(int controlId) {
         return controlMap[controlId];
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
     }
 }

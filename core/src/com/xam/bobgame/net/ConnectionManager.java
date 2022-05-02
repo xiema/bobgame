@@ -1,9 +1,12 @@
 package com.xam.bobgame.net;
 
+import com.badlogic.ashley.core.Engine;
+import com.badlogic.ashley.core.Entity;
 import com.badlogic.gdx.utils.Pool;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.events.ClientConnectedEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.utils.SequenceNumChecker;
@@ -143,14 +146,17 @@ public class ConnectionManager {
         Packet syncPacket = new Packet(NetDriver.DATA_MAX_SIZE);
 
         PacketBuffer packetBuffer;
+        MessageBuffer messageBuffer;
 
         public boolean needsSnapshot = true;
+        Message message = new Message(NetDriver.DATA_MAX_SIZE);
 
         final SequenceNumChecker messageNumChecker = new SequenceNumChecker(128);
 
         public void initialize(NetDriver netDriver) {
             this.netDriver = netDriver;
-            packetBuffer = new PacketBuffer(netDriver, 8);
+            packetBuffer = new PacketBuffer(netDriver, 16);
+            messageBuffer = new MessageBuffer(16);
         }
 
         public Connection getConnection() {
@@ -217,6 +223,7 @@ public class ConnectionManager {
                     ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);
                     event.clientId = slot.clientId;
                     slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
+                    slot.needsSnapshot = true;
                     slot.transitionState(ServerConnected);
                 }
                 return 0;
@@ -230,19 +237,20 @@ public class ConnectionManager {
         },
         ServerConnected(5) {
             @Override
-            int read(ConnectionSlot slot, Packet in) {
-                if (in.type == Packet.PacketType.Data) {
-                    if (in.getMessage().getType() == Message.MessageType.Event) {
-                        slot.netDriver.messageReader.readEvent(in.getMessage(), slot.netDriver.getEngine(), slot.clientId);
-                    }
-                    else {
-                        slot.netDriver.messageReader.deserialize(in.getMessage(), slot.netDriver.getEngine());
-                    }
+            int readMessage(ConnectionSlot slot, Message message) {
+                if (message.getType() == Message.MessageType.Event) {
+                    slot.netDriver.messageReader.readEvent(message, slot.netDriver.getEngine(), slot.clientId);
                 }
                 else {
-                    if (in.type == Packet.PacketType.Disconnect) {
-                        slot.netDriver.connectionManager.removeConnection(slot.clientId);
-                    }
+                    slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine());
+                }
+                return 0;
+            }
+
+            @Override
+            int read(ConnectionSlot slot, Packet in) {
+                if (in.type == Packet.PacketType.Disconnect) {
+                    slot.netDriver.connectionManager.removeConnection(slot.clientId);
                 }
 //                return readData(slot, in);
                 return 0;
@@ -300,13 +308,17 @@ public class ConnectionManager {
         },
         ClientPending2(5) {
             @Override
+            int readMessage(ConnectionSlot slot, Message message) {
+                slot.transitionState(ClientConnected);
+                Log.info("Connected to " + slot.connection.getRemoteAddressUDP().getAddress().getHostAddress());
+                slot.netDriver.getClient().setHostId(slot.clientId);
+                ClientConnected.readMessage(slot, message);
+//                slot.packetBuffer.frameOffset = message.frameNum - ((GameEngine) slot.netDriver.getEngine()).getCurrentFrame() - NetDriver.JITTER_BUFFER_SIZE;
+                return 0;
+            }
+
+            @Override
             int read(ConnectionSlot slot, Packet in) {
-                if (in.type == Packet.PacketType.Data) {
-                    slot.transitionState(ClientConnected);
-                    Log.info("Connected to " + slot.connection.getRemoteAddressUDP().getAddress().getHostAddress());
-                    slot.netDriver.getClient().setHostId(slot.clientId);
-                    return ClientConnected.read(slot, in);
-                }
                 return 0;
             }
 
@@ -318,13 +330,23 @@ public class ConnectionManager {
         },
         ClientConnected(5) {
             @Override
-            int read(ConnectionSlot slot, Packet in) {
-                if (in.getMessage().getType() == Message.MessageType.Event) {
-                    slot.netDriver.messageReader.readEvent(in.getMessage(), slot.netDriver.getEngine(), slot.clientId);
+            int readMessage(ConnectionSlot slot, Message message) {
+                if (message.getType() == Message.MessageType.Event) {
+                    slot.netDriver.messageReader.readEvent(message, slot.netDriver.getEngine(), slot.clientId);
                 }
                 else {
-                    slot.netDriver.messageReader.deserialize(in.getMessage(), slot.netDriver.getEngine());
+                    slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine());
                 }
+                if (message.getType() == Message.MessageType.Update) {
+                    Engine engine = slot.netDriver.getEngine();
+                    Entity entity = engine.getSystem(GameDirector.class).getEntityById(0);
+//                    if (entity != null) ((GameEngine) engine).getMemCheck().check(entity, in.frameNum);
+                }
+                return super.readMessage(slot, message);
+            }
+
+            @Override
+            int read(ConnectionSlot slot, Packet in) {
                 return 0;
             }
 
@@ -366,6 +388,9 @@ public class ConnectionManager {
             this.timeoutThreshold = timeoutThreshold;
         }
 
+        int readMessage(ConnectionSlot slot, Message message) {
+            return 0;
+        }
         abstract int read(ConnectionSlot slot, Packet in);
         abstract int timeout(ConnectionSlot slot);
         int start(ConnectionSlot slot) {
@@ -383,11 +408,20 @@ public class ConnectionManager {
                             return 0;
                         }
                     }
+                    slot.messageBuffer.receive(slot.syncPacket.getMessage());
                 }
-                slot.state.read(slot, slot.syncPacket);
+                else {
+                    slot.state.read(slot, slot.syncPacket);
+                }
                 slot.syncPacket.clear();
                 slot.t = 0;
             }
+
+            while (slot.messageBuffer.get(slot.message)) {
+                slot.state.readMessage(slot, slot.message);
+                slot.message.clear();
+            }
+
             return 0;
         }
         int update2(ConnectionSlot slot) {

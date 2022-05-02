@@ -5,7 +5,7 @@ import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
-import com.xam.bobgame.utils.DebugUtils;
+import com.esotericsoftware.minlog.Log;
 
 public class EventsSystem extends EntitySystem {
 
@@ -109,7 +109,7 @@ public class EventsSystem extends EntitySystem {
             listenerMap.put(type, listeners);
         }
         if (listeners.contains(listener, true)) {
-            DebugUtils.error("EventsSystem", "Attempted to register a duplicate listener");
+            Log.error("EventsSystem", "Attempted to register a duplicate listener");
             return;
         }
         listeners.add(listener);

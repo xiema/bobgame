@@ -118,7 +118,7 @@ public class GameDirector extends EntitySystem {
         Engine engine = getEngine();
         Entity entity = EntityFactory.createPlayer(engine, playerColor[playerId % playerColor.length]);
         engine.addEntity(entity);
-//
+
         ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
         controlSystem.registerEntity(EntityUtils.getId(entity), playerId);
 

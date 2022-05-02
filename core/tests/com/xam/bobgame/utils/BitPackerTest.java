@@ -142,7 +142,7 @@ public class BitPackerTest {
         Message message = new Message(count * 4);
         BitPacker bitPacker = new BitPacker(message.getByteBuffer());
         int limit = 1;
-        float res = 0.001f;
+        float res = 1e-8f;
         for (int i = 0; i < count; ++i) {
             limit *= 2;
             testFloats[i] = res * MathUtils.random(0, limit * 2) - res * limit;
@@ -158,6 +158,27 @@ public class BitPackerTest {
             float a = bitPacker.unpackFloat(-res * limit, res * limit, res);
             System.out.println("" + i + " " + testFloats[i] + " ? " + a);
             Assertions.assertEquals(testFloats[i], a);
+        }
+    }
+
+    @Test
+    public void testFloat2() {
+        int count = 29;
+        float[] testFloats = new float[count];
+
+        Message message = new Message(count * 4);
+        BitPacker bitPacker = new BitPacker(message.getByteBuffer());
+        for (int i = 0; i < count; ++i) {
+            testFloats[i] = MathUtils.random(Float.MIN_VALUE, Float.MAX_VALUE);
+            bitPacker.packFloat(testFloats[i]);
+        }
+
+        bitPacker.flush(true);
+        bitPacker.rewind();
+
+        for (int i = 0; i < count; ++i) {
+            float a = bitPacker.unpackFloat();
+            Assertions.assertEquals(testFloats[i], a, "Testing index " + i);
         }
     }
 

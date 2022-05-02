@@ -16,6 +16,13 @@ public class PacketBuffer{
     private final float[] receiveTime;
     private final int bufferLength, halfBufferLength;
 
+    private int frameDelay = 0;
+    private int remoteFrameNum = 0;
+    private float simulationDelay = 0;
+    private float remoteSimulationTime = 0;
+
+    int frameOffset = 0;
+
     public PacketBuffer(NetDriver netDriver, int bufferLength) {
         this.netDriver = netDriver;
         this.bufferLength = bufferLength;
@@ -53,11 +60,20 @@ public class PacketBuffer{
                     Log.info("receive: Skipping packets " + getIndex + "-" + putIndex);
                     getIndex = oldestReceivedIndex = (putIndex + 1) % bufferLength;
                 }
+                while (!bufferFlag[oldestReceivedIndex] && oldestReceivedIndex != putIndex) {
+                    oldestReceivedIndex = (oldestReceivedIndex + 1) % bufferLength;
+                }
             }
-            while (!bufferFlag[oldestReceivedIndex] && oldestReceivedIndex != putIndex) {
-                oldestReceivedIndex = (oldestReceivedIndex + 1) % bufferLength;
+            else {
+                if (i < oldestReceivedIndex) {
+                    oldestReceivedIndex = i;
+                }
             }
         }
+
+        remoteFrameNum = Math.max(remoteFrameNum, packet.frameNum);
+
+        remoteSimulationTime = Math.max(remoteSimulationTime, packet.simulationTime);
 
         return packet.getMessage().getLength();
     }
@@ -68,12 +84,18 @@ public class PacketBuffer{
         synchronized (buffer) {
             if (getIndex == putIndex) return false;
             if (bufferFlag[getIndex]) {
+//            if (bufferFlag[getIndex] && (buffer[getIndex].type != Packet.PacketType.Data || remoteFrameNum - buffer[getIndex].frameNum >= frameDelay)) {
+//            if (bufferFlag[getIndex] && (buffer[getIndex].type != Packet.PacketType.Data || remoteSimulationTime + netDriver.getCurTime() - receiveTime[getIndex] - buffer[getIndex].simulationTime >= simulationDelay)) {
+//            if (bufferFlag[getIndex] && (buffer[getIndex].type != Packet.PacketType.Data || netDriver.getCurrentFrame() + frameOffset >= buffer[getIndex].frameNum)) {
                 buffer[getIndex].copyTo(out);
                 bufferFlag[getIndex] = false;
                 getIndex = (getIndex + 1) % bufferLength;
                 b = true;
             }
             else if (bufferFlag[oldestReceivedIndex] && netDriver.getCurTime() - receiveTime[oldestReceivedIndex] > NetDriver.BUFFER_TIME_LIMIT) {
+//            else if (bufferFlag[oldestReceivedIndex] && (buffer[oldestReceivedIndex].type != Packet.PacketType.Data || remoteFrameNum - buffer[oldestReceivedIndex].frameNum >= frameDelay)) {
+//            else if (bufferFlag[oldestReceivedIndex] && (buffer[oldestReceivedIndex].type != Packet.PacketType.Data || remoteSimulationTime + netDriver.getCurTime() - receiveTime[oldestReceivedIndex] - buffer[oldestReceivedIndex].simulationTime >= simulationDelay)) {
+//            else if (bufferFlag[oldestReceivedIndex] && (buffer[oldestReceivedIndex].type != Packet.PacketType.Data || netDriver.getCurrentFrame() + frameOffset >= buffer[oldestReceivedIndex].frameNum)) {
                 buffer[oldestReceivedIndex].copyTo(out);
                 bufferFlag[oldestReceivedIndex] = false;
                 Log.info("get: Skipping packets " + getIndex + "-" + oldestReceivedIndex);
@@ -83,6 +105,9 @@ public class PacketBuffer{
             while (!bufferFlag[oldestReceivedIndex] && oldestReceivedIndex != putIndex) {
                 oldestReceivedIndex = (oldestReceivedIndex + 1) % bufferLength;
             }
+
+//            int d = getIndex > putIndex ? (putIndex + bufferLength - getIndex) : putIndex - getIndex;
+//            Log.info("d=" + d);
         }
 
         return b;
@@ -91,6 +116,24 @@ public class PacketBuffer{
     public void reset() {
         putIndex = 0;
         getIndex = 0;
+        remoteFrameNum = 0;
+        frameOffset = 0;
+    }
+
+    public void setFrameDelay(int frameDelay) {
+        this.frameDelay = frameDelay;
+    }
+
+    public int getFrameDelay() {
+        return frameDelay;
+    }
+
+    public void setSimulationDelay(float simulationDelay) {
+        this.simulationDelay = simulationDelay;
+    }
+
+    public float getSimulationDelay() {
+        return simulationDelay;
     }
 
     public void debug(String tag) {

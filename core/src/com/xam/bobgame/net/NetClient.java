@@ -58,6 +58,8 @@ public class NetClient extends Client {
         public void connected(Connection connection) {
             int clientId = netDriver.connectionManager.addConnection(connection);
             netDriver.connectionManager.initiateHandshake(clientId);
+            netDriver.connectionManager.getConnectionSlot(clientId).packetBuffer.setFrameDelay(NetDriver.JITTER_BUFFER_SIZE);
+            netDriver.connectionManager.getConnectionSlot(clientId).packetBuffer.setSimulationDelay(NetDriver.BUFFER_TIME_LIMIT);
         }
 
         @Override

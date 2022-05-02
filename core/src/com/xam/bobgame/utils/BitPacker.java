@@ -55,7 +55,7 @@ public class BitPacker {
         int byteCount = (bits - scratchBits + 7) / 8;
         scratchBits += byteCount * 8;
         if (scratchBits > 64) {
-            DebugUtils.error("PacketBuilder", "gigtBitsB: Tried to get too many bits");
+            Log.error("PacketBuilder", "gigtBitsB: Tried to get too many bits");
             return;
         }
         while (byteCount-- > 0) {
@@ -72,7 +72,7 @@ public class BitPacker {
         int byteCount = (bits - scratchBits + 7) / 8;
         scratchBits += byteCount * 8;
         if (scratchBits > 64) {
-            DebugUtils.error("PacketBuilder", "gigtBitsL: Tried to get too many bits");
+            Log.error("PacketBuilder", "gigtBitsL: Tried to get too many bits");
             return;
         }
         int p = 0;
@@ -321,5 +321,11 @@ public class BitPacker {
         return min + ((rf * (float) i) / (float) ri);
     }
 
+    public int packFloat(float f) {
+        return packInt(Float.floatToRawIntBits(f));
+    }
 
+    public float unpackFloat() {
+        return Float.intBitsToFloat(unpackInt());
+    }
 }

@@ -4,17 +4,15 @@ import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
-import com.xam.bobgame.components.PhysicsBodyComponent;
-import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.graphics.GraphicsRenderer;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.ui.UIStage;
+import com.xam.bobgame.utils.DebugUtils;
 
 import java.util.Map;
 
@@ -30,8 +28,6 @@ public class BoBGame extends ApplicationAdapter {
 
 	Stage uiStage;
 	Viewport uiViewport;
-
-	private static long counter = 0;
 
 	public BoBGame() {
 		this(null);
@@ -67,14 +63,7 @@ public class BoBGame extends ApplicationAdapter {
 		uiViewport = new FitViewport(800, 500);
 		uiStage = new UIStage(this, uiViewport, batch, skin);
 
-		if (mode == 1) {
-			netDriver.setMode(NetDriver.Mode.Server);
-			netDriver.getServer().start(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
-			engine.gameSetup();
-			engine.getSystem(GameDirector.class).getPlayerEntity().getComponent(PhysicsBodyComponent.class).body.applyForceToCenter(MathUtils.random() * 1000f, MathUtils.random() * 100f, true);
-		}
-
-		engine.getSystem(PhysicsSystem.class).setEnabled(true);
+		engine.setMode(mode == 1 ? NetDriver.Mode.Server : NetDriver.Mode.Client);
 	}
 
 	@Override
@@ -91,8 +80,6 @@ public class BoBGame extends ApplicationAdapter {
 		uiStage.act(deltaTime);
 		uiViewport.apply(true);
 		uiStage.draw();
-
-		counter++;
 	}
 
 	@Override
@@ -105,10 +92,6 @@ public class BoBGame extends ApplicationAdapter {
 		batch.dispose();
 		netDriver.getClient().stop();
 		netDriver.getServer().stop();
-	}
-
-	public static long getCounter() {
-		return counter;
 	}
 
 	public GameEngine getEngine() {

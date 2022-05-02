@@ -6,7 +6,9 @@ import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.KryoSerialization;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.utils.DebugUtils;
 
@@ -15,21 +17,30 @@ import java.nio.ByteBuffer;
 public class NetDriver extends EntitySystem {
     public static final int DATA_MAX_WORDS = 128;
     public static final int DATA_MAX_SIZE = DATA_MAX_WORDS * 4;
-    public static final float BUFFER_TIME_LIMIT = 0.5f;
+    public static final float BUFFER_TIME_LIMIT = 0.15f;
     public static final int MAX_CLIENTS = 32;
     public static final int MAX_MESSAGE_HISTORY = 256;
-    public static final int SERVER_UPDATE_FREQUENCY = 3;
+    public static final int SERVER_UPDATE_FREQUENCY = 1;
     public static final int PORT_TCP = 55192;
     public static final int PORT_UDP = 55196;
     public static final int PACKET_SEQUENCE_LIMIT = 128;
+    public static final int JITTER_BUFFER_SIZE = 4;
 
-    public static final float RES_POSITION = 1e-4f;
+    public static final float RES_POSITION = (float) Math.pow(2d, -12d);
+//    public static final float RES_POSITION = 1e-4f;
     public static final float RES_ORIENTATION = 1e-4f;
-    public static final float RES_VELOCITY = 1e-4f;
+//    public static final float RES_VELOCITY = 1e-4f;
+    public static final float RES_VELOCITY = (float) Math.pow(2d, -12d);
     public static final float RES_MASS = 1e-4f;
     public static final float RES_COLOR = 1e-4f;
     public static final float MAX_ORIENTATION = 3.14159f;
 
+    public static final float FRICTION_FACTOR = 2f;
+    public static final float RESTITUTION_FACTOR = 0f;
+    public static final float DAMPING_FACTOR = 10f;
+    public static final float FORCE_FACTOR = 0.8f;
+
+    private final DebugUtils.ExpoMovingAverage simUpdateStepError = new DebugUtils.ExpoMovingAverage(0.1f);
 
     final ConnectionManager connectionManager = new ConnectionManager(this);
     final PacketTransport transport = new PacketTransport(this);
@@ -87,6 +98,8 @@ public class NetDriver extends EntitySystem {
         curTime += (curTimeDelta = deltaTime);
         connectionManager.update(deltaTime);
         counter++;
+
+        getEngine().getSystem(PhysicsSystem.class).setSimUpdateStep(PhysicsSystem.SIM_UPDATE_STEP - simUpdateStepError.getAverage());
     }
 
     public void update2() {
@@ -110,13 +123,15 @@ public class NetDriver extends EntitySystem {
 
     private void updateDropped() {
         for (PacketTransport.PacketInfo packetInfo : transport.getDroppedPackets()) {
-            MessageReader.MessageInfo messageInfo = messageReader.getMessageInfo(packetInfo.messageId);
-            switch (messageInfo.type) {
-                case Snapshot:
-                    connectionManager.getConnectionSlot(packetInfo.clientId).needsSnapshot = true;
-                case Event:
-                    Log.warn("Dropped message: " + messageInfo.type);
-                    break;
+            if (packetInfo.messageId != -1) {
+                MessageReader.MessageInfo messageInfo = messageReader.getMessageInfo(packetInfo.messageId);
+                switch (messageInfo.type) {
+                    case Snapshot:
+                        connectionManager.getConnectionSlot(packetInfo.clientId).needsSnapshot = true;
+                    case Event:
+                        Log.warn("Dropped message: " + messageInfo.type);
+                        break;
+                }
             }
         }
         transport.clearDropped();
@@ -136,6 +151,10 @@ public class NetDriver extends EntitySystem {
 
     public float getCurTimeDelta() {
         return curTimeDelta;
+    }
+
+    public int getCurrentFrame() {
+        return ((GameEngine) getEngine()).getCurrentFrame();
     }
 
     public void setMode(Mode mode) {
