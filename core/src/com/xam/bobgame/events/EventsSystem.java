@@ -9,8 +9,7 @@ import com.esotericsoftware.minlog.Log;
 
 public class EventsSystem extends EntitySystem {
 
-    private Array<GameEvent> eventQueue = new Array<>();
-    private Array<GameEvent> eventQueue2 = new Array<>();
+    private final Array<GameEvent> eventQueue = new Array<>();
     private ObjectMap<Class<? extends GameEvent>, Array<GameEventListener>> listenerMap = new ObjectMap<>();
     private Array<GameEventListener> globalListeners = new Array<>();
 
@@ -32,20 +31,16 @@ public class EventsSystem extends EntitySystem {
             }
             eventQueue.clear();
         }
-        for (GameEvent event : eventQueue2) {
-            Pools.free(event);
-        }
-        eventQueue2.clear();
         listenerMap.clear();
         globalListeners.clear();
     }
 
+    Array<GameEvent> currentQueue = new Array<>();
     @Override
     public void update(float deltaTime) {
-        Array<GameEvent> currentQueue;
         synchronized (eventQueue) {
-            currentQueue = eventQueue;
-            eventQueue = eventQueue2;
+            currentQueue.addAll(eventQueue);
+            eventQueue.clear();
         }
 
         for (GameEvent event : currentQueue) {
@@ -60,7 +55,6 @@ public class EventsSystem extends EntitySystem {
         }
 
         currentQueue.clear();
-        eventQueue2 = currentQueue;
     }
 
     private void handleEvent(GameEvent event, Array<GameEventListener> eventListeners) {
