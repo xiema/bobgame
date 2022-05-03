@@ -120,6 +120,33 @@ public class BitPackerTest {
     }
 
     @Test
+    public void testSkip2() {
+        ByteBuffer buffer = ByteBuffer.allocate(64);
+        BitPacker bitPacker = new BitPacker(buffer);
+
+        bitPacker.packInt(23);
+        bitPacker.packInt(32);
+        bitPacker.padToNextByte();
+        bitPacker.padToNextByte();
+        bitPacker.packInt(3, 0, 5);
+        bitPacker.padToNextByte();
+        bitPacker.packInt(4, 0, 7);
+        bitPacker.padToNextByte();
+        bitPacker.packInt(23, 0, 31);
+        bitPacker.flush(true);
+
+        bitPacker.setBuffer(buffer);
+        Assertions.assertEquals(23, bitPacker.unpackInt());
+        Assertions.assertEquals(32, bitPacker.unpackInt());
+        bitPacker.skipToNextByte();
+        Assertions.assertEquals(3, bitPacker.unpackInt(0, 5));
+        bitPacker.skipToNextByte();
+        Assertions.assertEquals(4, bitPacker.unpackInt(0, 7));
+        bitPacker.skipToNextByte();
+        Assertions.assertEquals(23, bitPacker.unpackInt(0, 31));
+    }
+
+    @Test
     public void testIntBytes() {
         ByteBuffer buffer = ByteBuffer.allocate(64);
         BitPacker bitPacker = new BitPacker(buffer);

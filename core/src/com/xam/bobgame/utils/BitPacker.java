@@ -134,13 +134,13 @@ public class BitPacker {
     }
 
     public int padToNextByte() {
-        int padding = 8 - (scratchBits % 8);
+        int padding = ((-scratchBits % 8) + 8) % 8;
         packIntBits(0, padding, 0);
         return padding;
     }
 
     public int skipToNextByte() {
-        int padding = 8 - (scratchBits % 8);
+        int padding = ((-totalBits % 8) + 8) % 8;
         unpackIntBits(padding, 0);
         return padding;
     }
