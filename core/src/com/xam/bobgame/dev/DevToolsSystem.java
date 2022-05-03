@@ -11,6 +11,7 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Null;
+import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.components.GraphicsComponent;
@@ -29,6 +30,8 @@ public class DevToolsSystem extends EntitySystem {
 
     public @Null Entity focusedEntity;
 
+    public ObjectMap<Family, EntityListener> entityListeners = new ObjectMap<>();
+
     public DevToolsSystem(DevTools devTools, Stage devUIStage) {
         super(200);
         this.devTools = devTools;
@@ -40,13 +43,26 @@ public class DevToolsSystem extends EntitySystem {
             @Override
             public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
                 if (button == 1) { // right click
-                    Log.info("focus");
                     focusedEntity = getEntityUnderCursor();
                 }
                 return false;
             }
         });
         engineViewport = devTools.game.getWorldViewport();
+
+        entityListeners.put(Family.all().get(), new EntityListener() {
+            @Override
+            public void entityAdded(Entity entity) {
+
+            }
+
+            @Override
+            public void entityRemoved(Entity entity) {
+                if (entity == focusedEntity) {
+                    focusedEntity = null;
+                }
+            }
+        });
     }
 
     @Override
@@ -54,31 +70,17 @@ public class DevToolsSystem extends EntitySystem {
         allEntities = engine.getEntitiesFor(Family.all(IdentityComponent.class).get());
         focusableEntities = engine.getEntitiesFor(Family.all(PhysicsBodyComponent.class, GraphicsComponent.class).get());
 
-        engine.addEntityListener(focusedEntityListener);
+        for (ObjectMap.Entry<Family, EntityListener> entry : entityListeners) engine.addEntityListener(entry.key, entry.value);
 
         devTools.onAddedToEngine(engine);
     }
-
-    private EntityListener focusedEntityListener = new EntityListener() {
-        @Override
-        public void entityAdded(Entity entity) {
-
-        }
-
-        @Override
-        public void entityRemoved(Entity entity) {
-            if (entity == focusedEntity) {
-                focusedEntity = null;
-            }
-        }
-    };
 
     @Override
     public void removedFromEngine(Engine engine) {
         allEntities = null;
         focusableEntities = null;
         focusedEntity = null;
-        engine.removeEntityListener(focusedEntityListener);
+        for (EntityListener listener : entityListeners.values()) engine.removeEntityListener(listener);
     }
 
     @Override

@@ -154,10 +154,10 @@ public class UIStage extends Stage {
     public void act(float delta) {
         super.act(delta);
         GameDirector gameDirector = game.getEngine().getSystem(GameDirector.class);
-        int[] playerControlMap = gameDirector.getPlayerControlMap();
+        boolean[] playerExists = gameDirector.getPlayerExists();
         int[] playerScores = gameDirector.getPlayerScores();
-        for (int i = 0; i < playerControlMap.length; ++i) {
-            if (playerControlMap[i] != -1) {
+        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
+            if (playerExists[i]) {
                 setPlayerScore(i, playerScores[i]);
             }
         }

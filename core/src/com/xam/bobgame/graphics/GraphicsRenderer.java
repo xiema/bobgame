@@ -15,6 +15,7 @@ import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Transform;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.ObjectMap;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
@@ -33,6 +34,8 @@ public class GraphicsRenderer {
     private final Array<Entity>[] zSortedEntities = new Array[4];
 
     private ShapeRenderer shapeRenderer;
+
+    private ObjectMap<Family, EntityListener> entityListeners = new ObjectMap<>();
 
     public GraphicsRenderer(GameEngine engine, final Stage stage) {
         this.engine = engine;

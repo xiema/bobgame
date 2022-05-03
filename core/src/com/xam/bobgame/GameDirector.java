@@ -1,9 +1,6 @@
 package com.xam.bobgame;
 
-import com.badlogic.ashley.core.Engine;
-import com.badlogic.ashley.core.Entity;
-import com.badlogic.ashley.core.EntityListener;
-import com.badlogic.ashley.core.EntitySystem;
+import com.badlogic.ashley.core.*;
 import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.MathUtils;
@@ -25,6 +22,7 @@ public class GameDirector extends EntitySystem {
     private ImmutableArray<Entity> entities = new ImmutableArray<>(sortedEntities);
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
+    private ObjectMap<Family, EntityListener> entityListeners = new ObjectMap<>();
 
     private Color[] playerColor = {
             Color.CYAN, Color.BLUE, Color.YELLOW, Color.LIME, Color.GOLD, Color.SCARLET, Color.VIOLET,
@@ -33,6 +31,7 @@ public class GameDirector extends EntitySystem {
     private int playerCount = 0;
     private final IntMap<Entity> entityMap = new IntMap<>();
 
+    private final boolean[] playerExists = new boolean[NetDriver.MAX_CLIENTS];
     private final int[] playerControlMap = new int[NetDriver.MAX_CLIENTS];
     private final int[] playerScores = new int[NetDriver.MAX_CLIENTS];
 
@@ -46,15 +45,31 @@ public class GameDirector extends EntitySystem {
                 getEngine().getSystem(NetDriver.class).getServer().flagSnapshot(event.clientId);
             }
         });
-    }
+        listeners.put(PlayerDeathEvent.class, new EventListenerAdapter<PlayerDeathEvent>() {
+            @Override
+            public void handleEvent(PlayerDeathEvent event) {
+                Entity entity = getEntityById(event.entityId);
+                if (entity == null) return;
+                getEngine().removeEntity(entity);
+                playerControlMap[event.playerId] = -1;
+            }
+        });
+        listeners.put(PlayerBallSpawnedEvent.class, new EventListenerAdapter<PlayerBallSpawnedEvent>() {
+            @Override
+            public void handleEvent(PlayerBallSpawnedEvent event) {
+                playerControlMap[event.playerId] = event.entityId;
+            }
+        });
 
-    @Override
-    public void addedToEngine(Engine engine) {
-        engine.addEntityListener(new EntityListener() {
+        entityListeners.put(Family.all().get(), new EntityListener() {
             @Override
             public void entityAdded(Entity entity) {
                 sortedEntities.add(entity);
-                entityMap.put(EntityUtils.getId(entity), entity);
+                int entityId = EntityUtils.getId(entity);
+                Entity old = entityMap.put(entityId, entity);
+                if (old != null) {
+                    Log.warn("GameDirector", "Replaced entity with id " + entityId);
+                }
             }
 
             @Override
@@ -63,6 +78,11 @@ public class GameDirector extends EntitySystem {
                 entityMap.remove(EntityUtils.getId(entity));
             }
         });
+    }
+
+    @Override
+    public void addedToEngine(Engine engine) {
+        EntityUtils.addEntityListeners(engine, entityListeners);
         engine.getSystem(EventsSystem.class).addListeners(listeners);
         Arrays.fill(playerControlMap, -1);
         Arrays.fill(playerScores, 0);
@@ -70,6 +90,7 @@ public class GameDirector extends EntitySystem {
 
     @Override
     public void removedFromEngine(Engine engine) {
+        EntityUtils.removeEntityListeners(engine, entityListeners);
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);
         entityMap.clear();
@@ -95,9 +116,7 @@ public class GameDirector extends EntitySystem {
 
     public int getLocalPlayerEntityId() {
         if (localPlayerId == -1) return -1;
-        IntArray entityIds = getEngine().getSystem(ControlSystem.class).getControlledEntityIds(localPlayerId);
-        if (entityIds.size == 0) return -1;
-        return entityIds.get(0);
+        return playerControlMap[localPlayerId];
     }
 
     public int getLocalPlayerId() {
@@ -120,10 +139,10 @@ public class GameDirector extends EntitySystem {
     }
 
     public void setupGame() {
-        localPlayerId = joinPlayer(-1);
-
         Entity entity = EntityFactory.createHoleHazard(getEngine(), MathUtils.random(2, GameProperties.MAP_WIDTH -2), MathUtils.random(2, GameProperties.MAP_HEIGHT -2), 2);
         getEngine().addEntity(entity);
+
+        localPlayerId = joinPlayer(-1);
     }
 
     public void setLocalPlayerId(int playerId) {
@@ -133,25 +152,37 @@ public class GameDirector extends EntitySystem {
 
     public int joinPlayer(int clientId) {
         int playerId = playerCount;
+        playerExists[playerId] = true;
         playerCount++;
 
-        Engine engine = getEngine();
-        Entity entity = EntityFactory.createPlayer(engine, playerColor[playerId % playerColor.length]);
-        engine.addEntity(entity);
-
-        ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
-        int entityId = EntityUtils.getId(entity);
-        controlSystem.registerEntity(entityId, playerId);
-        playerControlMap[playerId] = entityId;
+        spawnPlayerBall(playerId, false);
 
         // remote client
-        if (clientId != -1) engine.getSystem(NetDriver.class).getServer().acceptConnection(clientId, playerId);
-
+        if (clientId != -1) getEngine().getSystem(NetDriver.class).getServer().acceptConnection(clientId, playerId);
         PlayerJoinedEvent joinedEvent = Pools.obtain(PlayerJoinedEvent.class);
         joinedEvent.playerId = playerId;
         getEngine().getSystem(EventsSystem.class).triggerEvent(joinedEvent);
 
         return playerId;
+    }
+
+    private Entity spawnPlayerBall(int playerId, boolean sendEvent) {
+        Engine engine = getEngine();
+        Entity entity = EntityFactory.createPlayer(engine, playerColor[playerId % playerColor.length]);
+        engine.addEntity(entity);
+
+        int entityId = EntityUtils.getId(entity);
+        playerControlMap[playerId] = entityId;
+
+        if (sendEvent) {
+            EntityCreatedEvent netEvent = Pools.obtain(EntityCreatedEvent.class);
+            netEvent.entityId = entityId;
+            getEngine().getSystem(NetDriver.class).queueClientEvent(-1, netEvent);
+        }
+
+        Log.info("spawnPlayerBall entityId=" + entityId);
+
+        return entity;
     }
 
     public void killPlayer(int playerId) {
@@ -162,11 +193,25 @@ public class GameDirector extends EntitySystem {
         pb.body.setLinearVelocity(0, 0);
 
         playerScores[playerId]--;
+        playerControlMap[playerId] = -1;
 
         NetDriver netDriver = getEngine().getSystem(NetDriver.class);
-        ScoreBoardUpdateEvent netEvent = Pools.obtain(ScoreBoardUpdateEvent.class);
-        netEvent.playerId = playerId;
-        netDriver.queueClientEvent(-1, netEvent);
+
+        PlayerDeathEvent deathEvent = Pools.obtain(PlayerDeathEvent.class);
+        deathEvent.playerId = playerId;
+        deathEvent.entityId = EntityUtils.getId(entity);
+        netDriver.queueClientEvent(-1, deathEvent);
+        getEngine().removeEntity(entity);
+
+        ScoreBoardUpdateEvent scoreEvent = Pools.obtain(ScoreBoardUpdateEvent.class);
+        scoreEvent.playerId = playerId;
+        getEngine().getSystem(EventsSystem.class).queueEvent(scoreEvent);
+
+        ScoreBoardUpdateEvent netScoreEvent = Pools.obtain(ScoreBoardUpdateEvent.class);
+        scoreEvent.copyTo(netScoreEvent);
+        netDriver.queueClientEvent(-1, netScoreEvent);
+
+        spawnPlayerBall(playerId, true);
     }
 
     public int[] getPlayerControlMap() {
@@ -175,5 +220,9 @@ public class GameDirector extends EntitySystem {
 
     public int[] getPlayerScores() {
         return playerScores;
+    }
+
+    public boolean[] getPlayerExists() {
+        return playerExists;
     }
 }

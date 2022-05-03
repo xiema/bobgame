@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
@@ -174,7 +175,7 @@ public class MessageReader {
         message.setType(Message.MessageType.Input);
         setMessageInfo(message);
         builder.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
-        event.read(builder, true);
+        event.read(builder, engine, true);
         builder.flush(true);
         message.setLength(builder.getTotalBytes());
         message.entryCount = 1;
@@ -190,13 +191,14 @@ public class MessageReader {
         message.setType(Message.MessageType.Update);
         setMessageInfo(message);
         builder.packInt(Message.UpdateType.Event.getValue(), 0, Message.UpdateType.values().length - 1);
+        message.eventTypes.add(event.getClass());
         int typeIndex = NetDriver.getNetworkEventIndex(event.getClass());
         if (typeIndex == -1) {
             Log.error("Unknown typeIndex for " + event.getClass());
             return -1;
         }
         builder.packInt(typeIndex, 0, NetDriver.networkEventClasses.length - 1);
-        event.read(builder, true);
+        event.read(builder, engine, true);
         builder.flush(true);
         message.setLength(builder.getTotalBytes());
         message.entryCount = 1;
@@ -208,7 +210,7 @@ public class MessageReader {
         int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);
         //noinspection unchecked
         NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
-        event.read(builder, false);
+        event.read(builder, engine, false);
 
         if (!send) {
             engine.getSystem(EventsSystem.class).queueEvent(event);
@@ -256,11 +258,15 @@ public class MessageReader {
             int id1 = EntityUtils.getId(entity);
             int id2 = readInt(id1, 0, 255);
             while (id1 != id2) {
-                i = (i + 1) % entities.size();
+                i++;
+                if (i >= entities.size()) {
+                    i = entities.size() - 1; // return to 0
+                    break;
+                }
                 entity = entities.get(i);
                 id1 = EntityUtils.getId(entity);
             }
-            readPhysicsBody(ComponentMappers.physicsBody.get(entity));
+            readPhysicsBody(id1 == id2 ? ComponentMappers.physicsBody.get(entity) : null);
             i = (i + 1) % entities.size();
         }
 
@@ -273,7 +279,7 @@ public class MessageReader {
     private int readSystemSnapshot() {
         ImmutableArray<Entity> entities = engine.getSystem(GameDirector.class).getEntities();
         int cnt = readInt(entities.size(), 0, 255);
-        int i = 0, j;
+        int i = 0;
         while (cnt-- > 0) {
             Entity entity;
             if (send) {
@@ -287,19 +293,11 @@ public class MessageReader {
             }
         }
 
-        ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
-        if (!send) controlSystem.clearRegistry();
+        GameDirector gameDirector = engine.getSystem(GameDirector.class);
+        int[] playerControlMap = gameDirector.getPlayerControlMap();
 
         for (i = 0; i < 32; ++i) {
-            IntArray entityIds = controlSystem.getControlledEntityIds(i);
-            int b = readInt(entityIds.size == 0 ? 0 : 1, 0, 1);
-            if (b == 0) continue;
-            cnt = readInt(entityIds.size, 0, 255);
-            int entityId;
-            for (j = 0; j < cnt; ++j) {
-                entityId = readInt(entityIds.size == 0 ? -1 : entityIds.get(j), 0, 255);
-                if (!send) controlSystem.registerEntity(entityId, i);
-            }
+            playerControlMap[i] = readInt(playerControlMap[i], -1, 254);
         }
 
         readPlayerScores(true);
@@ -308,28 +306,29 @@ public class MessageReader {
     }
 
     private static final MassData tempMassData = new MassData();
-    private static final Vector2 tempVec = new Vector2();
+    private final Vector2 tempVec = new Vector2();
+    private final Transform tempTfm = new Transform();
 
     private int readPhysicsBody(PhysicsBodyComponent pb) {
         boolean zero;
 
-        Transform tfm = pb.body.getTransform();
+        Transform tfm = pb == null ? tempTfm : pb.body.getTransform();
 
         float t1 = readFloat(tfm.vals[0], -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
         float t2 = readFloat(tfm.vals[1], -3, GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION);
         float t3 = readFloat(tfm.getRotation(), NetDriver.MIN_ORIENTATION, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
 
-        Vector2 vel = pb.body.getLinearVelocity();
+        Vector2 vel = pb == null ? tempVec : pb.body.getLinearVelocity();
         zero = readInt(vel.x == 0 ? 0 : 1, 0, 1) == 0;
         float v1 = zero ? 0 : readFloat(vel.x, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
         zero = readInt(vel.y == 0 ? 0 : 1, 0, 1) == 0;
         float v2 = zero ? 0 : readFloat(vel.y, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
 
-        float angularVel = pb.body.getAngularVelocity();
+        float angularVel = pb == null ? 0 : pb.body.getAngularVelocity();
         zero = readInt(angularVel == 0 ? 0 : 1, 0, 1) == 0;
         float v3 = zero ? 0 : readFloat(angularVel, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
 
-        MassData md = pb.body.getMassData();
+        MassData md = pb == null ? tempMassData : pb.body.getMassData();
         zero = readInt(md.mass == 0 ? 0 : 1, 0, 1) == 0;
         float m = zero ? 0 : readFloat(md.mass, 0, 10, NetDriver.RES_MASS);
         float c1 = readFloat(md.center.x, -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
@@ -337,7 +336,7 @@ public class MessageReader {
         zero = readInt(md.I == 0 ? 0 : 1, 0, 1) == 0;
         float i = zero ? 0 : readFloat(md.I, 0, 10, NetDriver.RES_MASS);
 
-        if (!send) {
+        if (!send && pb != null) {
             PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) pb.body.getUserData();
             physicsHistory.posXError.update(t1 - (tfm.vals[0] + physicsHistory.posXError.getAverage()));
             physicsHistory.posYError.update(t2 - (tfm.vals[1] + physicsHistory.posYError.getAverage()));
@@ -368,7 +367,7 @@ public class MessageReader {
     }
 
     private int readEntity(Entity entity) {
-
+        // TODO: combine with EntityCreatedEvent
         PhysicsBodyComponent pb;
         GraphicsComponent graphics;
         IdentityComponent iden;
@@ -433,10 +432,12 @@ public class MessageReader {
 
     private int readPlayerScores(boolean refresh) {
         GameDirector gameDirector = engine.getSystem(GameDirector.class);
+        boolean[] playerExists = gameDirector.getPlayerExists();
         int[] playerControlMap = gameDirector.getPlayerControlMap();
         int[] playerScores = gameDirector.getPlayerScores();
 
         for (int i = 0; i < playerControlMap.length; ++i) {
+            playerExists[i] = readInt(playerExists[i] ? 1 : 0, 0, 1) == 1;
             playerControlMap[i] = readInt(playerControlMap[i], -1, 254);
             playerScores[i] = readInt(playerScores[i], NetDriver.MIN_SCORE, NetDriver.MAX_SCORE);
         }
@@ -452,10 +453,13 @@ public class MessageReader {
     public static class MessageInfo {
         public int messageId = -1;
         public Message.MessageType type = null;
+        public Array<Class<? extends NetDriver.NetworkEvent>> eventTypes = new Array<>();
 
         public void set(Message message) {
             messageId = message.messageId;
             type = message.getType();
+            eventTypes.clear();
+            eventTypes.addAll(eventTypes);
         }
     }
 }

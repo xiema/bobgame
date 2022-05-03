@@ -1,5 +1,6 @@
 package com.xam.bobgame.events;
 
+import com.badlogic.ashley.core.Engine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.net.NetDriver;
@@ -19,7 +20,7 @@ public class PlayerControlEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
-    public void read(BitPacker builder, boolean write) {
+    public void read(BitPacker builder, Engine engine, boolean write) {
         controlId = readInt(builder, controlId, -1, 31, write);
         entityId = readInt(builder, entityId, 0, 255, write);
         x = readFloat(builder, x, -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION, write);

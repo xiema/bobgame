@@ -67,7 +67,11 @@ public class NetDriver extends EntitySystem {
     int counter = 0;
 
     public static final Class<?>[] networkEventClasses = {
-            PlayerAssignEvent.class,  PlayerControlEvent.class, ScoreBoardUpdateEvent.class,
+            PlayerAssignEvent.class,
+            PlayerControlEvent.class,
+            ScoreBoardUpdateEvent.class,
+            EntityCreatedEvent.class,
+            PlayerDeathEvent.class,
     };
 
     public static int getNetworkEventIndex(Class<? extends NetworkEvent> clazz) {
@@ -116,6 +120,7 @@ public class NetDriver extends EntitySystem {
 
     synchronized public void queueClientEvent(int clientId, NetworkEvent event) {
         // TODO: use mask
+        // TODO: autocopy event
         if (clientId == -1 && !connectionManager.hasConnections()) return;
         ClientEvent clientEvent = Pools.obtain(ClientEvent.class);
         clientEvent.event = event;
@@ -236,7 +241,7 @@ public class NetDriver extends EntitySystem {
             }
         }
 
-        public void read(BitPacker builder, boolean write){
+        public void read(BitPacker builder, Engine engine, boolean write){
 
         }
 

@@ -18,7 +18,6 @@ import java.util.Arrays;
 
 public class ControlSystem extends EntitySystem {
     private IntSet idSet = new IntSet();
-    private IntArray[] controlMap = new IntArray[NetDriver.MAX_CLIENTS];
 
     private Vector2[] mousePositions = new Vector2[NetDriver.MAX_CLIENTS];
     private float[] buttonHoldDurations = new float[NetDriver.MAX_CLIENTS];
@@ -39,7 +38,6 @@ public class ControlSystem extends EntitySystem {
             }
         });
 
-        for (int i = 0; i < controlMap.length; ++i) controlMap[i] = new IntArray(false, 4);
         for (int i = 0; i < mousePositions.length; ++i) mousePositions[i] = new Vector2();
     }
 
@@ -56,7 +54,6 @@ public class ControlSystem extends EntitySystem {
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);
         idSet.clear();
-        for (IntArray entityIdArray : controlMap) entityIdArray.clear();
     }
 
     @Override
@@ -70,39 +67,23 @@ public class ControlSystem extends EntitySystem {
     }
 
     private void updatePlayer(int controlId) {
-        if (controlId == -1 || controlMap[controlId].size == 0) return;
+        if (controlId == -1) return;
+        Entity entity = getEngine().getSystem(GameDirector.class).getPlayerEntity(controlId);
+        if (entity == null) return;
+
         if (buttonStates[controlId]) {
             buttonHoldDurations[controlId] = ((buttonHoldDurations[controlId] < 0 ? 0 : buttonHoldDurations[controlId]) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
         }
-        Entity entity = getEngine().getSystem(GameDirector.class).getEntityById(controlMap[controlId].get(0));
         PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
         Transform tfm = pb.body.getTransform();
         tfm.setOrientation(tempVec.set(mousePositions[controlId].x - tfm.vals[0], mousePositions[controlId].y - tfm.vals[1]));
         pb.body.setTransform(tfm.getPosition(), tfm.getRotation());
     }
 
-    public boolean registerEntity(int entityId, int controlId) {
-        Log.info("Register entity " + entityId + " to player " + controlId);
-        if (idSet.contains(entityId)) {
-            Log.error("ControlSystem", "Attempted to register duplicate entity");
-            return false;
-        }
-
-        idSet.add(entityId);
-        controlMap[controlId].add(entityId);
-
-        return true;
-    }
-
-    public void clearRegistry() {
-        idSet.clear();
-        for (IntArray entityIds : controlMap) entityIds.clear();
-    }
-
-    private Vector2 tempVec = new Vector2();
+    private final Vector2 tempVec = new Vector2();
 
     private void control(int controlId, int entityId, float x, float y, int buttonId, boolean buttonState) {
-        if (controlId < 0 || controlId >= controlMap.length) {
+        if (controlId < 0 || controlId >= NetDriver.MAX_CLIENTS) {
             Log.error("ControlSystem", "Invalid controlId: " + controlId);
             return;
         }
@@ -125,10 +106,6 @@ public class ControlSystem extends EntitySystem {
             buttonHoldDurations[controlId] = -NetDriver.RES_HOLD_DURATION;
         }
         buttonStates[controlId] = buttonState;
-    }
-
-    public IntArray getControlledEntityIds(int controlId) {
-        return controlMap[controlId];
     }
 
     public boolean[] getButtonStates() {

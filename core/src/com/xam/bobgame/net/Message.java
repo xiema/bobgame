@@ -1,5 +1,6 @@
 package com.xam.bobgame.net;
 
+import com.badlogic.gdx.utils.Array;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.utils.BitPacker;
 
@@ -23,6 +24,11 @@ public class Message {
     int frameNum = -1;
 
     int entryCount = 0;
+
+    /**
+     * For recordkeeping in {@link MessageReader.MessageInfo}.
+     */
+    Array<Class<? extends NetDriver.NetworkEvent>> eventTypes = new Array<>();
 
     public Message(int size) {
         byteBuffer = ByteBuffer.allocate(size);
@@ -81,6 +87,8 @@ public class Message {
         out.messageId = messageId;
         out.frameNum = frameNum;
         out.entryCount = entryCount;
+        out.eventTypes.clear();
+        out.eventTypes.addAll(eventTypes);
         byteBuffer.rewind();
     }
 
@@ -96,6 +104,7 @@ public class Message {
         byteBuffer.rewind();
         length += in.length;
         entryCount++;
+        eventTypes.addAll(in.eventTypes);
 
         if (messageId == -1) {
             messageId = in.messageId;
@@ -127,6 +136,7 @@ public class Message {
         messageId = -1;
         frameNum = -1;
         entryCount = 0;
+        eventTypes.clear();
 //        needsAck = false;
     }
 

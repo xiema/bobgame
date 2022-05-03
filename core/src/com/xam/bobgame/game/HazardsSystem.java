@@ -12,15 +12,22 @@ public class HazardsSystem extends EntitySystem {
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
+    private boolean enabled = false;
+
     public HazardsSystem(int priority) {
         super(priority);
 
         listeners.put(HazardContactEvent.class, new EventListenerAdapter<HazardContactEvent>() {
             @Override
             public void handleEvent(HazardContactEvent event) {
-                GameDirector gameDirector = getEngine().getSystem(GameDirector.class);
-                int playerId = gameDirector.getEntityPlayerId(EntityUtils.getId(event.entity));
-                gameDirector.killPlayer(playerId);
+                if (enabled) {
+                    GameDirector gameDirector = getEngine().getSystem(GameDirector.class);
+                    int entityId = EntityUtils.getId(event.entity);
+                    if (entityId == -1) return;
+                    int playerId = gameDirector.getEntityPlayerId(entityId);
+                    if (playerId == -1) return;
+                    gameDirector.killPlayer(playerId);
+                }
             }
         });
     }
@@ -35,5 +42,9 @@ public class HazardsSystem extends EntitySystem {
     public void removedFromEngine(Engine engine) {
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 }

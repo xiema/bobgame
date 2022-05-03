@@ -4,13 +4,12 @@ import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.ashley.core.PooledEngine;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.InputMultiplexer;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
 import com.badlogic.gdx.utils.viewport.Viewport;
-import com.xam.bobgame.components.PhysicsBodyComponent;
+import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.game.HazardsSystem;
@@ -30,6 +29,8 @@ public class GameEngine extends PooledEngine {
     private float simulationTime = 0;
     public static final float SIM_STEP_SIZE = 1.0f / 60f;
 
+    private boolean restarting = false;
+
 //    SharedMemoryChecker memCheck = new SharedMemoryChecker("check.txt");
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
@@ -40,7 +41,7 @@ public class GameEngine extends PooledEngine {
         listeners.put(DisconnectEvent.class, new EventListenerAdapter<DisconnectEvent>() {
             @Override
             public void handleEvent(DisconnectEvent event) {
-                GameEngine.this.game.restart();
+                restart();
             }
         });
     }
@@ -62,6 +63,28 @@ public class GameEngine extends PooledEngine {
 
     @Override
     public void update(float deltaTime) {
+        if (restarting) {
+            Array<EntitySystem> systems = new Array<>();
+            removeSystem(netDriver);
+            removeSystem(eventsSystem);
+            removeSystem(gameDirector);
+            for (EntitySystem system : getSystems()) systems.add(system);
+            Log.info("All systems removed");
+
+            addSystem(netDriver);
+            addSystem(eventsSystem);
+            addSystem(gameDirector);
+            for (EntitySystem system : systems) addSystem(system);
+
+            for (EntitySystem system : getSystems()) system.setProcessing(true);
+
+            eventsSystem.addListeners(listeners);
+
+            game.onEngineStarted();
+
+            restarting = false;
+            return;
+        }
         simulationTime += SIM_STEP_SIZE;
         super.update(deltaTime);
         netDriver.update2();
@@ -80,19 +103,9 @@ public class GameEngine extends PooledEngine {
 
     public void restart() {
         removeAllEntities();
+        restarting = true;
 
-        Array<EntitySystem> systems = new Array<>();
-        removeSystem(netDriver);
-        removeSystem(eventsSystem);
-        removeSystem(gameDirector);
-        for (EntitySystem system : getSystems()) systems.add(system);
-
-        addSystem(netDriver);
-        addSystem(eventsSystem);
-        addSystem(gameDirector);
-        for (EntitySystem system : systems) addSystem(system);
-
-        eventsSystem.addListeners(listeners);
+        for (EntitySystem system : getSystems()) system.setProcessing(false);
     }
 
     public void addInputProcessor(InputMultiplexer inputMultiplexer, final Viewport viewport) {
@@ -154,8 +167,8 @@ public class GameEngine extends PooledEngine {
             getSystem(PhysicsSystem.class).setPosIterations(2);
             getSystem(PhysicsSystem.class).setVelIterations(6);
             getSystem(ControlSystem.class).setControlFacing(true);
+            getSystem(HazardsSystem.class).setEnabled(true);
             gameSetup();
-            getSystem(GameDirector.class).getLocalPlayerEntity().getComponent(PhysicsBodyComponent.class).body.applyForceToCenter(MathUtils.random() * 1000f, MathUtils.random() * 100f, true);
         }
         else {
             getSystem(PhysicsSystem.class).setForceFactor(NetDriver.FORCE_FACTOR);

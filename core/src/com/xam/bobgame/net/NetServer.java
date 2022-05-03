@@ -107,6 +107,7 @@ public class NetServer extends Server {
                 netDriver.messageReader.serializeEvent(eventPacket.getMessage(), netDriver.getEngine(), clientEvent.event);
                 sendPacket.getMessage().append(eventPacket.getMessage());
                 eventPacket.clear();
+                // TODO: don't remove until sent to all clients
                 netDriver.clientEvents.removeIndex(i);
                 i--;
             }

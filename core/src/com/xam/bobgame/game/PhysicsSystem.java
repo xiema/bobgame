@@ -12,6 +12,7 @@ import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.HazardComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
+import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.DebugUtils;
@@ -27,6 +28,7 @@ public class PhysicsSystem extends EntitySystem {
     private boolean enabled = false;
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
+    private ObjectMap<Family, EntityListener> entityListeners = new ObjectMap<>();
 
     private Vector2 tempVec = new Vector2();
     private Vector2 tempVec2 = new Vector2();
@@ -44,6 +46,7 @@ public class PhysicsSystem extends EntitySystem {
             public void handleEvent(ButtonReleaseEvent event) {
                 if (enabled) {
                     Entity entity = getEngine().getSystem(GameDirector.class).getPlayerEntity(event.playerId);
+                    if (entity == null) return;
                     PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
 //                    tempVec.set(event.x, event.y).sub(pb.body.getPosition()).nor().scl(500f * forceFactor);
                     float strength = GameProperties.PLAYER_FORCE_STRENGTH * MathUtils2.mirror.apply(event.holdDuration / GameProperties.CHARGE_DURATION_2);
@@ -53,6 +56,39 @@ public class PhysicsSystem extends EntitySystem {
                     tempVec3.set(tempVec).scl(-scalarProj).add(tempVec2);
                     pb.body.applyForceToCenter(tempVec.scl(Math.max(0, strength - tempVec3.len())).sub(tempVec3), true);
                 }
+            }
+        });
+        listeners.put(PlayerBallSpawnedEvent.class, new EventListenerAdapter<PlayerBallSpawnedEvent>() {
+            @Override
+            public void handleEvent(PlayerBallSpawnedEvent event) {
+                Entity entity = getEngine().getSystem(GameDirector.class).getEntityById(event.entityId);
+                if (entity == null) return;
+                PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
+//                pb.body.applyForceToCenter(MathUtils.random() * 500f, MathUtils.random() * 500f, true);
+            }
+        });
+
+        entityListeners.put(Family.all(PhysicsBodyComponent.class).get(), new EntityListener() {
+            @Override
+            public void entityAdded(Entity entity) {
+                PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
+                physicsBody.body = world.createBody(physicsBody.bodyDef);
+                PhysicsHistory physicsHistory = new PhysicsHistory(entity);
+                physicsBody.body.setUserData(physicsHistory);
+                Shape shape = physicsBody.shapeDef.createShape();
+                physicsBody.fixtureDef.shape = shape;
+                physicsBody.fixture = physicsBody.body.createFixture(physicsBody.fixtureDef);
+                physicsBody.body.setFixedRotation(true);
+//                if (!enabled) physicsBody.fixture.setSensor(true);
+                shape.dispose();
+            }
+
+            @Override
+            public void entityRemoved(Entity entity) {
+                PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
+                if (physicsBody.body == null) return;
+                if (physicsBody.fixture != null) physicsBody.body.destroyFixture(physicsBody.fixture);
+                world.destroyBody(physicsBody.body);
             }
         });
     }
@@ -95,34 +131,17 @@ public class PhysicsSystem extends EntitySystem {
         createWalls();
 
         entities = engine.getEntitiesFor(Family.all(PhysicsBodyComponent.class).get());
-        engine.addEntityListener(Family.all(PhysicsBodyComponent.class).get(), new EntityListener() {
-            @Override
-            public void entityAdded(Entity entity) {
-                PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
-                physicsBody.body = world.createBody(physicsBody.bodyDef);
-                PhysicsHistory physicsHistory = new PhysicsHistory(entity);
-                physicsBody.body.setUserData(physicsHistory);
-                Shape shape = physicsBody.shapeDef.createShape();
-                physicsBody.fixtureDef.shape = shape;
-                physicsBody.fixture = physicsBody.body.createFixture(physicsBody.fixtureDef);
-                physicsBody.body.setFixedRotation(true);
-//                if (!enabled) physicsBody.fixture.setSensor(true);
-                shape.dispose();
-            }
-
-            @Override
-            public void entityRemoved(Entity entity) {
-
-            }
-        });
+        EntityUtils.addEntityListeners(engine, entityListeners);
 
         engine.getSystem(EventsSystem.class).addListeners(listeners);
     }
 
     @Override
     public void removedFromEngine(Engine engine) {
-        entities = null;
         world.dispose();
+        world = null;
+        entities = null;
+        EntityUtils.removeEntityListeners(engine, entityListeners);
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);
     }

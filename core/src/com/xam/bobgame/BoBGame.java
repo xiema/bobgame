@@ -106,8 +106,7 @@ public class BoBGame extends ApplicationAdapter {
 		netDriver.stop();
 	}
 
-	public void restart() {
-		engine.restart();
+	public void onEngineStarted() {
 		uiStage.initialize(engine);
 	}
 
