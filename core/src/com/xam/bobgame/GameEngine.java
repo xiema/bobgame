@@ -17,6 +17,8 @@ import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.net.NetDriver;
 
 public class GameEngine extends PooledEngine {
+    private BoBGame game;
+
     private EventsSystem eventsSystem;
     private GameDirector gameDirector;
     private NetDriver netDriver;
@@ -31,12 +33,13 @@ public class GameEngine extends PooledEngine {
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
-    public GameEngine() {
+    public GameEngine(BoBGame game) {
         super();
+        this.game = game;
         listeners.put(DisconnectEvent.class, new EventListenerAdapter<DisconnectEvent>() {
             @Override
             public void handleEvent(DisconnectEvent event) {
-                restart();
+                GameEngine.this.game.restart();
             }
         });
     }
@@ -126,17 +129,17 @@ public class GameEngine extends PooledEngine {
                 return false;
             }
 
-//            @Override
-//            public boolean touchDragged(int screenX, int screenY, int pointer) {
-//                userInput(screenX, screenY, -1, true);
-//                return true;
-//            }
+            @Override
+            public boolean touchDragged(int screenX, int screenY, int pointer) {
+                userInput(screenX, screenY, 0, true);
+                return true;
+            }
 
-//            @Override
-//            public boolean mouseMoved(int screenX, int screenY) {
-//                userInput(screenX, screenY, -1, false);
-//                return false;
-//            }
+            @Override
+            public boolean mouseMoved(int screenX, int screenY) {
+                userInput(screenX, screenY, 0, false);
+                return false;
+            }
         });
     }
 
@@ -148,6 +151,7 @@ public class GameEngine extends PooledEngine {
             getSystem(PhysicsSystem.class).setEnabled(true);
             getSystem(PhysicsSystem.class).setPosIterations(2);
             getSystem(PhysicsSystem.class).setVelIterations(6);
+            getSystem(ControlSystem.class).setControlFacing(true);
             gameSetup();
             getSystem(GameDirector.class).getLocalPlayerEntity().getComponent(PhysicsBodyComponent.class).body.applyForceToCenter(MathUtils.random() * 1000f, MathUtils.random() * 100f, true);
         }

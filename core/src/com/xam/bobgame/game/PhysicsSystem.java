@@ -102,6 +102,7 @@ public class PhysicsSystem extends EntitySystem {
                 Shape shape = physicsBody.shapeDef.createShape();
                 physicsBody.fixtureDef.shape = shape;
                 physicsBody.fixture = physicsBody.body.createFixture(physicsBody.fixtureDef);
+                physicsBody.body.setFixedRotation(true);
 //                if (!enabled) physicsBody.fixture.setSensor(true);
                 shape.dispose();
             }

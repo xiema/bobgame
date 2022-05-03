@@ -3,10 +3,14 @@ package com.xam.bobgame.game;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.core.EntitySystem;
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.Transform;
 import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameProperties;
+import com.xam.bobgame.components.PhysicsBodyComponent;
+import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.net.NetDriver;
 
@@ -16,12 +20,14 @@ public class ControlSystem extends EntitySystem {
     private IntSet idSet = new IntSet();
     private IntArray[] controlMap = new IntArray[NetDriver.MAX_CLIENTS];
 
+    private Vector2[] mousePositions = new Vector2[NetDriver.MAX_CLIENTS];
     private float[] buttonHoldDurations = new float[NetDriver.MAX_CLIENTS];
     private boolean[] buttonStates = new boolean[NetDriver.MAX_CLIENTS];
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
     private boolean enabled = false;
+    private boolean controlFacing = false;
 
     public ControlSystem(int priority) {
         super(priority);
@@ -34,6 +40,7 @@ public class ControlSystem extends EntitySystem {
         });
 
         for (int i = 0; i < controlMap.length; ++i) controlMap[i] = new IntArray(false, 4);
+        for (int i = 0; i < mousePositions.length; ++i) mousePositions[i] = new Vector2();
     }
 
     @Override
@@ -54,11 +61,24 @@ public class ControlSystem extends EntitySystem {
 
     @Override
     public void update(float deltaTime) {
-        for (int i = 0; i < buttonStates.length; ++i) {
-            if (buttonStates[i]) {
-                buttonHoldDurations[i] = ((buttonHoldDurations[i] < 0 ? 0 : buttonHoldDurations[i]) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
-            }
+        if (controlFacing) {
+            for (int i = 0; i < buttonStates.length; ++i) updatePlayer(i);
         }
+        else {
+            updatePlayer(getEngine().getSystem(GameDirector.class).getLocalPlayerId());
+        }
+    }
+
+    private void updatePlayer(int controlId) {
+        if (controlId == -1 || controlMap[controlId].size == 0) return;
+        if (buttonStates[controlId]) {
+            buttonHoldDurations[controlId] = ((buttonHoldDurations[controlId] < 0 ? 0 : buttonHoldDurations[controlId]) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
+        }
+        Entity entity = getEngine().getSystem(GameDirector.class).getEntityById(controlMap[controlId].get(0));
+        PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
+        Transform tfm = pb.body.getTransform();
+        tfm.setOrientation(tempVec.set(mousePositions[controlId].x - tfm.vals[0], mousePositions[controlId].y - tfm.vals[1]));
+        pb.body.setTransform(tfm.getPosition(), tfm.getRotation());
     }
 
     public boolean registerEntity(int entityId, int controlId) {
@@ -79,6 +99,8 @@ public class ControlSystem extends EntitySystem {
         for (IntArray entityIds : controlMap) entityIds.clear();
     }
 
+    private Vector2 tempVec = new Vector2();
+
     private void control(int controlId, int entityId, float x, float y, int buttonId, boolean buttonState) {
         if (controlId < 0 || controlId >= controlMap.length) {
             Log.error("ControlSystem", "Invalid controlId: " + controlId);
@@ -89,6 +111,8 @@ public class ControlSystem extends EntitySystem {
             Log.error("ControlSystem", "Invalid entityId: " + entityId);
             return;
         }
+
+        mousePositions[controlId].set(x, y);
 
         if (buttonId != 0) return;
         if (buttonStates[controlId] && !buttonState) {
@@ -111,12 +135,20 @@ public class ControlSystem extends EntitySystem {
         return buttonStates;
     }
 
+    public Vector2 getMousePosition(int controlId) {
+        return mousePositions[controlId];
+    }
+
     public float[] getButtonHoldDurations() {
         return buttonHoldDurations;
     }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public void setControlFacing(boolean controlFacing) {
+        this.controlFacing = controlFacing;
     }
 
     public boolean isEnabled() {

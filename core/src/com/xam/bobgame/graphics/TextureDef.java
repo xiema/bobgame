@@ -15,6 +15,8 @@ public class TextureDef {
         Pixmap pmap = new Pixmap(wh, wh, Pixmap.Format.RGBA8888);
         pmap.setColor(color);
         pmap.fillCircle(wh / 2, wh / 2, textureVal1);
+        pmap.setColor(Color.RED);
+        pmap.fillRectangle(wh / 2 - 1, wh / 2, 2, wh / 2);
         Texture tx = new Texture(pmap);
         pmap.dispose();
         return tx;

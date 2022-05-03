@@ -79,8 +79,11 @@ public class UIStage extends Stage {
     }
 
     public void initialize(GameEngine engine) {
-        EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
-        forceMeter.engine = engine;
-        eventsSystem.addListeners(forceMeter.listeners);
+        forceMeter.initialize(engine);
+    }
+
+    @Override
+    public void draw() {
+        super.draw();
     }
 }

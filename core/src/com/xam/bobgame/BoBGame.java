@@ -55,7 +55,7 @@ public class BoBGame extends ApplicationAdapter {
 		batch = new SpriteBatch();
 		viewport = new FitViewport(GameProperties.MAP_WIDTH, GameProperties.MAP_HEIGHT);
 		stage = new Stage(viewport, batch);
-		engine = new GameEngine();
+		engine = new GameEngine(this);
 		renderer = new GraphicsRenderer(engine, stage);
 
 		InputMultiplexer input = new InputMultiplexer();
@@ -104,6 +104,11 @@ public class BoBGame extends ApplicationAdapter {
 		devTools.saveSettings();
 		batch.dispose();
 		netDriver.stop();
+	}
+
+	public void restart() {
+		engine.restart();
+		uiStage.initialize(engine);
 	}
 
 	public GameEngine getEngine() {

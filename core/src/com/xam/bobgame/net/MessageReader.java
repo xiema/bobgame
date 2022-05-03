@@ -262,7 +262,7 @@ public class MessageReader {
 
         float t1 = readFloat(tfm.vals[0], -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
         float t2 = readFloat(tfm.vals[1], -3, GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION);
-        float t3 = readFloat(tfm.getRotation(), 0, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
+        float t3 = readFloat(tfm.getRotation(), NetDriver.MIN_ORIENTATION, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
 
         Vector2 vel = pb.body.getLinearVelocity();
         zero = readInt(vel.x == 0 ? 0 : 1, 0, 1) == 0;

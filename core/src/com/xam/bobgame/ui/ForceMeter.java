@@ -15,20 +15,10 @@ public class ForceMeter extends ProgressBar {
     private float holdDuration = -1;
     private boolean buttonState = false;
 
-    GameEngine engine = null;
-    ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
+    private GameEngine engine = null;
 
     public ForceMeter(Skin skin) {
         super(0, 100, 1, true, skin);
-
-        listeners.put(PlayerControlEvent.class, new EventListenerAdapter<PlayerControlEvent>() {
-            @Override
-            public void handleEvent(PlayerControlEvent event) {
-                if (event.controlId != engine.getSystem(GameDirector.class).getLocalPlayerId()) return;
-                if (event.buttonId != 0) return;
-                buttonState = event.buttonState;
-            }
-        });
     }
 
     @Override
@@ -40,5 +30,19 @@ public class ForceMeter extends ProgressBar {
             holdDuration = 0;
         }
         setValue(getMaxValue() * MathUtils2.mirror.apply(holdDuration / GameProperties.CHARGE_DURATION_2));
+    }
+
+    public void initialize(GameEngine engine) {
+        this.engine = engine;
+        EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
+
+        eventsSystem.addListener(PlayerControlEvent.class, new EventListenerAdapter<PlayerControlEvent>() {
+            @Override
+            public void handleEvent(PlayerControlEvent event) {
+                if (event.controlId != ForceMeter.this.engine.getSystem(GameDirector.class).getLocalPlayerId()) return;
+                if (event.buttonId != 0) return;
+                buttonState = event.buttonState;
+            }
+        });
     }
 }
