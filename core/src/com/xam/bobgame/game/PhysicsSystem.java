@@ -7,6 +7,7 @@ import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
+import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.events.*;
@@ -26,6 +27,8 @@ public class PhysicsSystem extends EntitySystem {
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
     private Vector2 tempVec = new Vector2();
+    private Vector2 tempVec2 = new Vector2();
+    private Vector2 tempVec3 = new Vector2();
     private float forceFactor = 1;
 
     private int velIterations = 6, posIterations = 2;
@@ -40,8 +43,12 @@ public class PhysicsSystem extends EntitySystem {
                 if (enabled && event.buttonId == 0 && event.buttonState) {
                     Entity entity = getEngine().getSystem(GameDirector.class).getEntityById(event.entityId);
                     PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
-                    tempVec.set(event.x, event.y).sub(pb.body.getPosition()).nor().scl(500f * forceFactor);
-                    pb.body.applyForceToCenter(tempVec, true);
+//                    tempVec.set(event.x, event.y).sub(pb.body.getPosition()).nor().scl(500f * forceFactor);
+                    tempVec.set(event.x, event.y).sub(pb.body.getPosition()).nor();
+                    tempVec2.set(pb.body.getLinearVelocity()).scl(pb.body.getMass() / SIM_UPDATE_STEP);
+                    float scalarProj = tempVec2.dot(tempVec);
+                    tempVec3.set(tempVec).scl(-scalarProj).add(tempVec2);
+                    pb.body.applyForceToCenter(tempVec.scl(Math.max(0, GameProperties.PLAYER_FORCE_STRENGTH - tempVec3.len())).sub(tempVec3), true);
                 }
             }
         });
@@ -51,23 +58,27 @@ public class PhysicsSystem extends EntitySystem {
         BodyDef bodyDef = new BodyDef();
         PolygonShape shape = new PolygonShape();
 
-        bodyDef.position.set(5, 0);
-        shape.setAsBox(10, 0.5f);
+        // bottom
+        bodyDef.position.set(GameProperties.MAP_WIDTH * 0.5f, 0);
+        shape.setAsBox(GameProperties.MAP_WIDTH, 0.5f);
         walls[0] = world.createBody(bodyDef);
         walls[0].createFixture(shape, 0);
 
-        bodyDef.position.set(0, 5);
-        shape.setAsBox(0.5f, 10);
+        // left
+        bodyDef.position.set(0, GameProperties.MAP_HEIGHT * 0.5f);
+        shape.setAsBox(0.5f, GameProperties.MAP_HEIGHT);
         walls[1] = world.createBody(bodyDef);
         walls[1].createFixture(shape, 0);
 
-        bodyDef.position.set(5, 10);
-        shape.setAsBox(10, 0.5f);
+        // top
+        bodyDef.position.set(GameProperties.MAP_WIDTH * 0.5f, GameProperties.MAP_HEIGHT);
+        shape.setAsBox(GameProperties.MAP_WIDTH, 0.5f);
         walls[2] = world.createBody(bodyDef);
         walls[2].createFixture(shape, 0);
 
-        bodyDef.position.set(10, 5);
-        shape.setAsBox(0.5f, 10);
+        // right
+        bodyDef.position.set(GameProperties.MAP_WIDTH, GameProperties.MAP_HEIGHT * 0.5f);
+        shape.setAsBox(0.5f, GameProperties.MAP_HEIGHT);
         walls[3] = world.createBody(bodyDef);
         walls[3].createFixture(shape, 0);
 
@@ -125,8 +136,6 @@ public class PhysicsSystem extends EntitySystem {
         world.clearForces();
     }
 
-    private Vector2 tempVec2 = new Vector2();
-
     private void quantizePhysics() {
         for (Entity entity : entities) {
             PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
@@ -145,11 +154,11 @@ public class PhysicsSystem extends EntitySystem {
             md.I = MathUtils2.quantize(md.I, NetDriver.RES_MASS);
             body.setMassData(md);
 
-            tempVec2.set(x, y).sub(physicsBody.prevPos);
-            physicsBody.xJitterCount = tempVec2.x * physicsBody.displacement.x < 0 ? Math.min(3, physicsBody.xJitterCount + 1) : Math.max(0, physicsBody.xJitterCount - 1);
-            physicsBody.yJitterCount = tempVec2.y * physicsBody.displacement.y < 0 ? Math.min(3, physicsBody.yJitterCount + 1) : Math.max(0, physicsBody.yJitterCount - 1);
+            tempVec.set(x, y).sub(physicsBody.prevPos);
+            physicsBody.xJitterCount = tempVec.x * physicsBody.displacement.x < 0 ? Math.min(3, physicsBody.xJitterCount + 1) : Math.max(0, physicsBody.xJitterCount - 1);
+            physicsBody.yJitterCount = tempVec.y * physicsBody.displacement.y < 0 ? Math.min(3, physicsBody.yJitterCount + 1) : Math.max(0, physicsBody.yJitterCount - 1);
             physicsBody.prevPos.set(x, y);
-            physicsBody.displacement.set(tempVec2);
+            physicsBody.displacement.set(tempVec);
         }
     }
 

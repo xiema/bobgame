@@ -12,6 +12,7 @@ import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
+import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.GraphicsComponent;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
@@ -259,8 +260,8 @@ public class MessageReader {
 
         Transform tfm = pb.body.getTransform();
 
-        float t1 = readFloat(tfm.vals[0], -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
-        float t2 = readFloat(tfm.vals[1], -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
+        float t1 = readFloat(tfm.vals[0], -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
+        float t2 = readFloat(tfm.vals[1], -3, GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION);
         float t3 = readFloat(tfm.getRotation(), 0, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
 
         Vector2 vel = pb.body.getLinearVelocity();
@@ -323,8 +324,8 @@ public class MessageReader {
         iden.id = readInt(iden.id, 0, 255);
 
         pb.bodyDef.type = BodyDef.BodyType.values()[readInt(pb.bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length)];
-        pb.bodyDef.position.x = readFloat(pb.bodyDef.position.x, -3, 13, NetDriver.RES_POSITION);
-        pb.bodyDef.position.y = readFloat(pb.bodyDef.position.y, -3, 13, NetDriver.RES_POSITION);
+        pb.bodyDef.position.x = readFloat(pb.bodyDef.position.x, -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
+        pb.bodyDef.position.y = readFloat(pb.bodyDef.position.y, -3, GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION);
         pb.bodyDef.linearDamping = readFloat(pb.bodyDef.linearDamping, 0, 1, NetDriver.RES_MASS);
         pb.shapeDef.type = ShapeDef.ShapeType.values()[readInt(pb.shapeDef.type.getValue(), 0, ShapeDef.ShapeType.values().length)];
         pb.shapeDef.shapeVal1 = readFloat(pb.shapeDef.shapeVal1, 0, 16, NetDriver.RES_POSITION);

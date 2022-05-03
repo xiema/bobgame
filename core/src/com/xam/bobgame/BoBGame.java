@@ -53,7 +53,7 @@ public class BoBGame extends ApplicationAdapter {
 	public void create () {
 
 		batch = new SpriteBatch();
-		viewport = new FitViewport(10, 10);
+		viewport = new FitViewport(GameProperties.MAP_WIDTH, GameProperties.MAP_HEIGHT);
 		stage = new Stage(viewport, batch);
 		engine = new GameEngine();
 		renderer = new GraphicsRenderer(engine, stage);
