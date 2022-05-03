@@ -117,7 +117,6 @@ public class PhysicsSystem extends EntitySystem {
 
     @Override
     public void update(float deltaTime) {
-        quantizePhysics();
         world.step(simUpdateStep, velIterations, posIterations);
         quantizePhysics();
     }
@@ -126,6 +125,8 @@ public class PhysicsSystem extends EntitySystem {
         world.clearForces();
     }
 
+    private Vector2 tempVec2 = new Vector2();
+
     private void quantizePhysics() {
         for (Entity entity : entities) {
             PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
@@ -133,21 +134,22 @@ public class PhysicsSystem extends EntitySystem {
             Transform tfm = body.getTransform();
             Vector2 linearVel = body.getLinearVelocity();
 
-//            Log.info("before tfm x=" + tfm.vals[0] + " y=" + tfm.vals[1] + " vel x=" + linearVel.x + " y=" + linearVel.y);
-
-            body.setTransform(MathUtils2.quantize(tfm.vals[0], NetDriver.RES_POSITION),
-                    MathUtils2.quantize(tfm.vals[1], NetDriver.RES_POSITION),
-                    MathUtils2.quantize(tfm.getRotation(), NetDriver.RES_ORIENTATION));
+            float x = MathUtils2.quantize(tfm.vals[0], NetDriver.RES_POSITION);
+            float y = MathUtils2.quantize(tfm.vals[1], NetDriver.RES_POSITION);
+            body.setTransform(x, y, MathUtils2.quantize(tfm.getRotation(), NetDriver.RES_ORIENTATION));
             body.setLinearVelocity(MathUtils2.quantize(linearVel.x, NetDriver.RES_VELOCITY), MathUtils2.quantize(linearVel.y, NetDriver.RES_VELOCITY));
             body.setAngularVelocity(MathUtils2.quantize(body.getAngularVelocity(), NetDriver.RES_ORIENTATION));
 
-//            tfm = body.getTransform();
-//            linearVel = body.getLinearVelocity();
-//            Log.info("after tfm x=" + tfm.vals[0] + " y=" + tfm.vals[1] + " vel x=" + linearVel.x + " y=" + linearVel.y);
             MassData md = body.getMassData();
             md.mass = MathUtils2.quantize(md.mass, NetDriver.RES_MASS);
             md.I = MathUtils2.quantize(md.I, NetDriver.RES_MASS);
             body.setMassData(md);
+
+            tempVec2.set(x, y).sub(physicsBody.prevPos);
+            physicsBody.xJitterCount = tempVec2.x * physicsBody.displacement.x < 0 ? Math.min(3, physicsBody.xJitterCount + 1) : Math.max(0, physicsBody.xJitterCount - 1);
+            physicsBody.yJitterCount = tempVec2.y * physicsBody.displacement.y < 0 ? Math.min(3, physicsBody.yJitterCount + 1) : Math.max(0, physicsBody.yJitterCount - 1);
+            physicsBody.prevPos.set(x, y);
+            physicsBody.displacement.set(tempVec2);
         }
     }
 
@@ -203,13 +205,10 @@ public class PhysicsSystem extends EntitySystem {
         public final DebugUtils.ExpoMovingAverage posXError = new DebugUtils.ExpoMovingAverage(0.1f);
         public final DebugUtils.ExpoMovingAverage posYError = new DebugUtils.ExpoMovingAverage(0.1f);
 
-        public final Vector2 displacement = new Vector2();
         public final Entity entity;
 
         public PhysicsHistory(Entity entity) {
             this.entity = entity;
         }
-//        public final Vector2 position = new Vector2(0, 0);
-//        public final Vector2 linearVelocity = new Vector2(0, 0);
     }
 }

@@ -29,7 +29,7 @@ public class GameEngine extends PooledEngine {
     private float simulationTime = 0;
     public static final float SIM_STEP_SIZE = 1.0f / 60f;
 
-    SharedMemoryChecker memCheck = new SharedMemoryChecker("check.txt");
+//    SharedMemoryChecker memCheck = new SharedMemoryChecker("check.txt");
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
@@ -65,10 +65,10 @@ public class GameEngine extends PooledEngine {
 //        if (netDriver.getMode() == NetDriver.Mode.Server) {
 //            netDriver.syncClients(deltaTime);
 //        }
-        if (netDriver.getMode() == NetDriver.Mode.Server) {
-            Entity entity = gameDirector.getEntityById(0);
-            memCheck.pushShared(entity, currentFrame);
-        }
+//        if (netDriver.getMode() == NetDriver.Mode.Server) {
+//            Entity entity = gameDirector.getEntityById(0);
+//            memCheck.pushShared(entity, currentFrame);
+//        }
 
         currentFrame++;
     }
@@ -174,7 +174,7 @@ public class GameEngine extends PooledEngine {
         return simulationTime;
     }
 
-    public SharedMemoryChecker getMemCheck() {
-        return memCheck;
-    }
+//    public SharedMemoryChecker getMemCheck() {
+//        return memCheck;
+//    }
 }

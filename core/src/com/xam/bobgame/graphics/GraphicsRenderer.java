@@ -44,12 +44,9 @@ public class GraphicsRenderer {
             Body body = physicsBody.body;
             PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) body.getUserData();
             Vector2 pos = body.getPosition();
-//            Log.info("PosError x=" + physicsHistory.posXError.getAverage() + " y=" + physicsHistory.posYError.getAverage());
-//            graphics.spriteActor.getSprite().setOriginBasedPosition(pos.x - physicsHistory.position.x, pos.y - physicsHistory.position.y);
-            graphics.spriteActor.getSprite().setOriginBasedPosition(MathUtils2.quantize(pos.x + physicsHistory.posXError.getAverage(), 0.01f), MathUtils2.quantize(pos.y + physicsHistory.posYError.getAverage(), 0.01f));
-//            graphics.spriteActor.getSprite().setOriginBasedPosition(pos.x + physicsHistory.posXError.getAverage(), pos.y + physicsHistory.posYError.getAverage());
-//            graphics.spriteActor.getSprite().setOriginBasedPosition(pos.x, pos.y);
-//            Log.info("error " + EntityUtils.getId(entity) + " x=" + physicsHistory.posXError.getAverage() + " y=" + physicsHistory.posYError.getAverage());
+            float x = pos.x + physicsHistory.posXError.getAverage() - (physicsBody.xJitterCount > 1 ? physicsBody.displacement.x / 2 : 0);
+            float y = pos.y + physicsHistory.posYError.getAverage() - (physicsBody.yJitterCount > 1 ? physicsBody.displacement.y / 2 : 0);
+            graphics.spriteActor.getSprite().setOriginBasedPosition(x, y);
         }
         stage.draw();
     }

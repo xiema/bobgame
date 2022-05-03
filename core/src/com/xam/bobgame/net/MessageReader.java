@@ -259,49 +259,34 @@ public class MessageReader {
 
         Transform tfm = pb.body.getTransform();
 
-//        float t1 = readFloat(tfm.vals[0], -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
-//        float t2 = readFloat(tfm.vals[1], -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
-        float t1 = readFloat(tfm.vals[0]);
-        float t2 = readFloat(tfm.vals[1]);
-//        float t3 = readFloat(tfm.getRotation(), 0, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
-        float t3 = readFloat(tfm.getRotation());
+        float t1 = readFloat(tfm.vals[0], -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
+        float t2 = readFloat(tfm.vals[1], -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
+        float t3 = readFloat(tfm.getRotation(), 0, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
 
         Vector2 vel = pb.body.getLinearVelocity();
         zero = readInt(vel.x == 0 ? 0 : 1, 0, 1) == 0;
-//        float v1 = zero ? 0 : readFloat(vel.x, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
-        float v1 = zero ? 0 : readFloat(vel.x);
+        float v1 = zero ? 0 : readFloat(vel.x, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
         zero = readInt(vel.y == 0 ? 0 : 1, 0, 1) == 0;
-//        float v2 = zero ? 0 : readFloat(vel.y, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
-        float v2 = zero ? 0 : readFloat(vel.y);
+        float v2 = zero ? 0 : readFloat(vel.y, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
 
         float angularVel = pb.body.getAngularVelocity();
         zero = readInt(angularVel == 0 ? 0 : 1, 0, 1) == 0;
-//        float v3 = zero ? 0 : readFloat(angularVel, -1000, 1000, NetDriver.RES_VELOCITY);
-        float v3 = zero ? 0 : readFloat(angularVel);
+        float v3 = zero ? 0 : readFloat(angularVel, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
 
         MassData md = pb.body.getMassData();
         zero = readInt(md.mass == 0 ? 0 : 1, 0, 1) == 0;
         float m = zero ? 0 : readFloat(md.mass, 0, 10, NetDriver.RES_MASS);
-        float c1 = readFloat(md.center.x, -3, 13, NetDriver.RES_POSITION);
-        float c2 = readFloat(md.center.y, -3, 13, NetDriver.RES_POSITION);
-//        float c1 = readFloat(md.center.x);
-//        float c2 = readFloat(md.center.y);
+        float c1 = readFloat(md.center.x, -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
+        float c2 = readFloat(md.center.y, -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
         zero = readInt(md.I == 0 ? 0 : 1, 0, 1) == 0;
         float i = zero ? 0 : readFloat(md.I, 0, 10, NetDriver.RES_MASS);
-
-//        Log.info("m=" + m + " cx=" + c1 + " cy=" + c2 + " i=" + i);
 
         if (!send) {
             PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) pb.body.getUserData();
             physicsHistory.posXError.update(t1 - (tfm.vals[0] + physicsHistory.posXError.getAverage()));
             physicsHistory.posYError.update(t2 - (tfm.vals[1] + physicsHistory.posYError.getAverage()));
+
             tempVec.set(t1 - tfm.vals[0], t2 - tfm.vals[1]);
-//            if (tempVec.x * physicsHistory.displacement.x < 0 || tempVec.y * physicsHistory.displacement.y < 0) {
-//                Log.info("bounce x=" + (tempVec.x * physicsHistory.displacement.x < 0) + " y=" + (tempVec.y * physicsHistory.displacement.y < 0));
-//            }
-            physicsHistory.displacement.set(tempVec);
-//            physicsHistory.position.set((tfm.vals[0] - t1) * 0.5f, (tfm.vals[1] - t2) * 0.5f);
-//            physicsHistory.linearVelocity.set(vel.x, vel.y);
             pb.body.setTransform(t1, t2, t3);
             pb.body.setLinearVelocity(v1, v2);
             pb.body.setAngularVelocity(v3);

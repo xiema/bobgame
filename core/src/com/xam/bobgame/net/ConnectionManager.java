@@ -253,7 +253,7 @@ public class ConnectionManager {
                     slot.netDriver.connectionManager.removeConnection(slot.clientId);
                 }
 //                return readData(slot, in);
-                return 0;
+                return -1;
             }
 
             @Override
@@ -413,7 +413,7 @@ public class ConnectionManager {
                     slot.messageBuffer.receive(slot.syncPacket.getMessage());
                 }
                 else {
-                    slot.state.read(slot, slot.syncPacket);
+                    if (slot.state.read(slot, slot.syncPacket) == -1) return -1;
                 }
                 slot.syncPacket.clear();
                 slot.t = 0;

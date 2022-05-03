@@ -20,7 +20,7 @@ public class NetDriver extends EntitySystem {
     public static final float BUFFER_TIME_LIMIT = 0.15f;
     public static final int MAX_CLIENTS = 32;
     public static final int MAX_MESSAGE_HISTORY = 256;
-    public static final int SERVER_UPDATE_FREQUENCY = 3;
+    public static final int SERVER_UPDATE_FREQUENCY = 2;
     public static final int PORT_TCP = 55192;
     public static final int PORT_UDP = 55196;
     public static final int PACKET_SEQUENCE_LIMIT = 128;
