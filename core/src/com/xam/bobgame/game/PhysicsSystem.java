@@ -2,6 +2,7 @@ package com.xam.bobgame.game;
 
 import com.badlogic.ashley.core.*;
 import com.badlogic.ashley.utils.ImmutableArray;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.ObjectMap;
@@ -64,7 +65,7 @@ public class PhysicsSystem extends EntitySystem {
                 Entity entity = getEngine().getSystem(GameDirector.class).getEntityById(event.entityId);
                 if (entity == null) return;
                 PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
-//                pb.body.applyForceToCenter(MathUtils.random() * 500f, MathUtils.random() * 500f, true);
+                pb.body.applyForceToCenter(MathUtils.random() * 500f, MathUtils.random() * 500f, true);
             }
         });
 

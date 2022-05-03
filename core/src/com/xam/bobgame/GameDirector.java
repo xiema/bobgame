@@ -174,13 +174,16 @@ public class GameDirector extends EntitySystem {
         int entityId = EntityUtils.getId(entity);
         playerControlMap[playerId] = entityId;
 
+        PlayerBallSpawnedEvent event = Pools.obtain(PlayerBallSpawnedEvent.class);
+        event.entityId = entityId;
+        event.playerId = playerId;
+        getEngine().getSystem(EventsSystem.class).queueEvent(event);
+
         if (sendEvent) {
             EntityCreatedEvent netEvent = Pools.obtain(EntityCreatedEvent.class);
             netEvent.entityId = entityId;
             getEngine().getSystem(NetDriver.class).queueClientEvent(-1, netEvent);
         }
-
-        Log.info("spawnPlayerBall entityId=" + entityId);
 
         return entity;
     }
