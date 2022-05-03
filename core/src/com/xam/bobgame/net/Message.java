@@ -22,6 +22,8 @@ public class Message {
 
     int frameNum = -1;
 
+    int entryCount = 0;
+
     public Message(int size) {
         byteBuffer = ByteBuffer.allocate(size);
     }
@@ -78,7 +80,28 @@ public class Message {
         out.type = type;
         out.messageId = messageId;
         out.frameNum = frameNum;
+        out.entryCount = entryCount;
         byteBuffer.rewind();
+    }
+
+    public void append(Message in) {
+        int count = in.length;
+        ByteBuffer bufferIn = in.getByteBuffer();
+        byteBuffer.limit(length + in.length);
+        byteBuffer.position(length);
+        while (count-- > 0) {
+            byteBuffer.put(bufferIn.get());
+        }
+        bufferIn.rewind();
+        byteBuffer.rewind();
+        length += in.length;
+        entryCount++;
+
+        if (messageId == -1) {
+            messageId = in.messageId;
+            frameNum = in.frameNum;
+            type = in.type;
+        }
     }
 
     public void set(ByteBuffer in, int length) {
@@ -103,6 +126,7 @@ public class Message {
         type = MessageType.Empty;
         messageId = -1;
         frameNum = -1;
+        entryCount = 0;
 //        needsAck = false;
     }
 
@@ -121,12 +145,28 @@ public class Message {
     }
 
     public enum MessageType {
-        Update(0), Event(1), Snapshot(2), Empty(3)
+//        Update(0), Event(1), Snapshot(2), Empty(3)
+        Update(0), Snapshot(1), Input(2), Empty(3)
         ;
 
         private final int value;
 
         MessageType(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+    }
+
+    public enum UpdateType {
+        System(0), Event(1)
+        ;
+
+        private final int value;
+
+        UpdateType(int value) {
             this.value = value;
         }
 

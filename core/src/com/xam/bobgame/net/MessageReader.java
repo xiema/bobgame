@@ -20,6 +20,8 @@ import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityType;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.EventsSystem;
+import com.xam.bobgame.events.PlayerControlEvent;
+import com.xam.bobgame.events.ScoreBoardRefreshEvent;
 import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.game.ShapeDef;
@@ -99,21 +101,36 @@ public class MessageReader {
         builder.setBuffer(message.getByteBuffer());
         send = false;
 
+        int entryCount = message.entryCount;
+
         switch (message.getType()) {
             case Update:
-                if (((GameEngine) engine).getLastSnapshotFrame() == -1) return -1;
-                readSystemUpdate();
-                readFooter();
+//                if (((GameEngine) engine).getLastSnapshotFrame() == -1) return -1;
+                while (entryCount-- > 0) {
+                    Message.UpdateType updateType = Message.UpdateType.values()[readInt(-1, 0, Message.UpdateType.values().length - 1)];
+                    switch (updateType) {
+                        case System:
+                            readSystemUpdate();
+                            break;
+                        case Event:
+                            readEvent();
+                            break;
+                    }
+                    if (entryCount > 0) {
+                        builder.skipToNextByte();
+                    }
+                }
                 break;
             case Snapshot:
                 readSystemSnapshot();
                 if (readPlayerId(null) == -1) return -1;
-                readFooter();
                 ((GameEngine) engine).setLastSnapshotFrame();
+                break;
+            case Input:
+                readEvent();
                 break;
             case Empty:
                 // empty
-                readFooter();
                 break;
             default:
                 return -1;
@@ -131,6 +148,7 @@ public class MessageReader {
         setMessageInfo(message);
         switch (type) {
             case Update:
+                builder.packInt(Message.UpdateType.System.getValue(), 0, Message.UpdateType.values().length - 1);
                 if (readSystemUpdate() == -1) return -1;
                 break;
             case Snapshot:
@@ -140,36 +158,56 @@ public class MessageReader {
             case Empty:
                 break;
         }
-        readFooter();
+        builder.padToNextByte();
         builder.flush(true);
         message.setLength(builder.getTotalBytes());
+        message.entryCount = 1;
 
         return 0;
     }
 
-    public int serializeEvent(Message message, NetDriver.NetworkEvent event) {
+    public int serializeInput(Message message, Engine engine, PlayerControlEvent event) {
+        this.engine = engine;
         builder.setBuffer(message.getByteBuffer());
         send = true;
 
-        message.setType(Message.MessageType.Event);
+        message.setType(Message.MessageType.Input);
         setMessageInfo(message);
         builder.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
         event.read(builder, true);
         builder.flush(true);
         message.setLength(builder.getTotalBytes());
+        message.entryCount = 1;
 
         return 0;
     }
 
-    public int readEvent(Message message, Engine engine, int clientId) {
+    public int serializeEvent(Message message, Engine engine, NetDriver.NetworkEvent event) {
         this.engine = engine;
         builder.setBuffer(message.getByteBuffer());
-        send = false;
+        send = true;
 
+        message.setType(Message.MessageType.Update);
+        setMessageInfo(message);
+        builder.packInt(Message.UpdateType.Event.getValue(), 0, Message.UpdateType.values().length - 1);
+        int typeIndex = NetDriver.getNetworkEventIndex(event.getClass());
+        if (typeIndex == -1) {
+            Log.error("Unknown typeIndex for " + event.getClass());
+            return -1;
+        }
+        builder.packInt(typeIndex, 0, NetDriver.networkEventClasses.length - 1);
+        event.read(builder, true);
+        builder.flush(true);
+        message.setLength(builder.getTotalBytes());
+        message.entryCount = 1;
+
+        return 0;
+    }
+
+    public int readEvent() {
         int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);
         //noinspection unchecked
         NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
-//        Log.info("clientID=0 playerId=" + netDriver.getConnectionManager().getPlayerId(0));
         event.read(builder, false);
 
         if (!send) {
@@ -179,6 +217,24 @@ public class MessageReader {
         return 0;
     }
 
+//    public int readEvent(Message message, Engine engine, int clientId) {
+//        this.engine = engine;
+//        builder.setBuffer(message.getByteBuffer());
+//        send = false;
+//
+//        int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);
+//        //noinspection unchecked
+//        NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
+////        Log.info("clientID=0 playerId=" + netDriver.getConnectionManager().getPlayerId(0));
+//        event.read(builder, false);
+//
+//        if (!send) {
+//            engine.getSystem(EventsSystem.class).queueEvent(event);
+//        }
+//
+//        return 0;
+//    }
+
     private int readPlayerId(ConnectionManager.ConnectionSlot connectionSlot) {
         if (send) {
             builder.packInt(connectionSlot.playerId, 0, 32);
@@ -186,11 +242,6 @@ public class MessageReader {
         else {
             engine.getSystem(GameDirector.class).setLocalPlayerId(builder.unpackInt(0, 32));
         }
-        return 0;
-    }
-
-    private int readFooter() {
-        readByte((byte) 0xFF);
         return 0;
     }
 
@@ -214,6 +265,7 @@ public class MessageReader {
         }
 
         readControlStates();
+        readPlayerScores(false);
 
         return 0;
     }
@@ -249,6 +301,8 @@ public class MessageReader {
                 if (!send) controlSystem.registerEntity(entityId, i);
             }
         }
+
+        readPlayerScores(true);
 
         return 0;
     }
@@ -372,6 +426,24 @@ public class MessageReader {
             entity.add(iden);
             entity.add(pb);
             entity.add(graphics);
+        }
+
+        return 0;
+    }
+
+    private int readPlayerScores(boolean refresh) {
+        GameDirector gameDirector = engine.getSystem(GameDirector.class);
+        int[] playerControlMap = gameDirector.getPlayerControlMap();
+        int[] playerScores = gameDirector.getPlayerScores();
+
+        for (int i = 0; i < playerControlMap.length; ++i) {
+            playerControlMap[i] = readInt(playerControlMap[i], -1, 254);
+            playerScores[i] = readInt(playerScores[i], NetDriver.MIN_SCORE, NetDriver.MAX_SCORE);
+        }
+
+        if (!send && refresh) {
+            ScoreBoardRefreshEvent event = Pools.obtain(ScoreBoardRefreshEvent.class);
+            engine.getSystem(EventsSystem.class).queueEvent(event);
         }
 
         return 0;

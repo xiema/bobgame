@@ -64,9 +64,11 @@ public class Packet {
         bitPacker.packInt(message.messageId);
         bitPacker.packInt(message.frameNum);
         bitPacker.packInt(message.getType().getValue(), 0, Message.MessageType.values().length-1);
+        bitPacker.packInt(message.entryCount, 0, 15);
         bitPacker.packInt(message.getLength(), 0, NetDriver.DATA_MAX_SIZE);
         bitPacker.padToLong();
         message.copyTo(bitPacker);
+        bitPacker.packByte((byte) 0xFF);
         bitPacker.flush(false);
     }
 
@@ -86,9 +88,16 @@ public class Packet {
         message.messageId = bitPacker.unpackInt();
         message.frameNum = bitPacker.unpackInt();
         message.setType(Message.MessageType.values()[bitPacker.unpackInt(0, Message.MessageType.values().length-1)]);
+        message.entryCount = bitPacker.unpackInt(0, 15);
         length = bitPacker.unpackInt(0, NetDriver.DATA_MAX_SIZE);
         bitPacker.skipToLong();
         message.set(bitPacker, length);
+
+        byte footer = bitPacker.unpackByte();
+        if (footer != (byte) 0xFF) {
+            Log.error("Wrong footer " + footer);
+            return -1;
+        }
 
         if (packetCRC != ((int) getCrc())) {
             Log.error("Packet", "Bad CRC [" + length + "]: " + DebugUtils.bytesHex(in, i, length + 13));

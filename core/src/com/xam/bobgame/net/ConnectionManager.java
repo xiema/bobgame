@@ -9,6 +9,7 @@ import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.events.ClientConnectedEvent;
 import com.xam.bobgame.events.EventsSystem;
+import com.xam.bobgame.events.PlayerControlEvent;
 import com.xam.bobgame.utils.SequenceNumChecker;
 
 public class ConnectionManager {
@@ -21,6 +22,13 @@ public class ConnectionManager {
 
     public ConnectionManager(NetDriver netDriver) {
         this.netDriver = netDriver;
+    }
+
+    public boolean hasConnections() {
+        for (int i = 0; i < connectionSlots.length; ++i) {
+            if (connectionSlots[i] != null) return true;
+        }
+        return false;
     }
 
     public void update(float deltaTime) {
@@ -120,6 +128,13 @@ public class ConnectionManager {
 
     public ConnectionManager.ConnectionSlot getConnectionSlot(Connection connection) {
         return connectionSlots[getClientId(connection)];
+    }
+
+    public int getPlayerClientId(int playerId) {
+        for (int i = 0; i < connectionSlots.length; ++i) {
+            if (connectionSlots[i] != null && connectionSlots[i].playerId == playerId) return i;
+        }
+        return -1;
     }
 
     public int getClientId(Connection connection) {
@@ -238,12 +253,7 @@ public class ConnectionManager {
         ServerConnected(5) {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
-                if (message.getType() == Message.MessageType.Event) {
-                    slot.netDriver.messageReader.readEvent(message, slot.netDriver.getEngine(), slot.clientId);
-                }
-                else {
-                    slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine());
-                }
+                slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine());
                 return 0;
             }
 
@@ -332,18 +342,8 @@ public class ConnectionManager {
         ClientConnected(5) {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
-                if (message.getType() == Message.MessageType.Event) {
-                    slot.netDriver.messageReader.readEvent(message, slot.netDriver.getEngine(), slot.clientId);
-                }
-                else {
-                    slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine());
-                }
-                if (message.getType() == Message.MessageType.Update) {
-                    Engine engine = slot.netDriver.getEngine();
-                    Entity entity = engine.getSystem(GameDirector.class).getEntityById(0);
-//                    if (entity != null) ((GameEngine) engine).getMemCheck().check(entity, in.frameNum);
-                }
-                return super.readMessage(slot, message);
+                slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine());
+                return 0;
             }
 
             @Override
@@ -365,7 +365,12 @@ public class ConnectionManager {
                 // send events
                 boolean sent = false;
                 for (NetDriver.ClientEvent clientEvent : slot.netDriver.clientEvents) {
-                    slot.netDriver.messageReader.serializeEvent(slot.sendPacket.getMessage(), clientEvent.event);
+                    if (clientEvent.event instanceof PlayerControlEvent) {
+                        slot.netDriver.messageReader.serializeInput(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), (PlayerControlEvent) clientEvent.event);
+                    }
+                    else {
+                        slot.netDriver.messageReader.serializeEvent(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), clientEvent.event);
+                    }
 //                Log.info("Send event " + sendPacket.getMessage());
                     slot.sendDataPacket(slot.sendPacket);
                     slot.sendPacket.clear();

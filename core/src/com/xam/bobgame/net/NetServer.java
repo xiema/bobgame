@@ -17,6 +17,7 @@ public class NetServer extends Server {
     private Packet updatePacket = new Packet(NetDriver.DATA_MAX_SIZE);
     private Packet snapshotPacket = new Packet(NetDriver.DATA_MAX_SIZE);
     private Packet eventPacket = new Packet(NetDriver.DATA_MAX_SIZE);
+    private Packet sendPacket = new Packet(NetDriver.DATA_MAX_SIZE);
 
     private int counter = 0;
     private boolean hasUpdatePacket = false;
@@ -74,6 +75,8 @@ public class NetServer extends Server {
     public void syncClient(ConnectionManager.ConnectionSlot connectionSlot) {
         if (counter != netDriver.counter) {
             counter = netDriver.counter;
+            updatePacket.clear();
+            snapshotPacket.clear();
             hasUpdatePacket = false;
             hasSnapshotPacket = false;
         }
@@ -85,7 +88,7 @@ public class NetServer extends Server {
                     hasSnapshotPacket = true;
                 }
                 connectionSlot.needsSnapshot = false;
-                connectionSlot.sendDataPacket(snapshotPacket);
+                snapshotPacket.copyTo(sendPacket);
 //                    Log.info("Send snapshot " + snapshotPacket.getMessage());
             }
             else {
@@ -93,23 +96,36 @@ public class NetServer extends Server {
                     netDriver.messageReader.serialize(updatePacket.getMessage(), netDriver.getEngine(), Message.MessageType.Update, null);
                     hasUpdatePacket = true;
                 }
-                connectionSlot.sendDataPacket(updatePacket);
+                updatePacket.copyTo(sendPacket);
             }
         }
 
-        updatePacket.clear();
-        snapshotPacket.clear();
+        for (int i = 0; i < netDriver.clientEvents.size; ++i) {
+            NetDriver.ClientEvent clientEvent = netDriver.clientEvents.get(i);
+            // TODO: pre-serialize message
+            if (clientEvent.clientId == -1 || clientEvent.clientId == connectionSlot.clientId) {
+                netDriver.messageReader.serializeEvent(eventPacket.getMessage(), netDriver.getEngine(), clientEvent.event);
+                sendPacket.getMessage().append(eventPacket.getMessage());
+                eventPacket.clear();
+                netDriver.clientEvents.removeIndex(i);
+                i--;
+            }
+        }
+
+        if (sendPacket.getMessage().messageId != -1) connectionSlot.sendDataPacket(sendPacket);
+
+        sendPacket.clear();
     }
 
     public void sendEvents() {
-        for (NetDriver.ClientEvent clientEvent : netDriver.clientEvents) {
-            ConnectionManager.ConnectionSlot connectionSlot = netDriver.connectionManager.getConnectionSlot(clientEvent.clientId);
-            netDriver.messageReader.serializeEvent(eventPacket.getMessage(), clientEvent.event);
+//        for (NetDriver.ClientEvent clientEvent : netDriver.clientEvents) {
+//            ConnectionManager.ConnectionSlot connectionSlot = netDriver.connectionManager.getConnectionSlot(clientEvent.clientId);
+//            netDriver.messageReader.serializeEvent(eventPacket.getMessage(), clientEvent.event);
 //            Log.info("Send event " + sendPacket.getMessage());
-            connectionSlot.sendDataPacket(eventPacket);
-            eventPacket.clear();
-            Pools.free(clientEvent);
-        }
+//            connectionSlot.sendDataPacket(eventPacket);
+//            eventPacket.clear();
+//            Pools.free(clientEvent);
+//        }
         netDriver.clientEvents.clear();
     }
 

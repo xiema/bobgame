@@ -37,6 +37,9 @@ public class NetDriver extends EntitySystem {
     public static final float MIN_ORIENTATION = -3.14159f;
     public static final float MAX_ORIENTATION = 3.14159f;
 
+    public static final int MIN_SCORE = -512;
+    public static final int MAX_SCORE = 511;
+
     public static final float FRICTION_FACTOR = 2f;
     public static final float RESTITUTION_FACTOR = 0f;
     public static final float DAMPING_FACTOR = 10f;
@@ -50,7 +53,7 @@ public class NetDriver extends EntitySystem {
     final MessageReader messageReader = new MessageReader();
     private final NetServer server = new NetServer(this, serialization);
     private final NetClient client = new NetClient(this, serialization);
-    final Array<ClientEvent> clientEvents = new Array<>();
+    final Array<ClientEvent> clientEvents = new Array<>(false, 4);
 
     private Mode mode = Mode.Client;
     private float curTime = 0;
@@ -64,7 +67,7 @@ public class NetDriver extends EntitySystem {
     int counter = 0;
 
     public static final Class<?>[] networkEventClasses = {
-            PlayerAssignEvent.class,  PlayerControlEvent.class,
+            PlayerAssignEvent.class,  PlayerControlEvent.class, ScoreBoardUpdateEvent.class,
     };
 
     public static int getNetworkEventIndex(Class<? extends NetworkEvent> clazz) {
@@ -107,11 +110,13 @@ public class NetDriver extends EntitySystem {
     public void update2() {
         updateDropped();
         connectionManager.update2();
-        if (server.isRunning()) server.sendEvents();
+//        if (server.isRunning()) server.sendEvents();
         updateBitRate(curTimeDelta);
     }
 
     synchronized public void queueClientEvent(int clientId, NetworkEvent event) {
+        // TODO: use mask
+        if (clientId == -1 && !connectionManager.hasConnections()) return;
         ClientEvent clientEvent = Pools.obtain(ClientEvent.class);
         clientEvent.event = event;
         clientEvent.clientId = clientId;
@@ -130,7 +135,6 @@ public class NetDriver extends EntitySystem {
                 switch (messageInfo.type) {
                     case Snapshot:
                         connectionManager.getConnectionSlot(packetInfo.clientId).needsSnapshot = true;
-                    case Event:
                         Log.warn("Dropped message: " + messageInfo.type);
                         break;
                 }
@@ -178,6 +182,10 @@ public class NetDriver extends EntitySystem {
 
     public NetClient getClient() {
         return mode == Mode.Client ? client : null;
+    }
+
+    public ConnectionManager getConnectionManager() {
+        return connectionManager;
     }
 
     static class ClientEvent implements Pool.Poolable {

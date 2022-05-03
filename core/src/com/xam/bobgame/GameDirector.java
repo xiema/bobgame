@@ -163,9 +163,17 @@ public class GameDirector extends EntitySystem {
 
         playerScores[playerId]--;
 
-        PlayerDeathEvent event = Pools.obtain(PlayerDeathEvent.class);
-        event.playerId = playerId;
-        event.playerScore = playerScores[playerId];
-        getEngine().getSystem(EventsSystem.class).queueEvent(event);
+        NetDriver netDriver = getEngine().getSystem(NetDriver.class);
+        ScoreBoardUpdateEvent netEvent = Pools.obtain(ScoreBoardUpdateEvent.class);
+        netEvent.playerId = playerId;
+        netDriver.queueClientEvent(-1, netEvent);
+    }
+
+    public int[] getPlayerControlMap() {
+        return playerControlMap;
+    }
+
+    public int[] getPlayerScores() {
+        return playerScores;
     }
 }

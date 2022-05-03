@@ -12,6 +12,7 @@ import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.BoBGame;
+import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
@@ -100,12 +101,37 @@ public class UIStage extends Stage {
                 addPlayer(event.playerId);
             }
         });
-        eventsSystem.addListener(PlayerDeathEvent.class, new EventListenerAdapter<PlayerDeathEvent>() {
+        eventsSystem.addListener(ScoreBoardRefreshEvent.class, new EventListenerAdapter<ScoreBoardRefreshEvent>() {
             @Override
-            public void handleEvent(PlayerDeathEvent event) {
-                setPlayerScore(event.playerId, event.playerScore);
+            public void handleEvent(ScoreBoardRefreshEvent event) {
+                refreshScoreBoard();
             }
         });
+        eventsSystem.addListener(ScoreBoardUpdateEvent.class, new EventListenerAdapter<ScoreBoardUpdateEvent>() {
+            @Override
+            public void handleEvent(ScoreBoardUpdateEvent event) {
+                refreshPlayerScore(event.playerId);
+            }
+        });
+    }
+
+    private void refreshScoreBoard() {
+        scoreTable.clear();
+        GameDirector gameDirector = game.getEngine().getSystem(GameDirector.class);
+        int[] playerControlMap = gameDirector.getPlayerControlMap();
+        int[] playerScores = gameDirector.getPlayerScores();
+        for (int i = 0; i < playerControlMap.length; ++i) {
+            if (playerControlMap[i] != -1) {
+                addPlayer(i);
+                setPlayerScore(i, playerScores[i]);
+            }
+        }
+    }
+
+    private void refreshPlayerScore(int playerId) {
+        GameDirector gameDirector = game.getEngine().getSystem(GameDirector.class);
+        if (playerScoreLabels[playerId] == null) return;
+        playerScoreLabels[playerId].setText(gameDirector.getPlayerScores()[playerId]);
     }
 
     public void addPlayer(int playerId) {
@@ -122,6 +148,19 @@ public class UIStage extends Stage {
 
     public void setPlayerScore(int playerId, int score) {
         playerScoreLabels[playerId].setText(String.valueOf(score));
+    }
+
+    @Override
+    public void act(float delta) {
+        super.act(delta);
+        GameDirector gameDirector = game.getEngine().getSystem(GameDirector.class);
+        int[] playerControlMap = gameDirector.getPlayerControlMap();
+        int[] playerScores = gameDirector.getPlayerScores();
+        for (int i = 0; i < playerControlMap.length; ++i) {
+            if (playerControlMap[i] != -1) {
+                setPlayerScore(i, playerScores[i]);
+            }
+        }
     }
 
     @Override
