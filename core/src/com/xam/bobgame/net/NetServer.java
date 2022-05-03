@@ -39,6 +39,7 @@ public class NetServer extends Server {
             stop();
             e.printStackTrace();
         }
+        running = true;
     }
 
     private Listener listener = new Listener() {
@@ -61,12 +62,6 @@ public class NetServer extends Server {
         connectionManager.getConnectionSlot(clientId).playerId = playerId;
         connectionManager.acceptConnection(clientId);
         Log.info("Player " + playerId + " connected in slot " + clientId);
-    }
-
-    @Override
-    public void start() {
-        super.start();
-        running = true;
     }
 
     @Override

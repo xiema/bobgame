@@ -100,9 +100,9 @@ public class BoBGame extends ApplicationAdapter {
 
 	@Override
 	public void dispose () {
+		devTools.saveSettings();
 		batch.dispose();
-		netDriver.getClient().stop();
-		netDriver.getServer().stop();
+		netDriver.stop();
 	}
 
 	public GameEngine getEngine() {

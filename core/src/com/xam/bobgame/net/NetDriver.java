@@ -137,6 +137,11 @@ public class NetDriver extends EntitySystem {
         transport.clearDropped();
     }
 
+    public void stop() {
+        client.stop();
+        server.stop();
+    }
+
     public float getBitRate() {
         return bitrate;
     }
