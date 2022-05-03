@@ -6,8 +6,11 @@ import com.badlogic.ashley.core.EntityListener;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.components.PhysicsBodyComponent;
+import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityFactory;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
@@ -24,13 +27,14 @@ public class GameDirector extends EntitySystem {
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
     private Color[] playerColor = {
-            Color.WHITE, Color.BLUE,
+            Color.CYAN, Color.BLUE, Color.YELLOW, Color.LIME, Color.GOLD, Color.SCARLET, Color.VIOLET,
     };
 
     private int playerCount = 0;
     private final IntMap<Entity> entityMap = new IntMap<>();
 
     private final int[] playerControlMap = new int[NetDriver.MAX_CLIENTS];
+    private final int[] playerScores = new int[NetDriver.MAX_CLIENTS];
 
     public GameDirector(int priority) {
         super(priority);
@@ -38,7 +42,7 @@ public class GameDirector extends EntitySystem {
         listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
             @Override
             public void handleEvent(ClientConnectedEvent event) {
-                joinPlayer(event.clientId);
+                int playerId = joinPlayer(event.clientId);
                 getEngine().getSystem(NetDriver.class).getServer().flagSnapshot(event.clientId);
             }
         });
@@ -61,6 +65,7 @@ public class GameDirector extends EntitySystem {
         });
         engine.getSystem(EventsSystem.class).addListeners(listeners);
         Arrays.fill(playerControlMap, -1);
+        Arrays.fill(playerScores, 0);
     }
 
     @Override
@@ -107,18 +112,18 @@ public class GameDirector extends EntitySystem {
         return getEntityById(getPlayerEntityId(playerId));
     }
 
+    public int getEntityPlayerId(int entityId) {
+        for (int i = 0; i < playerControlMap.length; ++i) {
+            if (playerControlMap[i] == entityId) return i;
+        }
+        return -1;
+    }
+
     public void setupGame() {
-        localPlayerId = playerCount++;
+        localPlayerId = joinPlayer(-1);
 
-        Engine engine = getEngine();
-
-        Entity entity = EntityFactory.createPlayer(engine, playerColor[localPlayerId % playerColor.length]);
-        engine.addEntity(entity);
-
-        ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
-        int entityId = EntityUtils.getId(entity);
-        controlSystem.registerEntity(entityId, localPlayerId);
-        playerControlMap[localPlayerId] = entityId;
+        Entity entity = EntityFactory.createHoleHazard(getEngine(), MathUtils.random(2, GameProperties.MAP_WIDTH -2), MathUtils.random(2, GameProperties.MAP_HEIGHT -2), 2);
+        getEngine().addEntity(entity);
     }
 
     public void setLocalPlayerId(int playerId) {
@@ -139,8 +144,28 @@ public class GameDirector extends EntitySystem {
         controlSystem.registerEntity(entityId, playerId);
         playerControlMap[playerId] = entityId;
 
-        engine.getSystem(NetDriver.class).getServer().acceptConnection(clientId, playerId);
+        // remote client
+        if (clientId != -1) engine.getSystem(NetDriver.class).getServer().acceptConnection(clientId, playerId);
+
+        PlayerJoinedEvent joinedEvent = Pools.obtain(PlayerJoinedEvent.class);
+        joinedEvent.playerId = playerId;
+        getEngine().getSystem(EventsSystem.class).triggerEvent(joinedEvent);
 
         return playerId;
+    }
+
+    public void killPlayer(int playerId) {
+        Entity entity = getPlayerEntity(playerId);
+        PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
+
+        pb.body.setTransform(pb.bodyDef.position.x, pb.bodyDef.position.y, 0);
+        pb.body.setLinearVelocity(0, 0);
+
+        playerScores[playerId]--;
+
+        PlayerDeathEvent event = Pools.obtain(PlayerDeathEvent.class);
+        event.playerId = playerId;
+        event.playerScore = playerScores[playerId];
+        getEngine().getSystem(EventsSystem.class).queueEvent(event);
     }
 }

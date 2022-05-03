@@ -13,6 +13,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameEngine;
+import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.net.NetDriver;
 
@@ -20,19 +21,25 @@ public class UIStage extends Stage {
 
     final BoBGame game;
     final NetDriver netDriver;
+    final Skin skin;
 
     final Label bitrateLabel;
     final TextField serverAddressField;
     final TextButton connectButton;
     final TextButton disconnectButton;
 
+    final Table scoreTable;
     final ForceMeter forceMeter;
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
+    private Label[] playerNameLabels = new Label[NetDriver.MAX_CLIENTS];
+    private Label[] playerScoreLabels = new Label[NetDriver.MAX_CLIENTS];
+
     public UIStage(final BoBGame game, Viewport viewport, Batch batch, Skin skin) {
         super(viewport, batch);
         this.game = game;
+        this.skin = skin;
         netDriver = game.getEngine().getSystem(NetDriver.class);
 
         bitrateLabel = new Label("0", skin) {
@@ -72,14 +79,49 @@ public class UIStage extends Stage {
         addActor(disconnectButton);
 
         forceMeter = new ForceMeter(skin);
-        forceMeter.setPosition(800, 0, Align.bottomRight);
+        forceMeter.setPosition(GameProperties.WINDOW_WIDTH, 0, Align.bottomRight);
         addActor(forceMeter);
+
+        scoreTable = new Table();
+        scoreTable.columnDefaults(0).align(Align.left).width(200);
+        scoreTable.columnDefaults(1).align(Align.right).width(200);
+        scoreTable.setPosition(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT, Align.topRight);
+        addActor(scoreTable);
 
         ((InputMultiplexer) Gdx.input.getInputProcessor()).addProcessor(this);
     }
 
     public void initialize(GameEngine engine) {
         forceMeter.initialize(engine);
+        EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
+        eventsSystem.addListener(PlayerJoinedEvent.class, new EventListenerAdapter<PlayerJoinedEvent>() {
+            @Override
+            public void handleEvent(PlayerJoinedEvent event) {
+                addPlayer(event.playerId);
+            }
+        });
+        eventsSystem.addListener(PlayerDeathEvent.class, new EventListenerAdapter<PlayerDeathEvent>() {
+            @Override
+            public void handleEvent(PlayerDeathEvent event) {
+                setPlayerScore(event.playerId, event.playerScore);
+            }
+        });
+    }
+
+    public void addPlayer(int playerId) {
+        Label playerNameLabel = new Label("Player " + playerId, skin);
+        Label playerScoreLabel = new Label("0", skin);
+        scoreTable.add(playerNameLabel);
+        scoreTable.add(playerScoreLabel);
+        scoreTable.row();
+        playerNameLabels[playerId] = playerNameLabel;
+        playerScoreLabels[playerId] = playerScoreLabel;
+
+        scoreTable.setPosition(GameProperties.WINDOW_WIDTH - 50, GameProperties.WINDOW_HEIGHT - 50, Align.topRight);
+    }
+
+    public void setPlayerScore(int playerId, int score) {
+        playerScoreLabels[playerId].setText(String.valueOf(score));
     }
 
     @Override

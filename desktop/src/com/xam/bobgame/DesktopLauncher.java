@@ -11,7 +11,7 @@ import java.util.Map;
 public class DesktopLauncher {
 	public static void main (String[] arg) {
 		Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
-		config.setWindowedMode(800, 500);
+		config.setWindowedMode(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT);
 		config.setForegroundFPS(60);
 		config.setTitle("BoBGame");
 

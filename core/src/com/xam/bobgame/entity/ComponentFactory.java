@@ -9,6 +9,7 @@ import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.CircleShape;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.xam.bobgame.components.GraphicsComponent;
+import com.xam.bobgame.components.HazardComponent;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.game.ShapeDef;
@@ -16,9 +17,10 @@ import com.xam.bobgame.graphics.TextureDef;
 
 public class ComponentFactory {
 
-    public static IdentityComponent identity(Engine engine, int id) {
+    public static IdentityComponent identity(Engine engine, int id, EntityType type) {
         IdentityComponent ic = engine.createComponent(IdentityComponent.class);
         ic.id = id;
+        ic.type = type;
         return ic;
     }
 
@@ -44,13 +46,19 @@ public class ComponentFactory {
         return pb;
     }
 
-    public static GraphicsComponent graphics(Engine engine, TextureDef textureDef, float w, float h) {
+    public static GraphicsComponent graphics(Engine engine, TextureDef textureDef, float w, float h, int z) {
         GraphicsComponent g = engine.createComponent(GraphicsComponent.class);
         g.textureDef = textureDef;
         g.spriteActor.getSprite().setRegion(new TextureRegion(textureDef.createTexture()));
         g.spriteActor.getSprite().setSize(w, h);
         g.spriteActor.getSprite().setOriginCenter();
+        g.z = z;
         return g;
+    }
+
+    public static HazardComponent hazard(Engine engine) {
+        HazardComponent h = engine.createComponent(HazardComponent.class);
+        return h;
     }
 
     public static Texture textureCircle(int wh, int radius, Color color) {

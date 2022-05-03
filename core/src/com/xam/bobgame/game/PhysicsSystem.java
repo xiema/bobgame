@@ -5,9 +5,11 @@ import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameProperties;
+import com.xam.bobgame.components.HazardComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.events.*;
@@ -89,6 +91,7 @@ public class PhysicsSystem extends EntitySystem {
     @Override
     public void addedToEngine(Engine engine) {
         world = new World(new Vector2(0, 0), true);
+        world.setContactListener(contactListener);
         createWalls();
 
         entities = engine.getEntitiesFor(Family.all(PhysicsBodyComponent.class).get());
@@ -211,6 +214,55 @@ public class PhysicsSystem extends EntitySystem {
             return false;
         }
     };
+
+    private ContactListener contactListener = new ContactListener() {
+        @Override
+        public void beginContact(Contact contact) {
+            Entity entity1 = getEntity(contact.getFixtureA());
+            Entity entity2 = getEntity(contact.getFixtureB());
+            if (entity1 == null || entity2 == null) return;
+            HazardComponent hazard1 = ComponentMappers.hazards.get(entity1);
+            HazardComponent hazard2 = ComponentMappers.hazards.get(entity2);
+            HazardContactEvent event = null;
+            if (hazard1 != null && hazard2 == null) {
+                event = Pools.obtain(HazardContactEvent.class);
+                event.entity = entity2;
+                event.hazard = entity1;
+            }
+            else if (hazard2 != null && hazard1 == null) {
+                event = Pools.obtain(HazardContactEvent.class);
+                event.entity = entity1;
+                event.hazard = entity2;
+            }
+            if (event != null) {
+                getEngine().getSystem(EventsSystem.class).queueEvent(event);
+            }
+        }
+
+        @Override
+        public void endContact(Contact contact) {
+
+        }
+
+        @Override
+        public void preSolve(Contact contact, Manifold oldManifold) {
+
+        }
+
+        @Override
+        public void postSolve(Contact contact, ContactImpulse impulse) {
+
+        }
+    };
+
+    private static Entity getEntity(Fixture fixture) {
+        return getEntity(fixture.getBody());
+    }
+
+    private static Entity getEntity(Body body) {
+        Object userData = body.getUserData();
+        return userData == null ? null : ((PhysicsHistory) userData).entity;
+    }
 
     public static class PhysicsHistory {
         public final DebugUtils.ExpoMovingAverage posXError = new DebugUtils.ExpoMovingAverage(0.1f);

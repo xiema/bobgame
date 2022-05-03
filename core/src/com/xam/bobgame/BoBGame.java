@@ -65,7 +65,7 @@ public class BoBGame extends ApplicationAdapter {
 		netDriver = engine.getSystem(NetDriver.class);
 
 		skin = new Skin(Gdx.files.internal("skin/uiskin.json"));
-		uiViewport = new FitViewport(800, 500);
+		uiViewport = new FitViewport(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT);
 		uiStage = new UIStage(this, uiViewport, batch, skin);
 		uiStage.initialize(engine);
 

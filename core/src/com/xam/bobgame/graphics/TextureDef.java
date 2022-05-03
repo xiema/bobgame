@@ -6,24 +6,40 @@ import com.badlogic.gdx.graphics.Texture;
 
 public class TextureDef {
 
-    public TextureType type = TextureType.Circle;
+    public TextureType type = TextureType.PlayerBall;
     public int wh;
     public int textureVal1;
     public Color color = new Color();
 
     public Texture createTexture() {
-        Pixmap pmap = new Pixmap(wh, wh, Pixmap.Format.RGBA8888);
-        pmap.setColor(color);
-        pmap.fillCircle(wh / 2, wh / 2, textureVal1);
-        pmap.setColor(Color.RED);
-        pmap.fillRectangle(wh / 2 - 1, wh / 2, 2, wh / 2);
-        Texture tx = new Texture(pmap);
-        pmap.dispose();
-        return tx;
+        return type.createTexture(this);
     }
 
     public enum TextureType {
-        Circle(0);
+        PlayerBall(0) {
+            @Override
+             Texture createTexture(TextureDef textureDef) {
+                Pixmap pmap = new Pixmap(textureDef.wh, textureDef.wh, Pixmap.Format.RGBA8888);
+                pmap.setColor(textureDef.color);
+                pmap.fillCircle(textureDef.wh / 2, textureDef.wh / 2, textureDef.textureVal1);
+                pmap.setColor(Color.RED);
+                pmap.fillRectangle(textureDef.wh / 2 - 1, textureDef.wh / 2, 2, textureDef.wh / 2);
+                Texture tx = new Texture(pmap);
+                pmap.dispose();
+                return tx;
+            }
+        },
+        HazardHole(1) {
+            @Override
+            Texture createTexture(TextureDef textureDef) {
+                Pixmap pmap = new Pixmap(textureDef.wh, textureDef.wh, Pixmap.Format.RGBA8888);
+                pmap.setColor(textureDef.color);
+                pmap.fillCircle(textureDef.wh / 2, textureDef.wh / 2, textureDef.textureVal1);
+                Texture tx = new Texture(pmap);
+                pmap.dispose();
+                return tx;
+            }
+        };
 
         private int value;
 
@@ -31,6 +47,7 @@ public class TextureDef {
             this.value = value;
         }
 
+        abstract Texture createTexture(TextureDef textureDef);
         public int getValue() {
             return value;
         }

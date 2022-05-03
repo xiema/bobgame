@@ -13,6 +13,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.ControlSystem;
+import com.xam.bobgame.game.HazardsSystem;
 import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.net.NetDriver;
 
@@ -50,6 +51,7 @@ public class GameEngine extends PooledEngine {
         addSystem(gameDirector = new GameDirector(10));
         addSystem(new ControlSystem(20));
         addSystem(new PhysicsSystem(30));
+        addSystem(new HazardsSystem(40));
 
         eventsSystem.addListeners(listeners);
     }
@@ -132,7 +134,7 @@ public class GameEngine extends PooledEngine {
             @Override
             public boolean touchDragged(int screenX, int screenY, int pointer) {
                 userInput(screenX, screenY, 0, true);
-                return true;
+                return false;
             }
 
             @Override

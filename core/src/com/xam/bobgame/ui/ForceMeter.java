@@ -19,6 +19,9 @@ public class ForceMeter extends ProgressBar {
 
     public ForceMeter(Skin skin) {
         super(0, 100, 1, true, skin);
+        getStyle().background.setMinWidth(50);
+        getStyle().knobBefore.setMinWidth(50);
+        setWidth(50);
     }
 
     @Override

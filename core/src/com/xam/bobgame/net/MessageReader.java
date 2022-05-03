@@ -17,6 +17,7 @@ import com.xam.bobgame.components.GraphicsComponent;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
+import com.xam.bobgame.entity.EntityType;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.game.ControlSystem;
@@ -334,6 +335,7 @@ public class MessageReader {
         }
 
         iden.id = readInt(iden.id, 0, 255);
+        iden.type = EntityType.values()[readInt(iden.type.getValue(), 0, EntityType.values().length)];
 
         pb.bodyDef.type = BodyDef.BodyType.values()[readInt(pb.bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length)];
         pb.bodyDef.position.x = readFloat(pb.bodyDef.position.x, -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
@@ -354,6 +356,7 @@ public class MessageReader {
         float a = readFloat(graphics.textureDef.color.a, 0, 1, NetDriver.RES_COLOR);
         float w = readFloat(graphics.spriteActor.getSprite().getWidth(), 0, 16, NetDriver.RES_POSITION);
         float h = readFloat(graphics.spriteActor.getSprite().getHeight(), 0, 16, NetDriver.RES_POSITION);
+        graphics.z = readInt(graphics.z, 0, GameProperties.Z_POS_MAX);
 
         if (!send) {
             graphics.textureDef.color.set(r, g, b, a);
