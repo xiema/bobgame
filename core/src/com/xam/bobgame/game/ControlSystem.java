@@ -6,12 +6,18 @@ import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
+import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
-import com.xam.bobgame.utils.DebugUtils;
+import com.xam.bobgame.net.NetDriver;
+
+import java.util.Arrays;
 
 public class ControlSystem extends EntitySystem {
     private IntSet idSet = new IntSet();
-    private IntArray[] controlMap = new IntArray[32];
+    private IntArray[] controlMap = new IntArray[NetDriver.MAX_CLIENTS];
+
+    private float[] buttonHoldDurations = new float[NetDriver.MAX_CLIENTS];
+    private boolean[] buttonStates = new boolean[NetDriver.MAX_CLIENTS];
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
@@ -23,7 +29,7 @@ public class ControlSystem extends EntitySystem {
         listeners.put(PlayerControlEvent.class, new EventListenerAdapter<PlayerControlEvent>() {
             @Override
             public void handleEvent(PlayerControlEvent event) {
-                if (enabled) control(event.controlId, event.entityId, event.x, event.y, event.buttonId, event.buttonState);
+                control(event.controlId, event.entityId, event.x, event.y, event.buttonId, event.buttonState);
             }
         });
 
@@ -34,6 +40,8 @@ public class ControlSystem extends EntitySystem {
     public void addedToEngine(Engine engine) {
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         eventsSystem.addListeners(listeners);
+        Arrays.fill(buttonHoldDurations, -1);
+        Arrays.fill(buttonStates, false);
     }
 
     @Override
@@ -42,6 +50,15 @@ public class ControlSystem extends EntitySystem {
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);
         idSet.clear();
         for (IntArray entityIdArray : controlMap) entityIdArray.clear();
+    }
+
+    @Override
+    public void update(float deltaTime) {
+        for (int i = 0; i < buttonStates.length; ++i) {
+            if (buttonStates[i]) {
+                buttonHoldDurations[i] = ((buttonHoldDurations[i] < 0 ? 0 : buttonHoldDurations[i]) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
+            }
+        }
     }
 
     public boolean registerEntity(int entityId, int controlId) {
@@ -72,10 +89,30 @@ public class ControlSystem extends EntitySystem {
             Log.error("ControlSystem", "Invalid entityId: " + entityId);
             return;
         }
+
+        if (buttonId != 0) return;
+        if (buttonStates[controlId] && !buttonState) {
+            ButtonReleaseEvent event = Pools.obtain(ButtonReleaseEvent.class);
+            event.playerId = controlId;
+            event.holdDuration = buttonHoldDurations[controlId];
+            event.x = x;
+            event.y = y;
+            getEngine().getSystem(EventsSystem.class).triggerEvent(event);
+            buttonHoldDurations[controlId] = -NetDriver.RES_HOLD_DURATION;
+        }
+        buttonStates[controlId] = buttonState;
     }
 
     public IntArray getControlledEntityIds(int controlId) {
         return controlMap[controlId];
+    }
+
+    public boolean[] getButtonStates() {
+        return buttonStates;
+    }
+
+    public float[] getButtonHoldDurations() {
+        return buttonHoldDurations;
     }
 
     public void setEnabled(boolean enabled) {

@@ -27,7 +27,7 @@ public class BoBGame extends ApplicationAdapter {
 	NetDriver netDriver;
 	Stage stage;
 
-	Stage uiStage;
+	UIStage uiStage;
 	Viewport uiViewport;
 
 	Skin skin;
@@ -67,6 +67,7 @@ public class BoBGame extends ApplicationAdapter {
 		skin = new Skin(Gdx.files.internal("skin/uiskin.json"));
 		uiViewport = new FitViewport(800, 500);
 		uiStage = new UIStage(this, uiViewport, batch, skin);
+		uiStage.initialize(engine);
 
 		engine.setMode(mode == 1 ? NetDriver.Mode.Server : NetDriver.Mode.Client);
 

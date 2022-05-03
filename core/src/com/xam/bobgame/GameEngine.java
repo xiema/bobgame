@@ -1,6 +1,5 @@
 package com.xam.bobgame;
 
-import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.ashley.core.PooledEngine;
 import com.badlogic.gdx.InputAdapter;
@@ -16,7 +15,6 @@ import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.net.NetDriver;
-import com.xam.bobgame.utils.SharedMemoryChecker;
 
 public class GameEngine extends PooledEngine {
     private EventsSystem eventsSystem;
@@ -95,7 +93,7 @@ public class GameEngine extends PooledEngine {
     public void addInputProcessor(InputMultiplexer inputMultiplexer, final Viewport viewport) {
         inputMultiplexer.addProcessor(new InputAdapter() {
             public void userInput(int x, int y, int button, boolean state) {
-                if (gameDirector.getPlayerEntityId() == -1) return;
+                if (gameDirector.getLocalPlayerEntityId() == -1) return;
 
                 PlayerControlEvent event = Pools.obtain(PlayerControlEvent.class);
                 tempVec.set(x, y);
@@ -105,7 +103,7 @@ public class GameEngine extends PooledEngine {
                 event.buttonId = button;
                 event.buttonState = state;
                 event.controlId = gameDirector.getLocalPlayerId();
-                event.entityId = gameDirector.getPlayerEntityId();
+                event.entityId = gameDirector.getLocalPlayerEntityId();
 
                 if (netDriver.getMode() == NetDriver.Mode.Client && netDriver.getClient().isConnected()) {
                     PlayerControlEvent netEvent = Pools.obtain(PlayerControlEvent.class);
@@ -122,12 +120,12 @@ public class GameEngine extends PooledEngine {
                 return false;
             }
 
-//            @Override
-//            public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-//                userInput(screenX, screenY, button, false);
-//                return false;
-//            }
-//
+            @Override
+            public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+                userInput(screenX, screenY, button, false);
+                return false;
+            }
+
 //            @Override
 //            public boolean touchDragged(int screenX, int screenY, int pointer) {
 //                userInput(screenX, screenY, -1, true);
@@ -151,7 +149,7 @@ public class GameEngine extends PooledEngine {
             getSystem(PhysicsSystem.class).setPosIterations(2);
             getSystem(PhysicsSystem.class).setVelIterations(6);
             gameSetup();
-            getSystem(GameDirector.class).getPlayerEntity().getComponent(PhysicsBodyComponent.class).body.applyForceToCenter(MathUtils.random() * 1000f, MathUtils.random() * 100f, true);
+            getSystem(GameDirector.class).getLocalPlayerEntity().getComponent(PhysicsBodyComponent.class).body.applyForceToCenter(MathUtils.random() * 1000f, MathUtils.random() * 100f, true);
         }
         else {
             getSystem(PhysicsSystem.class).setForceFactor(NetDriver.FORCE_FACTOR);

@@ -7,5 +7,10 @@ public class GameProperties {
     public static final float START_X = 10f;
     public static final float START_Y = 10f;
 
-    public static final float PLAYER_FORCE_STRENGTH = 800f;
+    public static final float PLAYER_FORCE_STRENGTH = 1000f;
+    public static final float LINEAR_DAMPENING = 0.5f;
+    public static final float CHARGE_DURATION = 0.4f;
+    public static final float CHARGE_DURATION_2 = CHARGE_DURATION * 2;
+
+    public static final float SIMULATION_UPDATE_INTERVAL = 1f / 60f;
 }

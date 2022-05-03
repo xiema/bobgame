@@ -14,6 +14,8 @@ import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.net.NetDriver;
 
+import java.util.Arrays;
+
 public class GameDirector extends EntitySystem {
 
     private Array<Entity> sortedEntities = new Array<>(true, 4);
@@ -27,6 +29,8 @@ public class GameDirector extends EntitySystem {
 
     private int playerCount = 0;
     private final IntMap<Entity> entityMap = new IntMap<>();
+
+    private final int[] playerControlMap = new int[NetDriver.MAX_CLIENTS];
 
     public GameDirector(int priority) {
         super(priority);
@@ -56,6 +60,7 @@ public class GameDirector extends EntitySystem {
             }
         });
         engine.getSystem(EventsSystem.class).addListeners(listeners);
+        Arrays.fill(playerControlMap, -1);
     }
 
     @Override
@@ -78,12 +83,12 @@ public class GameDirector extends EntitySystem {
         return entityMap.get(entityId, null);
     }
 
-    public Entity getPlayerEntity() {
-        int entityId = getPlayerEntityId();
+    public Entity getLocalPlayerEntity() {
+        int entityId = getLocalPlayerEntityId();
         return entityId == -1 ? null : entityMap.get(entityId);
     }
 
-    public int getPlayerEntityId() {
+    public int getLocalPlayerEntityId() {
         if (localPlayerId == -1) return -1;
         IntArray entityIds = getEngine().getSystem(ControlSystem.class).getControlledEntityIds(localPlayerId);
         if (entityIds.size == 0) return -1;
@@ -92,6 +97,14 @@ public class GameDirector extends EntitySystem {
 
     public int getLocalPlayerId() {
         return localPlayerId;
+    }
+
+    public int getPlayerEntityId(int playerId) {
+        return playerControlMap[playerId];
+    }
+
+    public Entity getPlayerEntity(int playerId) {
+        return getEntityById(getPlayerEntityId(playerId));
     }
 
     public void setupGame() {
@@ -103,7 +116,9 @@ public class GameDirector extends EntitySystem {
         engine.addEntity(entity);
 
         ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
-        controlSystem.registerEntity(EntityUtils.getId(entity), localPlayerId);
+        int entityId = EntityUtils.getId(entity);
+        controlSystem.registerEntity(entityId, localPlayerId);
+        playerControlMap[localPlayerId] = entityId;
     }
 
     public void setLocalPlayerId(int playerId) {
@@ -120,7 +135,9 @@ public class GameDirector extends EntitySystem {
         engine.addEntity(entity);
 
         ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
-        controlSystem.registerEntity(EntityUtils.getId(entity), playerId);
+        int entityId = EntityUtils.getId(entity);
+        controlSystem.registerEntity(entityId, playerId);
+        playerControlMap[playerId] = entityId;
 
         engine.getSystem(NetDriver.class).getServer().acceptConnection(clientId, playerId);
 

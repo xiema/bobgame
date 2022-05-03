@@ -31,6 +31,7 @@ public class NetDriver extends EntitySystem {
     public static final float RES_ORIENTATION = 1e-4f;
 //    public static final float RES_VELOCITY = 1e-4f;
     public static final float RES_VELOCITY = (float) Math.pow(2d, -12d);
+    public static final float RES_HOLD_DURATION = (float) Math.pow(2d, -6d);
     public static final float RES_MASS = 1e-4f;
     public static final float RES_COLOR = 1e-4f;
     public static final float MAX_ORIENTATION = 3.14159f;

@@ -37,18 +37,19 @@ public class PhysicsSystem extends EntitySystem {
     public PhysicsSystem(int priority) {
         super(priority);
 
-        listeners.put(PlayerControlEvent.class, new EventListenerAdapter<PlayerControlEvent>() {
+        listeners.put(ButtonReleaseEvent.class, new EventListenerAdapter<ButtonReleaseEvent>() {
             @Override
-            public void handleEvent(PlayerControlEvent event) {
-                if (enabled && event.buttonId == 0 && event.buttonState) {
-                    Entity entity = getEngine().getSystem(GameDirector.class).getEntityById(event.entityId);
+            public void handleEvent(ButtonReleaseEvent event) {
+                if (enabled) {
+                    Entity entity = getEngine().getSystem(GameDirector.class).getPlayerEntity(event.playerId);
                     PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
 //                    tempVec.set(event.x, event.y).sub(pb.body.getPosition()).nor().scl(500f * forceFactor);
+                    float strength = GameProperties.PLAYER_FORCE_STRENGTH * MathUtils2.mirror.apply(event.holdDuration / GameProperties.CHARGE_DURATION_2);
                     tempVec.set(event.x, event.y).sub(pb.body.getPosition()).nor();
                     tempVec2.set(pb.body.getLinearVelocity()).scl(pb.body.getMass() / SIM_UPDATE_STEP);
                     float scalarProj = tempVec2.dot(tempVec);
                     tempVec3.set(tempVec).scl(-scalarProj).add(tempVec2);
-                    pb.body.applyForceToCenter(tempVec.scl(Math.max(0, GameProperties.PLAYER_FORCE_STRENGTH - tempVec3.len())).sub(tempVec3), true);
+                    pb.body.applyForceToCenter(tempVec.scl(Math.max(0, strength - tempVec3.len())).sub(tempVec3), true);
                 }
             }
         });

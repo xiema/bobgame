@@ -20,7 +20,7 @@ public class EntityFactory {
         Entity entity = engine.createEntity();
 
         IdentityComponent identity = createIdentity(engine);
-        PhysicsBodyComponent physicsBody = ComponentFactory.physicsBody(engine, BodyDef.BodyType.DynamicBody, GameProperties.START_X, GameProperties.START_Y, 0.1f,
+        PhysicsBodyComponent physicsBody = ComponentFactory.physicsBody(engine, BodyDef.BodyType.DynamicBody, GameProperties.START_X, GameProperties.START_Y, GameProperties.LINEAR_DAMPENING,
                 0, 0.5f, 0.5f, 0.1f, 0.8f);
         TextureDef textureDef = new TextureDef();
         textureDef.type = TextureDef.TextureType.Circle;

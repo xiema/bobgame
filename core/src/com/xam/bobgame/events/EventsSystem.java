@@ -59,7 +59,7 @@ public class EventsSystem extends EntitySystem {
 
     private void handleEvent(GameEvent event, Array<GameEventListener> eventListeners) {
         for (GameEventListener listener : eventListeners) {
-//            DebugUtils.debug("EventsSystem", event.getClass().getSimpleName() + ": handled by " + listener);
+//            Log.info("EventsSystem", event.getClass().getSimpleName() + ": handled by " + listener);
             listener.handle(event);
         }
     }

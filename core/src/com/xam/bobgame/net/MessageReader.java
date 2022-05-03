@@ -212,7 +212,7 @@ public class MessageReader {
             i = (i + 1) % entities.size();
         }
 
-        engine.getSystem(PhysicsSystem.class).clearForces();
+        readControlStates();
 
         return 0;
     }
@@ -295,6 +295,18 @@ public class MessageReader {
             tempMassData.center.set(c1, c2);
             tempMassData.I = i;
             pb.body.setMassData(tempMassData);
+        }
+
+        return 0;
+    }
+
+    private int readControlStates() {
+        ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
+        boolean[] buttonStates = controlSystem.getButtonStates();
+        float[] buttonHoldDurations = controlSystem.getButtonHoldDurations();
+        for (int i = 0; i < buttonStates.length; ++i) {
+            buttonStates[i] = readInt(buttonStates[i] ? 1 : 0, 0, 1) != 0;
+            buttonHoldDurations[i] = readFloat(buttonHoldDurations[i], -NetDriver.RES_HOLD_DURATION, GameProperties.CHARGE_DURATION_2, NetDriver.RES_HOLD_DURATION);
         }
 
         return 0;
