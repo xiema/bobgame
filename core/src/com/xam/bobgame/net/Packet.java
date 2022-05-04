@@ -133,7 +133,7 @@ public class Packet {
     @Override
     public String toString() {
 //        return DebugUtils.intHex(message.messageId) + DebugUtils.intHex(message.getLength()) + DebugUtils.intHex((int) getCrc()) + DebugUtils.bytesHex(message.getBytes());
-        if (type == PacketType.Data) return "[Packet " + localSeqNum + "] " + message;
+        if (type == PacketType.Data) return "[Packet " + localSeqNum + "] " + message.getType() + " entryCount=" + message.entryCount;
         else return "[Packet " + localSeqNum + "] " + type;
     }
 

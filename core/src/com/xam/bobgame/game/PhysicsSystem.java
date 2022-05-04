@@ -9,6 +9,7 @@ import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
+import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.HazardComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
@@ -62,7 +63,7 @@ public class PhysicsSystem extends EntitySystem {
         listeners.put(PlayerBallSpawnedEvent.class, new EventListenerAdapter<PlayerBallSpawnedEvent>() {
             @Override
             public void handleEvent(PlayerBallSpawnedEvent event) {
-                Entity entity = getEngine().getSystem(GameDirector.class).getEntityById(event.entityId);
+                Entity entity = ((GameEngine) getEngine()).getEntityById(event.entityId);
                 if (entity == null) return;
                 PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
                 pb.body.applyForceToCenter(MathUtils.random() * 500f, MathUtils.random() * 500f, true);

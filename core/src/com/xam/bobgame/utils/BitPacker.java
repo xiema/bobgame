@@ -328,4 +328,15 @@ public class BitPacker {
     public float unpackFloat() {
         return Float.intBitsToFloat(unpackInt());
     }
+
+    public void debugRemaining() {
+        int i = buffer.position();
+        Log.info(DebugUtils.bytesHex(buffer, i, buffer.limit()));
+        buffer.position(i);
+    }
+
+    public void debugCurrent() {
+        int i = buffer.position();
+        Log.info(DebugUtils.bytesHex(buffer, 0, buffer.position()) + (scratchBits > 0 ? Long.toHexString(scratch) : ""));
+    }
 }

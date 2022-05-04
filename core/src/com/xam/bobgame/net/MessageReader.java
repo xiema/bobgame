@@ -9,6 +9,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.IntArray;
+import com.badlogic.gdx.utils.IntMap;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
@@ -107,7 +108,10 @@ public class MessageReader {
 
         switch (message.getType()) {
             case Update:
-//                if (((GameEngine) engine).getLastSnapshotFrame() == -1) return -1;
+                if (((GameEngine) engine).getLastSnapshotFrame() == -1) {
+                    Log.info("Waiting for snapshot");
+                    return -1;
+                }
                 while (entryCount-- > 0) {
                     Message.UpdateType updateType = Message.UpdateType.values()[readInt(-1, 0, Message.UpdateType.values().length - 1)];
                     switch (updateType) {
@@ -177,6 +181,7 @@ public class MessageReader {
         setMessageInfo(message);
         builder.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
         event.read(builder, engine, true);
+        builder.padToNextByte();
         builder.flush(true);
         message.setLength(builder.getTotalBytes());
         message.entryCount = 1;
@@ -200,6 +205,7 @@ public class MessageReader {
         }
         builder.packInt(typeIndex, 0, NetDriver.networkEventClasses.length - 1);
         event.read(builder, engine, true);
+        builder.padToNextByte();
         builder.flush(true);
         message.setLength(builder.getTotalBytes());
         message.entryCount = 1;
@@ -249,26 +255,17 @@ public class MessageReader {
     }
 
     private int readSystemUpdate() {
-        ImmutableArray<Entity> entities = engine.getSystem(GameDirector.class).getEntities();
-        if (entities.size() == 0) return 0;
+        IntMap<Entity> entityMap = ((GameEngine) engine).getEntityMap();
+        IntArray sortedEntityIds = ((GameEngine) engine).getSortedEntityIds();
 
-        int cnt = readInt(entities.size(), 0, 255);
-        int i = 0;
-        while (cnt-- > 0) {
-            Entity entity = entities.get(i);
-            int id1 = EntityUtils.getId(entity);
-            int id2 = readInt(id1, 0, 255);
-            while (id1 != id2) {
-                i++;
-                if (i >= entities.size()) {
-                    i = entities.size() - 1; // return to 0
-                    break;
-                }
-                entity = entities.get(i);
-                id1 = EntityUtils.getId(entity);
+        int cnt = readInt(sortedEntityIds.size, 0, NetDriver.MAX_ENTITY_ID);
+        for (int i = 0; i < cnt; ++i) {
+            int entityId = readInt(send ? sortedEntityIds.get(i) : -1, 0, NetDriver.MAX_ENTITY_ID);
+            Entity entity = entityMap.get(entityId, null);
+            if (entity == null) {
+                Log.warn("Unable to update state of entity " + entityId);
             }
-            readPhysicsBody(id1 == id2 ? ComponentMappers.physicsBody.get(entity) : null);
-            i = (i + 1) % entities.size();
+            readPhysicsBody(entity == null ? null : ComponentMappers.physicsBody.get(entity));
         }
 
         readControlStates();
@@ -280,14 +277,15 @@ public class MessageReader {
     private final EntityCreatedEvent entityCreator = Pools.obtain(EntityCreatedEvent.class);
 
     private int readSystemSnapshot() {
-        ImmutableArray<Entity> entities = engine.getSystem(GameDirector.class).getEntities();
-        int cnt = readInt(entities.size(), 0, 255);
+        ImmutableArray<Entity> entities = engine.getEntities();
+        int cnt = readInt(entities.size(), 0, NetDriver.MAX_ENTITY_ID);
         int i = 0;
         while (cnt-- > 0) {
             if (send) {
                 Entity entity = entities.get(i++);
                 entityCreator.entityId = EntityUtils.getId(entity);
             }
+            // TODO: include entity position
             entityCreator.read(builder, engine, send);
         }
 

@@ -81,43 +81,45 @@ public class NetServer extends Server {
             hasSnapshotPacket = false;
         }
 
-        if (netDriver.counter % NetDriver.SERVER_UPDATE_FREQUENCY == 0) {
-            if (connectionSlot.needsSnapshot) {
-                if (!hasSnapshotPacket) {
-                    netDriver.messageReader.serialize(snapshotPacket.getMessage(), netDriver.getEngine(), Message.MessageType.Snapshot, connectionSlot);
-                    hasSnapshotPacket = true;
-                }
-                connectionSlot.needsSnapshot = false;
-                snapshotPacket.copyTo(sendPacket);
-//                    Log.info("Send snapshot " + snapshotPacket.getMessage());
+        if (connectionSlot.needsSnapshot) {
+            if (!hasSnapshotPacket) {
+                netDriver.messageReader.serialize(snapshotPacket.getMessage(), netDriver.getEngine(), Message.MessageType.Snapshot, connectionSlot);
+                hasSnapshotPacket = true;
             }
-            else {
+            connectionSlot.needsSnapshot = false;
+            snapshotPacket.copyTo(sendPacket);
+//            Log.info("Send snapshot " + snapshotPacket.getMessage());
+        }
+        else {
+            if (netDriver.counter % NetDriver.SERVER_UPDATE_FREQUENCY == 0) {
                 if (!hasUpdatePacket) {
                     netDriver.messageReader.serialize(updatePacket.getMessage(), netDriver.getEngine(), Message.MessageType.Update, null);
                     hasUpdatePacket = true;
                 }
                 updatePacket.copyTo(sendPacket);
             }
-        }
 
-        for (int i = 0; i < netDriver.clientEvents.size; ++i) {
-            NetDriver.ClientEvent clientEvent = netDriver.clientEvents.get(i);
-            // TODO: pre-serialize message
-            if (clientEvent.clientMask.get(connectionSlot.clientId)) {
-                netDriver.messageReader.serializeEvent(eventPacket.getMessage(), netDriver.getEngine(), clientEvent.event);
-                sendPacket.getMessage().append(eventPacket.getMessage());
-                eventPacket.clear();
-                clientEvent.clientMask.unset(connectionSlot.clientId);
+            for (int i = 0; i < netDriver.clientEvents.size; ++i) {
+                NetDriver.ClientEvent clientEvent = netDriver.clientEvents.get(i);
+                // TODO: pre-serialize message
+                if (clientEvent.clientMask.get(connectionSlot.clientId)) {
+                    netDriver.messageReader.serializeEvent(eventPacket.getMessage(), netDriver.getEngine(), clientEvent.event);
+                    sendPacket.getMessage().append(eventPacket.getMessage());
+                    eventPacket.clear();
+                    clientEvent.clientMask.unset(connectionSlot.clientId);
 
-                if (!clientEvent.clientMask.anySet()) {
-//                    Log.info("Removing event " + clientEvent.event + " from queue");
-                    netDriver.clientEvents.removeIndex(i);
-                    i--;
+                    if (!clientEvent.clientMask.anySet()) {
+    //                    Log.info("Removing event " + clientEvent.event + " from queue");
+                        netDriver.clientEvents.removeIndex(i);
+                        i--;
+                    }
                 }
             }
         }
 
-        if (sendPacket.getMessage().messageId != -1) connectionSlot.sendDataPacket(sendPacket);
+        if (sendPacket.getMessage().messageId != -1) {
+            connectionSlot.sendDataPacket(sendPacket);
+        }
 
         sendPacket.clear();
     }

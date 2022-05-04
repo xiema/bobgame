@@ -22,16 +22,18 @@ public class NetClient extends Client {
         addListener(listener);
     }
 
-    public void connect(String host) {
-        if (isConnected()) return;
+    public boolean connect(String host) {
+        if (isConnected()) return false;
         start();
         try {
             connect(5000, host, NetDriver.PORT_TCP, NetDriver.PORT_UDP);
             Log.info("Connected to " + host);
+            return true;
         } catch (IOException e) {
             stop();
             e.printStackTrace();
         }
+        return false;
     }
 
     void setHostId(int hostId) {
@@ -66,7 +68,12 @@ public class NetClient extends Client {
         public void received(Connection connection, Object o) {
             if (!(o instanceof Packet)) return;
             Packet packet = (Packet) o;
-            netDriver.connectionManager.getConnectionSlot(connection).packetBuffer.receive(packet);
+            ConnectionManager.ConnectionSlot connectionSlot = netDriver.connectionManager.getConnectionSlot(connection);
+            if (connectionSlot == null) {
+                Log.warn("No connection slot for connection with id " + connection.getID());
+                return;
+            }
+            connectionSlot.packetBuffer.receive(packet);
         }
     };
 }

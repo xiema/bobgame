@@ -19,9 +19,6 @@ import java.util.Arrays;
 
 public class GameDirector extends EntitySystem {
 
-    private Array<Entity> sortedEntities = new Array<>(true, 4);
-    private ImmutableArray<Entity> entities = new ImmutableArray<>(sortedEntities);
-
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
     private ObjectMap<Family, EntityListener> entityListeners = new ObjectMap<>();
 
@@ -30,7 +27,6 @@ public class GameDirector extends EntitySystem {
     };
 
     private int playerCount = 0;
-    private final IntMap<Entity> entityMap = new IntMap<>();
 
     private final boolean[] playerExists = new boolean[NetDriver.MAX_CLIENTS];
     private final int[] playerControlMap = new int[NetDriver.MAX_CLIENTS];
@@ -53,7 +49,7 @@ public class GameDirector extends EntitySystem {
             @Override
             public void handleEvent(PlayerDeathEvent event) {
                 if (playerControlMap[event.playerId] == event.entityId) playerControlMap[event.playerId] = -1;
-                Entity entity = getEntityById(event.entityId);
+                Entity entity = ((GameEngine) getEngine()).getEntityById(event.entityId);
                 if (entity != null) getEngine().removeEntity(entity);
             }
         });
@@ -61,24 +57,6 @@ public class GameDirector extends EntitySystem {
             @Override
             public void handleEvent(PlayerBallSpawnedEvent event) {
                 playerControlMap[event.playerId] = event.entityId;
-            }
-        });
-
-        entityListeners.put(Family.all().get(), new EntityListener() {
-            @Override
-            public void entityAdded(Entity entity) {
-                sortedEntities.add(entity);
-                int entityId = EntityUtils.getId(entity);
-                Entity old = entityMap.put(entityId, entity);
-                if (old != null) {
-                    Log.warn("GameDirector", "Replaced entity with id " + entityId);
-                }
-            }
-
-            @Override
-            public void entityRemoved(Entity entity) {
-                sortedEntities.removeValue(entity, true);
-                entityMap.remove(EntityUtils.getId(entity));
             }
         });
     }
@@ -97,8 +75,6 @@ public class GameDirector extends EntitySystem {
         EntityUtils.removeEntityListeners(engine, entityListeners);
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);
-        entityMap.clear();
-        sortedEntities.clear();
     }
 
     @Override
@@ -110,21 +86,11 @@ public class GameDirector extends EntitySystem {
         }
     }
 
-    public ImmutableArray<Entity> getEntities () {
-        return entities;
-    }
-
     private int localPlayerId = -1;
-//    private Entity playerEntity;
-//    private int playerEntityId = -1;
-
-    public Entity getEntityById(int entityId) {
-        return entityMap.get(entityId, null);
-    }
 
     public Entity getLocalPlayerEntity() {
         int entityId = getLocalPlayerEntityId();
-        return entityId == -1 ? null : entityMap.get(entityId);
+        return entityId == -1 ? null : ((GameEngine) getEngine()).getEntityById(entityId);
     }
 
     public int getLocalPlayerEntityId() {
@@ -141,7 +107,7 @@ public class GameDirector extends EntitySystem {
     }
 
     public Entity getPlayerEntity(int playerId) {
-        return getEntityById(getPlayerEntityId(playerId));
+        return ((GameEngine) getEngine()).getEntityById(getPlayerEntityId(playerId));
     }
 
     public int getEntityPlayerId(int entityId) {
@@ -155,7 +121,7 @@ public class GameDirector extends EntitySystem {
         Entity entity = EntityFactory.createHoleHazard(getEngine(), MathUtils.random(2, GameProperties.MAP_WIDTH -2), MathUtils.random(2, GameProperties.MAP_HEIGHT -2), 2);
         getEngine().addEntity(entity);
 
-        localPlayerId = joinPlayer(-1);
+//        localPlayerId = joinPlayer(-1);
     }
 
     public void setLocalPlayerId(int playerId) {
@@ -168,12 +134,13 @@ public class GameDirector extends EntitySystem {
         playerExists[playerId] = true;
         playerCount++;
 
-        spawnPlayerBall(playerId, false);
+        spawnPlayerBall(playerId, true);
 
         // remote client
         if (clientId != -1) getEngine().getSystem(NetDriver.class).getServer().acceptConnection(clientId, playerId);
         PlayerJoinedEvent joinedEvent = Pools.obtain(PlayerJoinedEvent.class);
         joinedEvent.playerId = playerId;
+        getEngine().getSystem(NetDriver.class).queueClientEvent(-1, joinedEvent);
         getEngine().getSystem(EventsSystem.class).triggerEvent(joinedEvent);
 
         return playerId;

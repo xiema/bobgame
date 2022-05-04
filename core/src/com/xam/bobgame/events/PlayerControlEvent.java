@@ -22,7 +22,7 @@ public class PlayerControlEvent extends NetDriver.NetworkEvent {
     @Override
     public void read(BitPacker builder, Engine engine, boolean write) {
         controlId = readInt(builder, controlId, -1, 31, write);
-        entityId = readInt(builder, entityId, 0, 255, write);
+        entityId = readInt(builder, entityId, 0, NetDriver.MAX_ENTITY_ID, write);
         x = readFloat(builder, x, -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION, write);
         y = readFloat(builder, y, -3,  GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION, write);
         buttonId = readInt(builder, buttonId, 0, 1, write);

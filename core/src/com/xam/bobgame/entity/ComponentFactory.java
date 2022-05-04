@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.CircleShape;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.components.GraphicsComponent;
 import com.xam.bobgame.components.HazardComponent;
 import com.xam.bobgame.components.IdentityComponent;
@@ -49,7 +50,6 @@ public class ComponentFactory {
     public static GraphicsComponent graphics(Engine engine, TextureDef textureDef, float w, float h, int z) {
         GraphicsComponent g = engine.createComponent(GraphicsComponent.class);
         g.textureDef = textureDef;
-        g.spriteActor.getSprite().setRegion(new TextureRegion(textureDef.createTexture()));
         g.spriteActor.getSprite().setSize(w, h);
         g.spriteActor.getSprite().setOriginCenter();
         g.z = z;

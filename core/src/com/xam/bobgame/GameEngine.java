@@ -1,20 +1,20 @@
 package com.xam.bobgame;
 
-import com.badlogic.ashley.core.EntitySystem;
-import com.badlogic.ashley.core.PooledEngine;
+import com.badlogic.ashley.core.*;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.ObjectMap;
-import com.badlogic.gdx.utils.Pools;
+import com.badlogic.gdx.utils.*;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.game.HazardsSystem;
 import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.net.NetDriver;
+
+import java.util.Arrays;
 
 public class GameEngine extends PooledEngine {
     private BoBGame game;
@@ -30,6 +30,9 @@ public class GameEngine extends PooledEngine {
     public static final float SIM_STEP_SIZE = 1.0f / 60f;
 
     private boolean restarting = false;
+
+    private final IntMap<Entity> entityMap = new IntMap<>();
+    private final IntArray sortedEntityIds = new IntArray(true, 4);
 
 //    SharedMemoryChecker memCheck = new SharedMemoryChecker("check.txt");
 
@@ -153,6 +156,30 @@ public class GameEngine extends PooledEngine {
         });
     }
 
+    @Override
+    public void addEntity(Entity entity) {
+        super.addEntity(entity);
+        int entityID = EntityUtils.getId(entity);
+        Entity old = entityMap.put(entityID, entity);
+        if (old == null) {
+            int ins = Arrays.binarySearch(sortedEntityIds.items, 0, sortedEntityIds.size, entityID);
+            sortedEntityIds.insert(ins >= 0 ? ins : -(ins + 1), entityID);
+        }
+    }
+
+    @Override
+    public void removeEntityInternal(Entity entity) {
+        int entityID = EntityUtils.getId(entity);
+        Entity old = entityMap.remove(entityID);
+        if (old != null) {
+            int rem = Arrays.binarySearch(sortedEntityIds.items, 0, sortedEntityIds.size, entityID);
+            if (sortedEntityIds.get(rem) == entityID) {
+                sortedEntityIds.removeIndex(rem);
+            }
+        }
+        super.removeEntityInternal(entity);
+    }
+
     public void setMode(NetDriver.Mode mode) {
         if (mode == NetDriver.Mode.Server) {
             netDriver.setMode(NetDriver.Mode.Server);
@@ -187,7 +214,22 @@ public class GameEngine extends PooledEngine {
         return simulationTime;
     }
 
-//    public SharedMemoryChecker getMemCheck() {
+    public Entity getEntityById(int entityId) {
+        Entity entity = entityMap.get(entityId, null);
+        if (entity == null) return null;
+        if ((entity.isRemoving() || entity.isScheduledForRemoval())) return null;
+        return entity;
+    }
+
+    public IntMap<Entity> getEntityMap() {
+        return entityMap;
+    }
+
+    public IntArray getSortedEntityIds() {
+        return sortedEntityIds;
+    }
+
+    //    public SharedMemoryChecker getMemCheck() {
 //        return memCheck;
 //    }
 }

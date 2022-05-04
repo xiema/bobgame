@@ -17,6 +17,7 @@ import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.net.NetDriver;
+import com.xam.bobgame.utils.GameProfile;
 
 public class UIStage extends Stage {
 
@@ -54,7 +55,7 @@ public class UIStage extends Stage {
         bitrateLabel.setPosition(0, 0, Align.bottomLeft);
         addActor(bitrateLabel);
 
-        serverAddressField = new TextField("127.0.0.1", skin);
+        serverAddressField = new TextField(GameProfile.lastConnectedServerAddress, skin);
         serverAddressField.setPosition(0, 500, Align.topLeft);
         serverAddressField.setWidth(250);
         addActor(serverAddressField);
@@ -63,7 +64,9 @@ public class UIStage extends Stage {
         connectButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                netDriver.getClient().connect(serverAddressField.getText());
+                if (netDriver.getClient().connect(serverAddressField.getText())) {
+                    GameProfile.lastConnectedServerAddress = serverAddressField.getText();
+                }
             }
         });
         connectButton.setPosition(0, 450, Align.topLeft);
@@ -88,6 +91,10 @@ public class UIStage extends Stage {
         scoreTable.columnDefaults(1).align(Align.right).width(200);
         scoreTable.setPosition(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT, Align.topRight);
         addActor(scoreTable);
+        for (int i = 0; i < playerNameLabels.length; ++i) {
+            playerNameLabels[i] = new Label("", skin);
+            playerScoreLabels[i] = new Label("", skin);
+        }
 
         ((InputMultiplexer) Gdx.input.getInputProcessor()).addProcessor(this);
     }
@@ -135,13 +142,13 @@ public class UIStage extends Stage {
     }
 
     public void addPlayer(int playerId) {
-        Label playerNameLabel = new Label("Player " + playerId, skin);
-        Label playerScoreLabel = new Label("0", skin);
+        Label playerNameLabel = playerNameLabels[playerId];
+        Label playerScoreLabel = playerScoreLabels[playerId];
+        playerNameLabel.setText("PL." + playerId);
+        playerScoreLabel.setText(0);
         scoreTable.add(playerNameLabel);
         scoreTable.add(playerScoreLabel);
         scoreTable.row();
-        playerNameLabels[playerId] = playerNameLabel;
-        playerScoreLabels[playerId] = playerScoreLabel;
 
         scoreTable.setPosition(GameProperties.WINDOW_WIDTH - 50, GameProperties.WINDOW_HEIGHT - 50, Align.topRight);
     }

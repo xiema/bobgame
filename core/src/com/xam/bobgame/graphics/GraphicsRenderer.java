@@ -8,6 +8,7 @@ import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
@@ -17,6 +18,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
@@ -24,6 +26,7 @@ import com.xam.bobgame.components.GraphicsComponent;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
+import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.utils.MathUtils2;
 
@@ -32,6 +35,7 @@ public class GraphicsRenderer {
     private ImmutableArray<Entity> entities;
     private Stage stage;
 
+    @SuppressWarnings("unchecked")
     private final Array<Entity>[] zSortedEntities = new Array[4];
 
     private ShapeRenderer shapeRenderer;
@@ -45,12 +49,12 @@ public class GraphicsRenderer {
         for (int i = 0; i < 4; ++i) zSortedEntities[i] = new Array<>();
 
         entities = engine.getEntitiesFor(Family.all(PhysicsBodyComponent.class, GraphicsComponent.class).get());
-        engine.addEntityListener(Family.all(GraphicsComponent.class).get(), new EntityListener() {
+
+        entityListeners.put(Family.all(GraphicsComponent.class).get(), new EntityListener() {
             @Override
             public void entityAdded(Entity entity) {
                 GraphicsComponent graphics = ComponentMappers.graphics.get(entity);
-//                stage.addActor(graphics.spriteActor);
-
+                if (!BoBGame.isHeadless()) graphics.spriteActor.getSprite().setRegion(new TextureRegion(graphics.textureDef.createTexture()));
                 zSortedEntities[graphics.z].add(entity);
             }
 
@@ -61,6 +65,11 @@ public class GraphicsRenderer {
                 zSortedEntities[graphics.z].removeValue(entity, true);
             }
         });
+
+        for (ObjectMap.Entry<Family, EntityListener> entry : entityListeners) {
+            engine.addEntityListener(entry.key, entry.value);
+        }
+
         shapeRenderer = new ShapeRenderer();
         shapeRenderer.setAutoShapeType(true);
     }
@@ -68,6 +77,10 @@ public class GraphicsRenderer {
     private Vector2 tempVec = new Vector2();
 
     public void draw(Batch batch) {
+        Camera camera = stage.getViewport().getCamera();
+        camera.update();
+
+        shapeRenderer.setProjectionMatrix(camera.combined);
         shapeRenderer.begin();
         drawBackground();
         shapeRenderer.end();
@@ -83,10 +96,9 @@ public class GraphicsRenderer {
             float y = pos.y + physicsHistory.posYError.getAverage() - (physicsBody.yJitterCount > 1 ? physicsBody.displacement.y / 2 : 0);
             graphics.spriteActor.getSprite().setOriginBasedPosition(x, y);
             graphics.spriteActor.getSprite().setRotation(MathUtils.radiansToDegrees * tfm.getRotation() + 90);
-        }
 
-        Camera camera = stage.getViewport().getCamera();
-        camera.update();
+//            Log.info("entity " + EntityUtils.getId(entity) + " posXError=" + physicsHistory.posXError.getAverage() + " posYError=" + physicsHistory.posYError.getAverage());
+        }
 
         batch.setProjectionMatrix(camera.combined);
         batch.begin();

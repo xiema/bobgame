@@ -19,7 +19,7 @@ public class PlayerAssignEvent extends NetDriver.NetworkEvent {
     @Override
     public void read(BitPacker builder, Engine engine, boolean write) {
         playerId = readInt(builder, playerId, -1, 31, write);
-        entityId = readInt(builder, entityId, 0, 255, write);
+        entityId = readInt(builder, entityId, 0, NetDriver.MAX_ENTITY_ID, write);
     }
 
     @Override

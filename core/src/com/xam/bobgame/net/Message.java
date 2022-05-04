@@ -3,6 +3,7 @@ package com.xam.bobgame.net;
 import com.badlogic.gdx.utils.Array;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.utils.BitPacker;
+import com.xam.bobgame.utils.DebugUtils;
 
 import java.nio.ByteBuffer;
 
@@ -103,7 +104,7 @@ public class Message {
         bufferIn.rewind();
         byteBuffer.rewind();
         length += in.length;
-        entryCount++;
+        entryCount += in.entryCount;
         eventTypes.addAll(in.eventTypes);
 
         if (messageId == -1) {
@@ -152,6 +153,10 @@ public class Message {
     @Override
     public String toString() {
         return "<" + messageId + "> " + type;
+    }
+
+    public String toByteString() {
+        return DebugUtils.bytesHex(byteBuffer.array(), 0, length);
     }
 
     public enum MessageType {

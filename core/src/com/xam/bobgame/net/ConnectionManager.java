@@ -17,7 +17,7 @@ public class ConnectionManager {
 
     private NetDriver netDriver;
 
-    private ConnectionSlot[] connectionSlots = new ConnectionSlot[NetDriver.MAX_CLIENTS];
+    private final ConnectionSlot[] connectionSlots = new ConnectionSlot[NetDriver.MAX_CLIENTS];
 
     private Bits2 activeConnectionsMask = new Bits2(NetDriver.MAX_CLIENTS);
 
@@ -35,18 +35,22 @@ public class ConnectionManager {
     }
 
     public void update(float deltaTime) {
-        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
-            ConnectionSlot connectionSlot = connectionSlots[i];
-            if (connectionSlot != null) {
-                connectionSlot.state.update(connectionSlot, deltaTime);
+        synchronized (connectionSlots) {
+            for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
+                ConnectionSlot connectionSlot = connectionSlots[i];
+                if (connectionSlot != null) {
+                    connectionSlot.state.update(connectionSlot, deltaTime);
+                }
             }
         }
     }
 
     public void update2() {
-        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
-            if (connectionSlots[i] != null) {
-                connectionSlots[i].state.update2(connectionSlots[i]);
+        synchronized (connectionSlots) {
+            for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
+                if (connectionSlots[i] != null) {
+                    connectionSlots[i].state.update2(connectionSlots[i]);
+                }
             }
         }
     }
@@ -62,20 +66,22 @@ public class ConnectionManager {
     }
 
     public int addConnection(Connection connection) {
-        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
-            if (connectionSlots[i] == null) {
-                ConnectionManager.ConnectionSlot connectionSlot = Pools.obtain(ConnectionManager.ConnectionSlot.class);
-                connectionSlot.initialize(netDriver);
-                connectionSlot.clientId = i;
-                connectionSlot.connection = connection;
-                connectionSlot.hostAddress = connection.getRemoteAddressTCP().getAddress().getHostAddress();
-                connectionSlot.state = netDriver.getMode() == NetDriver.Mode.Server ? ConnectionState.ServerEmpty : ConnectionState.ClientEmpty;
-                connectionSlots[i] = connectionSlot;
-                activeConnectionsMask.set(i);
+        synchronized (connectionSlots) {
+            for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
+                if (connectionSlots[i] == null) {
+                    ConnectionManager.ConnectionSlot connectionSlot = Pools.obtain(ConnectionManager.ConnectionSlot.class);
+                    connectionSlot.initialize(netDriver);
+                    connectionSlot.clientId = i;
+                    connectionSlot.connection = connection;
+                    connectionSlot.hostAddress = connection.getRemoteAddressTCP().getAddress().getHostAddress();
+                    connectionSlot.state = netDriver.getMode() == NetDriver.Mode.Server ? ConnectionState.ServerEmpty : ConnectionState.ClientEmpty;
+                    connectionSlots[i] = connectionSlot;
+                    activeConnectionsMask.set(i);
 
-                netDriver.transport.addTransportConnection(i);
+                    netDriver.transport.addTransportConnection(i);
 
-                return i;
+                    return i;
+                }
             }
         }
         Log.info("Reached maximum number of connected clients");
@@ -131,7 +137,9 @@ public class ConnectionManager {
     }
 
     public ConnectionManager.ConnectionSlot getConnectionSlot(Connection connection) {
-        return connectionSlots[getClientId(connection)];
+        int clientId = getClientId(connection);
+        if (clientId == -1) return null;
+        return connectionSlots[clientId];
     }
 
     public int getPlayerClientId(int playerId) {
@@ -197,6 +205,7 @@ public class ConnectionManager {
 
         public void sendDataPacket(Packet packet) {
             packet.type = Packet.PacketType.Data;
+//            Log.info("Sending packet " + packet);
             connection.sendUDP(packet);
         }
 
@@ -217,6 +226,7 @@ public class ConnectionManager {
             packetBuffer.reset();
             syncPacket.clear();
             sendPacket.clear();
+            messageNumChecker.clear();
         }
     }
 

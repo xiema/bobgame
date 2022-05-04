@@ -6,8 +6,10 @@ import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
+import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.GraphicsComponent;
 import com.xam.bobgame.components.IdentityComponent;
@@ -28,33 +30,53 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
         entityId = -1;
     }
 
+    private final IdentityComponent dummyIdentity = Pools.obtain(IdentityComponent.class);
+    private final PhysicsBodyComponent dummyPhysicsBody = Pools.obtain(PhysicsBodyComponent.class);
+    private final GraphicsComponent dummyGraphics = Pools.obtain(GraphicsComponent.class);
+
+    @Override
+    public NetDriver.NetworkEvent copyTo(NetDriver.NetworkEvent event) {
+        EntityCreatedEvent other = (EntityCreatedEvent) event;
+        other.entityId = entityId;
+        return super.copyTo(event);
+    }
+
     @Override
     public void read(BitPacker builder, Engine engine, boolean write) {
-        entityId = readInt(builder, entityId, 0, 255, write);
+        entityId = readInt(builder, entityId, 0, NetDriver.MAX_ENTITY_ID, write);
         
-        Entity entity;
+        Entity entity = null;
         PhysicsBodyComponent pb;
         GraphicsComponent graphics;
         IdentityComponent iden;
 
         if (!write) {
-            entity = engine.createEntity();
-            pb = engine.createComponent(PhysicsBodyComponent.class);
+            if (((GameEngine) engine).getEntityById(entityId) == null) {
+                entity = engine.createEntity();
+                iden = engine.createComponent(IdentityComponent.class);
+                pb = engine.createComponent(PhysicsBodyComponent.class);
+                graphics = engine.createComponent(GraphicsComponent.class);
+            }
+            else {
+                // duplicate entity, use dummy objects
+                Log.warn("Entity already exists " + entityId);
+                iden = dummyIdentity;
+                pb = dummyPhysicsBody;
+                graphics = dummyGraphics;
+            }
             pb.bodyDef = new BodyDef();
             pb.fixtureDef = new FixtureDef();
             pb.shapeDef = new ShapeDef();
-            graphics = engine.createComponent(GraphicsComponent.class);
             graphics.textureDef = new TextureDef();
-            iden = engine.createComponent(IdentityComponent.class);
         }
         else {
-            entity = engine.getSystem(GameDirector.class).getEntityById(entityId);
+            entity = ((GameEngine) engine).getEntityById(entityId);
             pb = ComponentMappers.physicsBody.get(entity);
             graphics = ComponentMappers.graphics.get(entity);
             iden = ComponentMappers.identity.get(entity);
         }
 
-        iden.id = readInt(builder, iden.id, 0, 255, write);
+        iden.id = entityId;
         iden.type = EntityType.values()[readInt(builder, iden.type.getValue(), 0, EntityType.values().length, write)];
 
         pb.bodyDef.type = BodyDef.BodyType.values()[readInt(builder, pb.bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length, write)];
@@ -79,21 +101,29 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
         graphics.z = readInt(builder, graphics.z, 0, GameProperties.Z_POS_MAX, write);
 
         if (!write) {
-            graphics.textureDef.color.set(r, g, b, a);
-            Sprite sprite = graphics.spriteActor.getSprite();
-            sprite.setRegion(new TextureRegion(graphics.textureDef.createTexture()));
-            sprite.setSize(w, h);
-            sprite.setOriginCenter();
+            if (entity != null) {
+                graphics.textureDef.color.set(r, g, b, a);
+                Sprite sprite = graphics.spriteActor.getSprite();
+                sprite.setRegion(new TextureRegion(graphics.textureDef.createTexture()));
+                sprite.setSize(w, h);
+                sprite.setOriginCenter();
 
-            pb.fixtureDef.friction *= NetDriver.FRICTION_FACTOR;
-            pb.fixtureDef.restitution *= NetDriver.RESTITUTION_FACTOR;
-            pb.bodyDef.linearDamping *= NetDriver.DAMPING_FACTOR;
+                pb.fixtureDef.friction *= NetDriver.FRICTION_FACTOR;
+                pb.fixtureDef.restitution *= NetDriver.RESTITUTION_FACTOR;
+                pb.bodyDef.linearDamping *= NetDriver.DAMPING_FACTOR;
 
-            entity.add(iden);
-            entity.add(pb);
-            entity.add(graphics);
+                entity.add(iden);
+                entity.add(pb);
+                entity.add(graphics);
+                engine.addEntity(entity);
 
-            engine.addEntity(entity);
+//                Log.info("Created entity " + entityId);
+            }
+            else {
+                iden.reset();
+                pb.reset();
+                graphics.reset();
+            }
         }
     }
 }

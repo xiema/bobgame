@@ -8,6 +8,7 @@ import com.badlogic.gdx.physics.box2d.Transform;
 import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
+import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
@@ -87,7 +88,7 @@ public class ControlSystem extends EntitySystem {
             Log.error("ControlSystem", "Invalid controlId: " + controlId);
             return;
         }
-        Entity entity = getEngine().getSystem(GameDirector.class).getEntityById(entityId);
+        Entity entity = ((GameEngine) getEngine()).getEntityById(entityId);
         if (entity == null) {
             Log.error("ControlSystem", "Invalid entityId: " + entityId);
             return;

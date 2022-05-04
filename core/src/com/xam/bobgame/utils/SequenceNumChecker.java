@@ -61,6 +61,11 @@ public class SequenceNumChecker {
         Arrays.fill(bits, 0);
     }
 
+    public void reset() {
+        clear();
+        high = 0;
+    }
+
     public void setAll() {
         Arrays.fill(bits, -1);
     }

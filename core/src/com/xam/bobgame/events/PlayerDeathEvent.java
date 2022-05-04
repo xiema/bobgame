@@ -19,6 +19,6 @@ public class PlayerDeathEvent extends NetDriver.NetworkEvent {
     @Override
     public void read(BitPacker builder, Engine engine, boolean write) {
         playerId = readInt(builder, playerId, 0, NetDriver.MAX_CLIENTS - 1, write);
-        entityId = readInt(builder, entityId, 0, 255, write);
+        entityId = readInt(builder, entityId, 0, NetDriver.MAX_ENTITY_ID, write);
     }
 }

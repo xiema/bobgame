@@ -3,6 +3,7 @@ package com.xam.bobgame;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import com.xam.bobgame.BoBGame;
+import com.badlogic.gdx.backends.headless.HeadlessApplication;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,6 +20,9 @@ public class DesktopLauncher {
 		int i = 0;
 		while (i < arg.length) {
 			switch (arg[i]) {
+				case "-h":
+					runArgs.put("headless", "");
+					break;
 				case "-s":
 					runArgs.put("server", "");
 					break;
@@ -29,6 +33,11 @@ public class DesktopLauncher {
 			i++;
 		}
 
-		new Lwjgl3Application(new BoBGame(runArgs), config);
+		if (runArgs.containsKey("headless")) {
+			new HeadlessApplication(new BoBGame(runArgs));
+		}
+		else {
+			new Lwjgl3Application(new BoBGame(runArgs), config);
+		}
 	}
 }

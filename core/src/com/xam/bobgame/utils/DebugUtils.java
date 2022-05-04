@@ -51,7 +51,7 @@ public class DebugUtils {
     public static String bytesHex(byte[] bytes, int i, int j) {
         StringBuilder sb = new StringBuilder();
         for (; i < j; ++i) {
-            sb.append(Integer.toHexString(bytes[i]));
+            sb.append(Integer.toHexString(bytes[i] & 0xFF));
             sb.append(' ');
         }
         return sb.toString();
@@ -60,7 +60,7 @@ public class DebugUtils {
     public static String bytesHex(ByteBuffer byteBuffer, int i, int j) {
         StringBuilder sb = new StringBuilder();
         for (; i < j; ++i) {
-            sb.append(Integer.toHexString(byteBuffer.get(i)));
+            sb.append(Integer.toHexString(byteBuffer.get(i) & 0xFF));
             sb.append(' ');
         }
         return sb.toString();
