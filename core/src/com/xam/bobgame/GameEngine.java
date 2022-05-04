@@ -7,6 +7,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.*;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.ai.AISystem;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.ControlSystem;
@@ -54,8 +55,9 @@ public class GameEngine extends PooledEngine {
         addSystem(eventsSystem = new EventsSystem(1));
         addSystem(gameDirector = new GameDirector(10));
         addSystem(new ControlSystem(20));
-        addSystem(new PhysicsSystem(30));
-        addSystem(new HazardsSystem(40));
+        addSystem(new AISystem(30));
+        addSystem(new PhysicsSystem(40));
+        addSystem(new HazardsSystem(50));
 
         eventsSystem.addListeners(listeners);
     }
@@ -186,10 +188,10 @@ public class GameEngine extends PooledEngine {
             netDriver.getServer().start(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
             gameDirector.setEnabled(true);
             getSystem(ControlSystem.class).setEnabled(true);
+            getSystem(ControlSystem.class).setControlFacing(true);
             getSystem(PhysicsSystem.class).setEnabled(true);
             getSystem(PhysicsSystem.class).setPosIterations(2);
             getSystem(PhysicsSystem.class).setVelIterations(6);
-            getSystem(ControlSystem.class).setControlFacing(true);
             getSystem(HazardsSystem.class).setEnabled(true);
             gameSetup();
         }

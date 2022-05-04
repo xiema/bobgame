@@ -20,13 +20,13 @@ public class PlayerControlEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
-    public void read(BitPacker builder, Engine engine, boolean write) {
-        controlId = readInt(builder, controlId, -1, 31, write);
-        entityId = readInt(builder, entityId, 0, NetDriver.MAX_ENTITY_ID, write);
-        x = readFloat(builder, x, -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION, write);
-        y = readFloat(builder, y, -3,  GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION, write);
-        buttonId = readInt(builder, buttonId, 0, 1, write);
-        buttonState = readInt(builder, buttonState ? 1 : 0, 0, 1, write) > 0;
+    public void read(BitPacker packer, Engine engine, boolean send) {
+        controlId = readInt(packer, controlId, -1, 31, send);
+        entityId = readInt(packer, entityId, 0, NetDriver.MAX_ENTITY_ID, send);
+        x = readFloat(packer, x, -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION, send);
+        y = readFloat(packer, y, -3,  GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION, send);
+        buttonId = readInt(packer, buttonId, 0, 1, send);
+        buttonState = readInt(packer, buttonState ? 1 : 0, 0, 1, send) > 0;
     }
 
     @Override

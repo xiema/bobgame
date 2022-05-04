@@ -9,8 +9,8 @@ public class ScoreBoardUpdateEvent extends NetDriver.NetworkEvent {
     public int playerId = -1;
 
     @Override
-    public void read(BitPacker builder, Engine engine, boolean write) {
-        playerId = readInt(builder, playerId, -1, 31, write);
+    public void read(BitPacker packer, Engine engine, boolean send) {
+        playerId = readInt(packer, playerId, -1, 31, send);
     }
 
     @Override

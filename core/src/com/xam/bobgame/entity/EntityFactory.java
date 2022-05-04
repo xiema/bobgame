@@ -40,8 +40,8 @@ public class EntityFactory {
         Entity entity = engine.createEntity();
 
         IdentityComponent identity = createIdentity(engine, EntityType.Hazard);
-        PhysicsBodyComponent physicsBody = ComponentFactory.physicsBody(engine, BodyDef.BodyType.StaticBody, x, y, 0,
-                0, 1, 0, 0, 0);
+        PhysicsBodyComponent physicsBody = ComponentFactory.physicsBody(engine, BodyDef.BodyType.KinematicBody, x, y, 0,
+                0, 0.25f, 0, 0, 0);
         TextureDef textureDef = new TextureDef();
         textureDef.type = TextureDef.TextureType.HazardHole;
         textureDef.wh = 128;
@@ -49,11 +49,20 @@ public class EntityFactory {
         textureDef.color.set(Color.BLACK);
         GraphicsComponent graphics = ComponentFactory.graphics(engine, textureDef, radius * 2, radius * 2, 3);
         HazardComponent hazard = ComponentFactory.hazard(engine);
+        GravitationalFieldComponent gravField = ComponentFactory.gravField(engine, 40, 30);
+
+        SteerableComponent steerable = engine.createComponent(SteerableComponent.class);
+        steerable.maxLinearSpeed = 5f;
+        steerable.maxLinearAcceleration = 20f;
+        AIComponent ai = engine.createComponent(AIComponent.class);
 
         entity.add(identity);
         entity.add(physicsBody);
         entity.add(graphics);
         entity.add(hazard);
+        entity.add(gravField);
+        entity.add(steerable);
+        entity.add(ai);
 
         return entity;
     }

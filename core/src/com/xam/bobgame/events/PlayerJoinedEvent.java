@@ -1,7 +1,6 @@
 package com.xam.bobgame.events;
 
 import com.badlogic.ashley.core.Engine;
-import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.BitPacker;
 
@@ -22,8 +21,8 @@ public class PlayerJoinedEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
-    public void read(BitPacker builder, Engine engine, boolean write) {
-        playerId = readInt(builder, playerId, 0, NetDriver.MAX_CLIENTS - 1, write);
+    public void read(BitPacker packer, Engine engine, boolean send) {
+        playerId = readInt(packer, playerId, 0, NetDriver.MAX_CLIENTS - 1, send);
     }
 
     @Override

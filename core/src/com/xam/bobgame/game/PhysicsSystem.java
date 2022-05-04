@@ -11,6 +11,7 @@ import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
+import com.xam.bobgame.components.GravitationalFieldComponent;
 import com.xam.bobgame.components.HazardComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
@@ -24,6 +25,7 @@ public class PhysicsSystem extends EntitySystem {
     public static final float SIM_UPDATE_STEP = 1f / 60f;
 
     private ImmutableArray<Entity> entities;
+    private ImmutableArray<Entity> gravFieldEntities;
 
     private World world;
     private Body[] walls = new Body[4];
@@ -80,19 +82,75 @@ public class PhysicsSystem extends EntitySystem {
                 Shape shape = physicsBody.shapeDef.createShape();
                 physicsBody.fixtureDef.shape = shape;
                 physicsBody.fixture = physicsBody.body.createFixture(physicsBody.fixtureDef);
+                physicsBody.fixture.setUserData(new FixtureData(entity, false));
                 physicsBody.body.setFixedRotation(true);
 //                if (!enabled) physicsBody.fixture.setSensor(true);
                 shape.dispose();
+
+                GravitationalFieldComponent gravField = ComponentMappers.gravFields.get(entity);
+                if (gravField == null) return;
+                FixtureDef fd = new FixtureDef();
+                fd.isSensor = true;
+                fd.shape = new CircleShape();
+                fd.shape.setRadius(gravField.radius);
+                gravField.fixture = physicsBody.body.createFixture(fd);
+                gravField.fixture.setUserData(new FixtureData(entity, true));
+                fd.shape.dispose();
             }
 
             @Override
             public void entityRemoved(Entity entity) {
                 PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
+                GravitationalFieldComponent gravField = ComponentMappers.gravFields.get(entity);
                 if (physicsBody.body == null) return;
                 if (physicsBody.fixture != null) physicsBody.body.destroyFixture(physicsBody.fixture);
+                if (gravField != null && gravField.fixture != null) physicsBody.body.destroyFixture(gravField.fixture);
                 world.destroyBody(physicsBody.body);
             }
         });
+    }
+
+    @Override
+    public void addedToEngine(Engine engine) {
+        world = new World(new Vector2(0, 0), true);
+        world.setContactListener(contactListener);
+        createWalls();
+
+        entities = engine.getEntitiesFor(Family.all(PhysicsBodyComponent.class).get());
+        gravFieldEntities = engine.getEntitiesFor(Family.all(GravitationalFieldComponent.class).get());
+        EntityUtils.addEntityListeners(engine, entityListeners);
+
+        engine.getSystem(EventsSystem.class).addListeners(listeners);
+    }
+
+    @Override
+    public void removedFromEngine(Engine engine) {
+        world.dispose();
+        world = null;
+        entities = null;
+        gravFieldEntities = null;
+        EntityUtils.removeEntityListeners(engine, entityListeners);
+        EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
+        if (eventsSystem != null) eventsSystem.removeListeners(listeners);
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    @Override
+    public void update(float deltaTime) {
+        if (enabled) {
+            for (Entity entity : gravFieldEntities) {
+                GravitationalFieldComponent gravField = ComponentMappers.gravFields.get(entity);
+                for (Entity entity2 : gravField.affectedEntities) {
+                    applyGravity(entity, entity2);
+                }
+            }
+        }
+
+        world.step(simUpdateStep, velIterations, posIterations);
+        quantizePhysics();
     }
 
     private void createWalls() {
@@ -124,38 +182,6 @@ public class PhysicsSystem extends EntitySystem {
         walls[3].createFixture(shape, 0);
 
         shape.dispose();
-    }
-
-    @Override
-    public void addedToEngine(Engine engine) {
-        world = new World(new Vector2(0, 0), true);
-        world.setContactListener(contactListener);
-        createWalls();
-
-        entities = engine.getEntitiesFor(Family.all(PhysicsBodyComponent.class).get());
-        EntityUtils.addEntityListeners(engine, entityListeners);
-
-        engine.getSystem(EventsSystem.class).addListeners(listeners);
-    }
-
-    @Override
-    public void removedFromEngine(Engine engine) {
-        world.dispose();
-        world = null;
-        entities = null;
-        EntityUtils.removeEntityListeners(engine, entityListeners);
-        EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
-        if (eventsSystem != null) eventsSystem.removeListeners(listeners);
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    @Override
-    public void update(float deltaTime) {
-        world.step(simUpdateStep, velIterations, posIterations);
-        quantizePhysics();
     }
 
     public void clearForces() {
@@ -239,30 +265,50 @@ public class PhysicsSystem extends EntitySystem {
     private ContactListener contactListener = new ContactListener() {
         @Override
         public void beginContact(Contact contact) {
-            Entity entity1 = getEntity(contact.getFixtureA());
-            Entity entity2 = getEntity(contact.getFixtureB());
-            if (entity1 == null || entity2 == null) return;
-            HazardComponent hazard1 = ComponentMappers.hazards.get(entity1);
-            HazardComponent hazard2 = ComponentMappers.hazards.get(entity2);
-            HazardContactEvent event = null;
-            if (hazard1 != null && hazard2 == null) {
-                event = Pools.obtain(HazardContactEvent.class);
-                event.entity = entity2;
-                event.hazard = entity1;
+            Object ud1 = contact.getFixtureA().getUserData();
+            Object ud2 = contact.getFixtureB().getUserData();
+            FixtureData fd1 = ud1 == null ? null : (FixtureData) ud1;
+            FixtureData fd2 = ud2 == null ? null : (FixtureData) ud2;
+            if (fd1 == null || fd2 == null) return;
+            if (fd1.isGravField) {
+                ComponentMappers.gravFields.get(fd1.entity).affectedEntities.add(fd2.entity);
             }
-            else if (hazard2 != null && hazard1 == null) {
-                event = Pools.obtain(HazardContactEvent.class);
-                event.entity = entity1;
-                event.hazard = entity2;
+            else if (fd2.isGravField) {
+                ComponentMappers.gravFields.get(fd2.entity).affectedEntities.add(fd1.entity);
             }
-            if (event != null) {
-                getEngine().getSystem(EventsSystem.class).queueEvent(event);
+            else {
+                HazardComponent hazard1 = ComponentMappers.hazards.get(fd1.entity);
+                HazardComponent hazard2 = ComponentMappers.hazards.get(fd2.entity);
+                HazardContactEvent event = null;
+                if (hazard1 != null && hazard2 == null) {
+                    event = Pools.obtain(HazardContactEvent.class);
+                    event.entity = fd2.entity;
+                    event.hazard = fd1.entity;
+                }
+                else if (hazard2 != null && hazard1 == null) {
+                    event = Pools.obtain(HazardContactEvent.class);
+                    event.entity = fd1.entity;
+                    event.hazard = fd2.entity;
+                }
+                if (event != null) {
+                    getEngine().getSystem(EventsSystem.class).queueEvent(event);
+                }
             }
         }
 
         @Override
         public void endContact(Contact contact) {
-
+            Object ud1 = contact.getFixtureA().getUserData();
+            Object ud2 = contact.getFixtureB().getUserData();
+            FixtureData fd1 = ud1 == null ? null : (FixtureData) ud1;
+            FixtureData fd2 = ud2 == null ? null : (FixtureData) ud2;
+            if (fd1 == null || fd2 == null) return;
+            if (fd1.isGravField) {
+                ComponentMappers.gravFields.get(fd1.entity).affectedEntities.removeValue(fd2.entity, true);
+            }
+            else if (fd2.isGravField) {
+                ComponentMappers.gravFields.get(fd2.entity).affectedEntities.removeValue(fd1.entity, true);
+            }
         }
 
         @Override
@@ -276,8 +322,26 @@ public class PhysicsSystem extends EntitySystem {
         }
     };
 
+    private Vector2 gravVec = new Vector2();
+
+    private void applyGravity(Entity entity1, Entity entity2) {
+        GravitationalFieldComponent gravField = ComponentMappers.gravFields.get(entity1);
+        PhysicsBodyComponent pb1 = ComponentMappers.physicsBody.get(entity1);
+        PhysicsBodyComponent pb2 = ComponentMappers.physicsBody.get(entity2);
+
+        Vector2 pos1 = pb1.body.getPosition();
+        Vector2 pos2 = pb2.body.getPosition();
+        float dx = pos1.x - pos2.x, dy = pos1.y - pos2.y;
+        float d2 = dx * dx + dy * dy;
+        float d = (float) Math.sqrt(d2);
+        gravVec.set(pb1.body.getPosition()).sub(pb2.body.getPosition()).scl(1f / d).scl(gravField.strength / d2);
+
+        pb2.body.applyForceToCenter(gravVec, true);
+    }
+
     private static Entity getEntity(Fixture fixture) {
-        return getEntity(fixture.getBody());
+        Object userData = fixture.getUserData();
+        return userData != null ? ((FixtureData) userData).entity : getEntity(fixture.getBody());
     }
 
     private static Entity getEntity(Body body) {
@@ -293,6 +357,16 @@ public class PhysicsSystem extends EntitySystem {
 
         public PhysicsHistory(Entity entity) {
             this.entity = entity;
+        }
+    }
+
+    public static class FixtureData {
+        public final Entity entity;
+        public final boolean isGravField;
+
+        public FixtureData(Entity entity, boolean isGravField) {
+            this.entity = entity;
+            this.isGravField = isGravField;
         }
     }
 }

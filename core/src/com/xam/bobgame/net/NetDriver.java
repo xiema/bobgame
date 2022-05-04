@@ -39,6 +39,11 @@ public class NetDriver extends EntitySystem {
     public static final float MAX_ORIENTATION = 3.14159f;
     public static final int MAX_ENTITY_ID = 2047;
 
+    public static final float MAX_GRAVITY_STRENGTH = 128;
+    public static final float RES_GRAVITY_STRENGTH = 1e-2f;
+    public static final float MAX_GRAVITY_RADIUS = 32;
+    public static final float RES_GRAVITY_RADIUS = 1e-4f;
+
     public static final int MIN_SCORE = -512;
     public static final int MAX_SCORE = 511;
 
@@ -239,39 +244,49 @@ public class NetDriver extends EntitySystem {
         Client, Server
     }
 
-    public static class NetworkEvent implements GameEvent {
+    public static class  NetworkEvent implements GameEvent {
 
-        protected int readInt(BitPacker builder, int i, int min, int max, boolean write) {
-            if (write) {
-                builder.packInt(i, min, max);
+        protected int readInt(BitPacker packer, int i, int min, int max, boolean send) {
+            if (send) {
+                packer.packInt(i, min, max);
                 return i;
             }
             else {
-                return builder.unpackInt(min, max);
+                return packer.unpackInt(min, max);
             }
         }
 
-        protected float readFloat(BitPacker builder, float f, float min, float max, float res, boolean write) {
-            if (write) {
-                builder.packFloat(f, min, max, res);
+        protected float readFloat(BitPacker packer, float f, float min, float max, float res, boolean send) {
+            if (send) {
+                packer.packFloat(f, min, max, res);
                 return f;
             }
             else {
-                return builder.unpackFloat(min, max, res);
+                return packer.unpackFloat(min, max, res);
             }
         }
 
-        protected byte readByte(BitPacker builder, byte b, boolean write) {
-            if (write) {
-                builder.packByte(b);
+        protected byte readByte(BitPacker packer, byte b, boolean send) {
+            if (send) {
+                packer.packByte(b);
                 return b;
             }
             else {
-                return builder.unpackByte();
+                return packer.unpackByte();
             }
         }
 
-        public void read(BitPacker builder, Engine engine, boolean write){
+        protected boolean readBoolean(BitPacker packer, boolean b, boolean send) {
+            if (send) {
+                packer.packInt(b ? 1 : 0, 0, 1);
+                return b;
+            }
+            else {
+                return packer.unpackInt(0, 1) == 1;
+            }
+        }
+
+        public void read(BitPacker packer, Engine engine, boolean send){
 
         }
 

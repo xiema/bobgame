@@ -3,8 +3,6 @@ package com.xam.bobgame.net;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.utils.ImmutableArray;
-import com.badlogic.gdx.graphics.g2d.Sprite;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.Array;
@@ -15,11 +13,8 @@ import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
-import com.xam.bobgame.components.GraphicsComponent;
-import com.xam.bobgame.components.IdentityComponent;
-import com.xam.bobgame.components.PhysicsBodyComponent;
+import com.xam.bobgame.components.*;
 import com.xam.bobgame.entity.ComponentMappers;
-import com.xam.bobgame.entity.EntityType;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.EntityCreatedEvent;
 import com.xam.bobgame.events.EventsSystem;
@@ -85,6 +80,16 @@ public class MessageReader {
         }
         else {
             return builder.unpackByte();
+        }
+    }
+
+    private boolean readBoolean(boolean b) {
+        if (send) {
+            builder.packInt(b ? 1 : 0, 0, 1);
+            return b;
+        }
+        else {
+            return builder.unpackInt(0, 1) == 1;
         }
     }
 

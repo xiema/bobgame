@@ -1,0 +1,5 @@
+root
+    selector
+        dynamicGuardSelector
+            (timer seconds:2) success
+            setTargetPosition x:"uniform,2,18" y:"uniform,2,18"
