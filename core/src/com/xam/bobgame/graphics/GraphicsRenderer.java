@@ -21,6 +21,7 @@ import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.GraphicsComponent;
+import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.game.PhysicsSystem;
@@ -104,6 +105,8 @@ public class GraphicsRenderer {
     private void drawEntities(Batch batch, int z) {
         Array<Entity> zEntities = zSortedEntities[z];
         for (Entity entity : zEntities) {
+            IdentityComponent iden = ComponentMappers.identity.get(entity);
+            if (iden.despawning) continue;
             GraphicsComponent graphics = ComponentMappers.graphics.get(entity);
             graphics.spriteActor.draw(batch, 1);
         }
@@ -117,7 +120,7 @@ public class GraphicsRenderer {
 
     private void drawGuideLine() {
         Entity entity = engine.getSystem(GameDirector.class).getLocalPlayerEntity();
-        if (entity == null) return;
+        if (entity == null || ComponentMappers.identity.get(entity).despawning) return;
 
         PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
         Transform tfm = pb.body.getTransform();

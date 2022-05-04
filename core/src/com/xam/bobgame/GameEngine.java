@@ -157,6 +157,7 @@ public class GameEngine extends PooledEngine {
         if (mode == NetDriver.Mode.Server) {
             netDriver.setMode(NetDriver.Mode.Server);
             netDriver.getServer().start(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
+            gameDirector.setEnabled(true);
             getSystem(ControlSystem.class).setEnabled(true);
             getSystem(PhysicsSystem.class).setEnabled(true);
             getSystem(PhysicsSystem.class).setPosIterations(2);

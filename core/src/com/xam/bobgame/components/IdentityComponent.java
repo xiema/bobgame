@@ -7,10 +7,12 @@ import com.xam.bobgame.entity.EntityType;
 public class IdentityComponent implements Component, Poolable {
     public int id = -1;
     public EntityType type = EntityType.Neutral;
+    public boolean despawning = false;
 
     @Override
     public void reset() {
         id = -1;
         type = EntityType.Neutral;
+        despawning = false;
     }
 }

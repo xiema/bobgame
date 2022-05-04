@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityFactory;
@@ -34,6 +35,9 @@ public class GameDirector extends EntitySystem {
     private final boolean[] playerExists = new boolean[NetDriver.MAX_CLIENTS];
     private final int[] playerControlMap = new int[NetDriver.MAX_CLIENTS];
     private final int[] playerScores = new int[NetDriver.MAX_CLIENTS];
+    private final float[] playerRespawnTime = new float[NetDriver.MAX_CLIENTS];
+
+    private boolean enabled = false;
 
     public GameDirector(int priority) {
         super(priority);
@@ -48,10 +52,9 @@ public class GameDirector extends EntitySystem {
         listeners.put(PlayerDeathEvent.class, new EventListenerAdapter<PlayerDeathEvent>() {
             @Override
             public void handleEvent(PlayerDeathEvent event) {
+                if (playerControlMap[event.playerId] == event.entityId) playerControlMap[event.playerId] = -1;
                 Entity entity = getEntityById(event.entityId);
-                if (entity == null) return;
-                getEngine().removeEntity(entity);
-                playerControlMap[event.playerId] = -1;
+                if (entity != null) getEngine().removeEntity(entity);
             }
         });
         listeners.put(PlayerBallSpawnedEvent.class, new EventListenerAdapter<PlayerBallSpawnedEvent>() {
@@ -86,6 +89,7 @@ public class GameDirector extends EntitySystem {
         engine.getSystem(EventsSystem.class).addListeners(listeners);
         Arrays.fill(playerControlMap, -1);
         Arrays.fill(playerScores, 0);
+        Arrays.fill(playerRespawnTime, 0);
     }
 
     @Override
@@ -95,6 +99,15 @@ public class GameDirector extends EntitySystem {
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);
         entityMap.clear();
         sortedEntities.clear();
+    }
+
+    @Override
+    public void update(float deltaTime) {
+        for (int i = 0; i < playerRespawnTime.length; ++i) {
+            if (!playerExists[i]) continue;
+            playerRespawnTime[i] -= deltaTime;
+            if (enabled && playerRespawnTime[i] <= 0 && playerControlMap[i] == -1) spawnPlayerBall(i, true);
+        }
     }
 
     public ImmutableArray<Entity> getEntities () {
@@ -189,14 +202,17 @@ public class GameDirector extends EntitySystem {
     }
 
     public void killPlayer(int playerId) {
+        EventsSystem eventsSystem = getEngine().getSystem(EventsSystem.class);
         Entity entity = getPlayerEntity(playerId);
-        PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
 
+        IdentityComponent iden = ComponentMappers.identity.get(entity);
+        iden.despawning = true;
+
+        PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
         pb.body.setTransform(pb.bodyDef.position.x, pb.bodyDef.position.y, 0);
         pb.body.setLinearVelocity(0, 0);
 
         playerScores[playerId]--;
-        playerControlMap[playerId] = -1;
 
         NetDriver netDriver = getEngine().getSystem(NetDriver.class);
 
@@ -204,14 +220,14 @@ public class GameDirector extends EntitySystem {
         deathEvent.playerId = playerId;
         deathEvent.entityId = EntityUtils.getId(entity);
         netDriver.queueClientEvent(-1, deathEvent, false);
-        getEngine().removeEntity(entity);
+        eventsSystem.queueEvent(deathEvent);
 
         ScoreBoardUpdateEvent scoreEvent = Pools.obtain(ScoreBoardUpdateEvent.class);
         scoreEvent.playerId = playerId;
         netDriver.queueClientEvent(-1, scoreEvent);
-        getEngine().getSystem(EventsSystem.class).queueEvent(scoreEvent);
+        eventsSystem.queueEvent(scoreEvent);
 
-        spawnPlayerBall(playerId, true);
+        playerRespawnTime[playerId] = GameProperties.PLAYER_RESPAWN_TIME;
     }
 
     public int[] getPlayerControlMap() {
@@ -224,5 +240,9 @@ public class GameDirector extends EntitySystem {
 
     public boolean[] getPlayerExists() {
         return playerExists;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 }

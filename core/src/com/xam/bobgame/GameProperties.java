@@ -17,5 +17,7 @@ public class GameProperties {
     public static final float CHARGE_DURATION = 0.4f;
     public static final float CHARGE_DURATION_2 = CHARGE_DURATION * 2;
 
+    public static final float PLAYER_RESPAWN_TIME = 5;
+
     public static final float SIMULATION_UPDATE_INTERVAL = 1f / 60f;
 }

@@ -77,20 +77,18 @@ public class BoBGame extends ApplicationAdapter {
 
 	@Override
 	public void render () {
-		float deltaTime = Gdx.graphics.getDeltaTime();
+		engine.update(GameProperties.SIMULATION_UPDATE_INTERVAL);
 
-		engine.update(deltaTime);
-
-		stage.act(deltaTime);
+		stage.act(GameProperties.SIMULATION_UPDATE_INTERVAL);
 		ScreenUtils.clear(0, 0, 0, 1);
 		viewport.apply(true);
 		renderer.draw(batch);
 
-		uiStage.act(deltaTime);
+		uiStage.act(GameProperties.SIMULATION_UPDATE_INTERVAL);
 		uiViewport.apply(true);
 		uiStage.draw();
 
-		devTools.render(deltaTime);
+		devTools.render(GameProperties.SIMULATION_UPDATE_INTERVAL);
 	}
 
 	@Override

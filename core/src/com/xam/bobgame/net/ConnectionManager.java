@@ -101,7 +101,6 @@ public class ConnectionManager {
     }
 
     public void removeConnection(int clientId) {
-        // TODO: clean disconnect
         Log.info("Disconnecting from " + connectionSlots[clientId].hostAddress + " (slot " + clientId + ")");
         Pools.free(connectionSlots[clientId]);
         connectionSlots[clientId] = null;
