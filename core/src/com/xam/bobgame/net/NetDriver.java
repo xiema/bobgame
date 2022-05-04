@@ -10,6 +10,7 @@ import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.utils.BitPacker;
+import com.xam.bobgame.utils.Bits2;
 import com.xam.bobgame.utils.DebugUtils;
 
 import java.nio.ByteBuffer;
@@ -20,7 +21,7 @@ public class NetDriver extends EntitySystem {
     public static final float BUFFER_TIME_LIMIT = 0.15f;
     public static final int MAX_CLIENTS = 32;
     public static final int MAX_MESSAGE_HISTORY = 256;
-    public static final int SERVER_UPDATE_FREQUENCY = 2;
+    public static final int SERVER_UPDATE_FREQUENCY = 3;
     public static final int PORT_TCP = 55192;
     public static final int PORT_UDP = 55196;
     public static final int PACKET_SEQUENCE_LIMIT = 128;
@@ -118,14 +119,31 @@ public class NetDriver extends EntitySystem {
         updateBitRate(curTimeDelta);
     }
 
-    synchronized public void queueClientEvent(int clientId, NetworkEvent event) {
-        // TODO: use mask
+    public void queueClientEvent(int clientId, NetworkEvent event) {
         // TODO: autocopy event
-        if (clientId == -1 && !connectionManager.hasConnections()) return;
+        if (!connectionManager.hasConnections()) return;
         ClientEvent clientEvent = Pools.obtain(ClientEvent.class);
         clientEvent.event = event;
-        clientEvent.clientId = clientId;
-        clientEvents.add(clientEvent);
+        if (clientId == -1) {
+            clientEvent.clientMask.or(connectionManager.getActiveConnectionsMask());
+        }
+        else {
+            clientEvent.clientMask.set(clientId);
+        }
+        synchronized (clientEvents) {
+            clientEvents.add(clientEvent);
+        }
+    }
+
+    public void queueClientEvent(Bits2 clientMask, NetworkEvent event) {
+        // TODO: autocopy event
+        if (!connectionManager.hasConnections()) return;
+        ClientEvent clientEvent = Pools.obtain(ClientEvent.class);
+        clientEvent.event = event;
+        clientMask.copyTo(clientEvent.clientMask);
+        synchronized (clientEvents) {
+            clientEvents.add(clientEvent);
+        }
     }
 
     private void updateBitRate(float deltaTime) {
@@ -195,13 +213,13 @@ public class NetDriver extends EntitySystem {
 
     static class ClientEvent implements Pool.Poolable {
         NetworkEvent event;
-        int clientId;
+        Bits2 clientMask = new Bits2(NetDriver.MAX_CLIENTS);
 
         @Override
         public void reset() {
             Pools.free(event);
             event = null;
-            clientId = -1;
+            clientMask.clear();
         }
     }
 

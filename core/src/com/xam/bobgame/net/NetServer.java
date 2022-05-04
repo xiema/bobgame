@@ -103,13 +103,17 @@ public class NetServer extends Server {
         for (int i = 0; i < netDriver.clientEvents.size; ++i) {
             NetDriver.ClientEvent clientEvent = netDriver.clientEvents.get(i);
             // TODO: pre-serialize message
-            if (clientEvent.clientId == -1 || clientEvent.clientId == connectionSlot.clientId) {
+            if (clientEvent.clientMask.get(connectionSlot.clientId)) {
                 netDriver.messageReader.serializeEvent(eventPacket.getMessage(), netDriver.getEngine(), clientEvent.event);
                 sendPacket.getMessage().append(eventPacket.getMessage());
                 eventPacket.clear();
-                // TODO: don't remove until sent to all clients
-                netDriver.clientEvents.removeIndex(i);
-                i--;
+                clientEvent.clientMask.unset(connectionSlot.clientId);
+
+                if (!clientEvent.clientMask.anySet()) {
+//                    Log.info("Removing event " + clientEvent.event + " from queue");
+                    netDriver.clientEvents.removeIndex(i);
+                    i--;
+                }
             }
         }
 

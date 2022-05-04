@@ -10,6 +10,7 @@ import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.events.ClientConnectedEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.events.PlayerControlEvent;
+import com.xam.bobgame.utils.Bits2;
 import com.xam.bobgame.utils.SequenceNumChecker;
 
 public class ConnectionManager {
@@ -17,6 +18,8 @@ public class ConnectionManager {
     private NetDriver netDriver;
 
     private ConnectionSlot[] connectionSlots = new ConnectionSlot[NetDriver.MAX_CLIENTS];
+
+    private Bits2 activeConnectionsMask = new Bits2(NetDriver.MAX_CLIENTS);
 
     private int hostClientId = -1;
 
@@ -68,6 +71,7 @@ public class ConnectionManager {
                 connectionSlot.hostAddress = connection.getRemoteAddressTCP().getAddress().getHostAddress();
                 connectionSlot.state = netDriver.getMode() == NetDriver.Mode.Server ? ConnectionState.ServerEmpty : ConnectionState.ClientEmpty;
                 connectionSlots[i] = connectionSlot;
+                activeConnectionsMask.set(i);
 
                 netDriver.transport.addTransportConnection(i);
 
@@ -101,6 +105,7 @@ public class ConnectionManager {
         Log.info("Disconnecting from " + connectionSlots[clientId].hostAddress + " (slot " + clientId + ")");
         Pools.free(connectionSlots[clientId]);
         connectionSlots[clientId] = null;
+        activeConnectionsMask.unset(clientId);
         netDriver.transport.removeTransportConnection(clientId);
     }
 
@@ -144,6 +149,9 @@ public class ConnectionManager {
         return -1;
     }
 
+    public Bits2 getActiveConnectionsMask() {
+        return activeConnectionsMask;
+    }
 
     public static class ConnectionSlot implements Pool.Poolable {
         NetDriver netDriver = null;

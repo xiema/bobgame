@@ -5,7 +5,7 @@ import com.esotericsoftware.minlog.Log;
 
 import java.util.Arrays;
 
-public class SequenceNumChecker extends Bits {
+public class SequenceNumChecker {
 
     long[] bits;
 
