@@ -182,7 +182,7 @@ public class GameDirector extends EntitySystem {
         if (sendEvent) {
             EntityCreatedEvent netEvent = Pools.obtain(EntityCreatedEvent.class);
             netEvent.entityId = entityId;
-            getEngine().getSystem(NetDriver.class).queueClientEvent(-1, netEvent);
+            getEngine().getSystem(NetDriver.class).queueClientEvent(-1, netEvent, false);
         }
 
         return entity;
@@ -203,16 +203,13 @@ public class GameDirector extends EntitySystem {
         PlayerDeathEvent deathEvent = Pools.obtain(PlayerDeathEvent.class);
         deathEvent.playerId = playerId;
         deathEvent.entityId = EntityUtils.getId(entity);
-        netDriver.queueClientEvent(-1, deathEvent);
+        netDriver.queueClientEvent(-1, deathEvent, false);
         getEngine().removeEntity(entity);
 
         ScoreBoardUpdateEvent scoreEvent = Pools.obtain(ScoreBoardUpdateEvent.class);
         scoreEvent.playerId = playerId;
+        netDriver.queueClientEvent(-1, scoreEvent);
         getEngine().getSystem(EventsSystem.class).queueEvent(scoreEvent);
-
-        ScoreBoardUpdateEvent netScoreEvent = Pools.obtain(ScoreBoardUpdateEvent.class);
-        scoreEvent.copyTo(netScoreEvent);
-        netDriver.queueClientEvent(-1, netScoreEvent);
 
         spawnPlayerBall(playerId, true);
     }

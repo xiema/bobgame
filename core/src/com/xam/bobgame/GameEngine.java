@@ -123,12 +123,7 @@ public class GameEngine extends PooledEngine {
                 event.controlId = gameDirector.getLocalPlayerId();
                 event.entityId = gameDirector.getLocalPlayerEntityId();
 
-                if (netDriver.getMode() == NetDriver.Mode.Client && netDriver.getClient().isConnected()) {
-                    PlayerControlEvent netEvent = Pools.obtain(PlayerControlEvent.class);
-                    event.copyTo(netEvent);
-                    netDriver.queueClientEvent(-1, netEvent);
-                }
-
+                netDriver.queueClientEvent(-1, event);
                 eventsSystem.queueEvent(event);
             }
 

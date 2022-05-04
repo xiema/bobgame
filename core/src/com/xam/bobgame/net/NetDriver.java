@@ -119,27 +119,37 @@ public class NetDriver extends EntitySystem {
         updateBitRate(curTimeDelta);
     }
 
+    private final Bits2 tempBitMask = new Bits2(NetDriver.MAX_CLIENTS);
+
     public void queueClientEvent(int clientId, NetworkEvent event) {
-        // TODO: autocopy event
-        if (!connectionManager.hasConnections()) return;
-        ClientEvent clientEvent = Pools.obtain(ClientEvent.class);
-        clientEvent.event = event;
-        if (clientId == -1) {
-            clientEvent.clientMask.or(connectionManager.getActiveConnectionsMask());
-        }
-        else {
-            clientEvent.clientMask.set(clientId);
-        }
-        synchronized (clientEvents) {
-            clientEvents.add(clientEvent);
+        queueClientEvent(clientId, event, true);
+    }
+
+    public void queueClientEvent(int clientId, NetworkEvent event, boolean copy) {
+        synchronized (tempBitMask) {
+            if (clientId == -1) {
+                tempBitMask.or(connectionManager.getActiveConnectionsMask());
+            }
+            else {
+                tempBitMask.set(clientId);
+            }
+            queueClientEvent(tempBitMask, event, copy);
+            tempBitMask.clear();
         }
     }
 
-    public void queueClientEvent(Bits2 clientMask, NetworkEvent event) {
-        // TODO: autocopy event
+    public void queueClientEvent(Bits2 clientMask, NetworkEvent event, boolean copy) {
         if (!connectionManager.hasConnections()) return;
         ClientEvent clientEvent = Pools.obtain(ClientEvent.class);
-        clientEvent.event = event;
+        NetworkEvent netEvent;
+        if (copy) {
+            netEvent = Pools.obtain(event.getClass());
+            event.copyTo(netEvent);
+        }
+        else {
+            netEvent = event;
+        }
+        clientEvent.event = netEvent;
         clientMask.copyTo(clientEvent.clientMask);
         synchronized (clientEvents) {
             clientEvents.add(clientEvent);
