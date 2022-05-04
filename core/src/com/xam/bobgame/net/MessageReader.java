@@ -20,6 +20,7 @@ import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityType;
 import com.xam.bobgame.entity.EntityUtils;
+import com.xam.bobgame.events.EntityCreatedEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.events.PlayerControlEvent;
 import com.xam.bobgame.events.ScoreBoardRefreshEvent;
@@ -276,21 +277,18 @@ public class MessageReader {
         return 0;
     }
 
+    private final EntityCreatedEvent entityCreator = Pools.obtain(EntityCreatedEvent.class);
+
     private int readSystemSnapshot() {
         ImmutableArray<Entity> entities = engine.getSystem(GameDirector.class).getEntities();
         int cnt = readInt(entities.size(), 0, 255);
         int i = 0;
         while (cnt-- > 0) {
-            Entity entity;
             if (send) {
-                entity = entities.get(i++);
-                readEntity(entity);
+                Entity entity = entities.get(i++);
+                entityCreator.entityId = EntityUtils.getId(entity);
             }
-            else {
-                entity = engine.createEntity();
-                readEntity(entity);
-                engine.addEntity(entity);
-            }
+            entityCreator.read(builder, engine, send);
         }
 
         GameDirector gameDirector = engine.getSystem(GameDirector.class);
@@ -361,70 +359,6 @@ public class MessageReader {
         for (int i = 0; i < buttonStates.length; ++i) {
             buttonStates[i] = readInt(buttonStates[i] ? 1 : 0, 0, 1) != 0;
             buttonHoldDurations[i] = readFloat(buttonHoldDurations[i], -NetDriver.RES_HOLD_DURATION, GameProperties.CHARGE_DURATION_2, NetDriver.RES_HOLD_DURATION);
-        }
-
-        return 0;
-    }
-
-    private int readEntity(Entity entity) {
-        // TODO: combine with EntityCreatedEvent
-        PhysicsBodyComponent pb;
-        GraphicsComponent graphics;
-        IdentityComponent iden;
-
-        if (!send) {
-            pb = engine.createComponent(PhysicsBodyComponent.class);
-            pb.bodyDef = new BodyDef();
-            pb.fixtureDef = new FixtureDef();
-            pb.shapeDef = new ShapeDef();
-            graphics = engine.createComponent(GraphicsComponent.class);
-            graphics.textureDef = new TextureDef();
-            iden = engine.createComponent(IdentityComponent.class);
-        }
-        else {
-            pb = ComponentMappers.physicsBody.get(entity);
-            graphics = ComponentMappers.graphics.get(entity);
-            iden = ComponentMappers.identity.get(entity);
-        }
-
-        iden.id = readInt(iden.id, 0, 255);
-        iden.type = EntityType.values()[readInt(iden.type.getValue(), 0, EntityType.values().length)];
-
-        pb.bodyDef.type = BodyDef.BodyType.values()[readInt(pb.bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length)];
-        pb.bodyDef.position.x = readFloat(pb.bodyDef.position.x, -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
-        pb.bodyDef.position.y = readFloat(pb.bodyDef.position.y, -3, GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION);
-        pb.bodyDef.linearDamping = readFloat(pb.bodyDef.linearDamping, 0, 1, NetDriver.RES_MASS);
-        pb.shapeDef.type = ShapeDef.ShapeType.values()[readInt(pb.shapeDef.type.getValue(), 0, ShapeDef.ShapeType.values().length)];
-        pb.shapeDef.shapeVal1 = readFloat(pb.shapeDef.shapeVal1, 0, 16, NetDriver.RES_POSITION);
-        pb.fixtureDef.density = readFloat(pb.fixtureDef.density, 0, 16, NetDriver.RES_MASS);
-        pb.fixtureDef.friction = readFloat(pb.fixtureDef.friction, 0, 16, NetDriver.RES_MASS);
-        pb.fixtureDef.restitution = readFloat(pb.fixtureDef.restitution, 0, 16, NetDriver.RES_MASS);
-
-        graphics.textureDef.type = TextureDef.TextureType.values()[readInt(graphics.textureDef.type.getValue(), 0, TextureDef.TextureType.values().length)];
-        graphics.textureDef.wh = readInt(graphics.textureDef.wh, 0, 128);
-        graphics.textureDef.textureVal1 = readInt(graphics.textureDef.textureVal1, 0, 128);
-        float r = readFloat(graphics.textureDef.color.r, 0, 1, NetDriver.RES_COLOR);
-        float g = readFloat(graphics.textureDef.color.g, 0, 1, NetDriver.RES_COLOR);
-        float b = readFloat(graphics.textureDef.color.b, 0, 1, NetDriver.RES_COLOR);
-        float a = readFloat(graphics.textureDef.color.a, 0, 1, NetDriver.RES_COLOR);
-        float w = readFloat(graphics.spriteActor.getSprite().getWidth(), 0, 16, NetDriver.RES_POSITION);
-        float h = readFloat(graphics.spriteActor.getSprite().getHeight(), 0, 16, NetDriver.RES_POSITION);
-        graphics.z = readInt(graphics.z, 0, GameProperties.Z_POS_MAX);
-
-        if (!send) {
-            graphics.textureDef.color.set(r, g, b, a);
-            Sprite sprite = graphics.spriteActor.getSprite();
-            sprite.setRegion(new TextureRegion(graphics.textureDef.createTexture()));
-            sprite.setSize(w, h);
-            sprite.setOriginCenter();
-
-            pb.fixtureDef.friction *= NetDriver.FRICTION_FACTOR;
-            pb.fixtureDef.restitution *= NetDriver.RESTITUTION_FACTOR;
-            pb.bodyDef.linearDamping *= NetDriver.DAMPING_FACTOR;
-
-            entity.add(iden);
-            entity.add(pb);
-            entity.add(graphics);
         }
 
         return 0;
