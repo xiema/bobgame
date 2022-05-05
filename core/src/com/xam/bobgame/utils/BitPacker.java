@@ -83,7 +83,7 @@ public class BitPacker {
     }
 
     private long mask(int bits) {
-        return (1L << (bits + 1)) - 1L;
+        return (1L << bits) - 1L;
     }
 
     public int flush(boolean rewind) {
@@ -150,6 +150,7 @@ public class BitPacker {
 
         if (order == ByteOrder.BIG_ENDIAN) {
             if (scratchBits < packBits) getBitsB(packBits);
+//            i += (int) ((scratch >> (scratchBits - packBits)) & ((1L << (packBits + 1)) - 1));
             i += (int) (scratch >> (scratchBits - packBits));
             scratchBits -= packBits;
             scratch &= ((1L << scratchBits) - 1L);
@@ -198,27 +199,28 @@ public class BitPacker {
 
     public void packIntBits(int i, int packBits, int min) {
         int p;
-        i -= min;
+        long l = ((i - min) & 0xFFFFFFFFL);
+//        i -= min;
         if (order == ByteOrder.BIG_ENDIAN) {
             if (scratchBits + packBits <= 64) {
-                scratch = (scratch << packBits) | i;
+                scratch = (scratch << packBits) | l;
                 scratchBits += packBits;
             } else {
                 p = 64 - scratchBits;
                 scratchBits = packBits - p;
-                buffer.putLong((scratch << p) | (i >> scratchBits));
+                buffer.putLong((scratch << p) | (l >> scratchBits));
 //                message.length += 8;
-                scratch = i & mask(scratchBits);
+                scratch = l & mask(scratchBits);
             }
         } else {
             if (scratchBits + packBits <= 64) {
-                scratch |= (i & 4294967295L) << packBits;
+                scratch |= (l & 4294967295L) << packBits;
                 scratchBits += packBits;
             } else {
-                buffer.putLong(scratch | ((i & 4294967295L) << scratchBits));
+                buffer.putLong(scratch | ((l & 4294967295L) << scratchBits));
 //                message.length += 8;
                 scratchBits += packBits - 64;
-                scratch = i >> scratchBits;
+                scratch = l >> scratchBits;
             }
         }
 

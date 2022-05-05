@@ -39,6 +39,36 @@ public class BitPackerTest {
     }
 
     @Test
+    public void testRandomLimit() {
+        int count = 29;
+        int[] testInts = new int[count];
+        int[] testLimitsLower = new int[count];
+        int[] testLimitsUpper = new int[count];
+        int[] bitCounts = new int[count];
+
+        Message message = new Message(count * 4);
+        BitPacker bitPacker = new BitPacker(message.getByteBuffer());
+        for (int i = 0; i < count; ++i) {
+            long low = MathUtils.random(-(1L << 31), (1L << 31) - 1);
+            long up = MathUtils.random(low, (1L << 31) - 1);
+            long num = MathUtils.random(low, up);
+            testLimitsLower[i] = (int) (low);
+            testLimitsUpper[i] = (int) (up);
+            testInts[i] = (int) (num);
+            bitCounts[i] = bitPacker.packInt(testInts[i], testLimitsLower[i], testLimitsUpper[i]);
+        }
+
+        bitPacker.flush(true);
+        bitPacker.rewind();
+
+        for (int i = 0; i < count; ++i) {
+            int a = bitPacker.unpackInt(testLimitsLower[i], testLimitsUpper[i]);
+            System.out.println("" + i + " low=" + testLimitsLower[i] + " up=" + testLimitsUpper[i] + " count=" + bitCounts[i] + ": " + testInts[i] + " ? " + a);
+            Assertions.assertEquals(testInts[i], a);
+        }
+    }
+
+    @Test
     public void testInt1() {
         int i = 1;
         Message message = new Message(32);
@@ -252,6 +282,6 @@ public class BitPackerTest {
 //            System.out.println("" + bytes[i] + " " + ((bytes[i] & 255) << 8) + " " + (((int) bytes[i]) << 8));
 //        }
 
-        System.out.println("" + (-1 & 4294967295L) );
+        System.out.println("" + ( (int) ((1L << 32 - 1) )) );
     }
 }
