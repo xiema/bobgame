@@ -17,6 +17,15 @@ import com.xam.bobgame.net.NetDriver;
 import java.util.Arrays;
 
 public class GameEngine extends PooledEngine {
+    private static final Class<?>[] PAUSABLE_SYSTEMS = {
+            ControlSystem.class,
+            AISystem.class,
+            PickupsSystem.class,
+            PhysicsSystem.class,
+            HazardsSystem.class,
+    };
+
+
     private BoBGame game;
 
     private EventsSystem eventsSystem;
@@ -59,11 +68,9 @@ public class GameEngine extends PooledEngine {
         addSystem(new PhysicsSystem(50));
         addSystem(new HazardsSystem(60));
 
-        eventsSystem.addListeners(listeners);
-    }
+        pauseGame();
 
-    public void gameSetup() {
-        refereeSystem.setupGame();
+        eventsSystem.addListeners(listeners);
     }
 
     @Override
@@ -82,6 +89,7 @@ public class GameEngine extends PooledEngine {
             for (EntitySystem system : systems) addSystem(system);
 
             for (EntitySystem system : getSystems()) system.setProcessing(true);
+            pauseGame();
 
             eventsSystem.addListeners(listeners);
 
@@ -93,14 +101,6 @@ public class GameEngine extends PooledEngine {
         simulationTime += SIM_STEP_SIZE;
         super.update(deltaTime);
         netDriver.update2();
-//        if (netDriver.getMode() == NetDriver.Mode.Server) {
-//            netDriver.syncClients(deltaTime);
-//        }
-//        if (netDriver.getMode() == NetDriver.Mode.Server) {
-//            Entity entity = gameDirector.getEntityById(0);
-//            memCheck.pushShared(entity, currentFrame);
-//        }
-
         currentFrame++;
     }
 
@@ -111,6 +111,25 @@ public class GameEngine extends PooledEngine {
         restarting = true;
 
         for (EntitySystem system : getSystems()) system.setProcessing(false);
+    }
+
+    public void start() {
+        refereeSystem.setupGame();
+        resumeGame();
+    }
+
+    public void pauseGame() {
+        for (Class<?> clazz : PAUSABLE_SYSTEMS) {
+            //noinspection unchecked
+            getSystem((Class<? extends EntitySystem>) clazz).setProcessing(false);
+        }
+    }
+
+    public void resumeGame() {
+        for (Class<?> clazz : PAUSABLE_SYSTEMS) {
+            //noinspection unchecked
+            getSystem((Class<? extends EntitySystem>) clazz).setProcessing(true);
+        }
     }
 
     public void addInputProcessor(InputMultiplexer inputMultiplexer, final Viewport viewport) {
@@ -198,23 +217,27 @@ public class GameEngine extends PooledEngine {
         super.removeEntity(entity);
     }
 
-    public void setMode(NetDriver.Mode mode) {
-        if (mode == NetDriver.Mode.Server) {
-            netDriver.setMode(NetDriver.Mode.Server);
-            netDriver.getServer().start(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
-            refereeSystem.setEnabled(true);
-            getSystem(ControlSystem.class).setEnabled(true);
-            getSystem(ControlSystem.class).setControlFacing(true);
-            getSystem(PhysicsSystem.class).setEnabled(true);
-            getSystem(PhysicsSystem.class).setPosIterations(2);
-            getSystem(PhysicsSystem.class).setVelIterations(6);
-            getSystem(HazardsSystem.class).setEnabled(true);
-            getSystem(PickupsSystem.class).setEnabled(true);
-            gameSetup();
-        }
-        else {
-            getSystem(PhysicsSystem.class).setForceFactor(NetDriver.FORCE_FACTOR);
-        }
+    public void setupServer() {
+        refereeSystem.setEnabled(true);
+        getSystem(ControlSystem.class).setEnabled(true);
+        getSystem(ControlSystem.class).setControlFacing(true);
+        getSystem(PhysicsSystem.class).setEnabled(true);
+        getSystem(HazardsSystem.class).setEnabled(true);
+        getSystem(PickupsSystem.class).setEnabled(true);
+    }
+
+    public void setupClient() {
+        refereeSystem.setEnabled(false);
+        getSystem(ControlSystem.class).setEnabled(true);
+        getSystem(ControlSystem.class).setControlFacing(false);
+        getSystem(PhysicsSystem.class).setEnabled(false);
+        getSystem(HazardsSystem.class).setEnabled(false);
+        getSystem(PickupsSystem.class).setEnabled(false);
+//        getSystem(PhysicsSystem.class).setForceFactor(NetDriver.FORCE_FACTOR);
+    }
+
+    public NetDriver.Mode getMode() {
+        return netDriver.getMode();
     }
 
     public int getLastSnapshotFrame() {

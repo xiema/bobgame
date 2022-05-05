@@ -4,6 +4,7 @@ import com.badlogic.gdx.utils.Pool;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.events.ClientConnectedEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.events.PlayerControlEvent;
@@ -194,6 +195,10 @@ public class ConnectionManager {
             return playerId;
         }
 
+        public void setPlayerId(int playerId) {
+            this.playerId = playerId;
+        }
+
         public void transitionState(ConnectionState newState) {
             Log.info("Connection " + clientId + " transition from " + state + " to " + newState);
             this.state = newState;
@@ -267,7 +272,7 @@ public class ConnectionManager {
         ServerConnected(5) {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
-                slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine());
+                slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine(), slot.clientId);
                 return 0;
             }
 
@@ -338,6 +343,9 @@ public class ConnectionManager {
                 slot.netDriver.getClient().setHostId(slot.clientId);
                 ClientConnected.readMessage(slot, message);
                 slot.messageBuffer.syncFrameNum = message.frameNum - NetDriver.JITTER_BUFFER_SIZE;
+                ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);
+                event.clientId = slot.clientId;
+                slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
 //                slot.packetBuffer.frameOffset = message.frameNum - ((GameEngine) slot.netDriver.getEngine()).getCurrentFrame() - NetDriver.JITTER_BUFFER_SIZE;
                 return 0;
             }
@@ -356,7 +364,7 @@ public class ConnectionManager {
         ClientConnected(5) {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
-                slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine());
+                slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine(), slot.clientId);
                 return 0;
             }
 

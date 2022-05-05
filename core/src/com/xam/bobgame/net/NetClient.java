@@ -8,6 +8,7 @@ import com.esotericsoftware.kryonet.Serialization;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.events.DisconnectEvent;
 import com.xam.bobgame.events.EventsSystem;
+import com.xam.bobgame.utils.GameProfile;
 
 import java.io.IOException;
 
@@ -28,6 +29,8 @@ public class NetClient extends Client {
         try {
             connect(5000, host, NetDriver.PORT_TCP, NetDriver.PORT_UDP);
             Log.info("Connected to " + host);
+            GameProfile.lastConnectedServerAddress = host;
+            netDriver.setMode(NetDriver.Mode.Client);
             return true;
         } catch (IOException e) {
             stop();

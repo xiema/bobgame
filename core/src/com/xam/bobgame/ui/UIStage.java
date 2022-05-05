@@ -1,10 +1,13 @@
+
 package com.xam.bobgame.ui;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
@@ -21,13 +24,14 @@ import com.xam.bobgame.utils.GameProfile;
 public class UIStage extends Stage {
 
     final BoBGame game;
+    final GameEngine engine;
+    final RefereeSystem refereeSystem;
     final NetDriver netDriver;
     final Skin skin;
 
     final Label bitrateLabel;
-    final TextField serverAddressField;
-    final TextButton connectButton;
-    final TextButton disconnectButton;
+
+    final MainMenu mainMenu;
 
     final Table scoreTable;
     final ForceMeter forceMeter;
@@ -41,7 +45,9 @@ public class UIStage extends Stage {
         super(viewport, batch);
         this.game = game;
         this.skin = skin;
-        netDriver = game.getEngine().getSystem(NetDriver.class);
+        engine = game.getEngine();
+        netDriver = engine.getSystem(NetDriver.class);
+        refereeSystem = engine.getSystem(RefereeSystem.class);
 
         bitrateLabel = new Label("0", skin) {
             @Override
@@ -50,36 +56,12 @@ public class UIStage extends Stage {
                 setText(String.valueOf(netDriver.getAverageBitrate()));
             }
         };
-//        bitrateLabel.setName("bitrateLabel");
         bitrateLabel.setPosition(0, 0, Align.bottomLeft);
         addActor(bitrateLabel);
 
-        serverAddressField = new TextField(GameProfile.lastConnectedServerAddress, skin);
-        serverAddressField.setPosition(0, 500, Align.topLeft);
-        serverAddressField.setWidth(250);
-        addActor(serverAddressField);
-
-        connectButton = new TextButton("Connect", skin);
-        connectButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                if (netDriver.getClient().connect(serverAddressField.getText())) {
-                    GameProfile.lastConnectedServerAddress = serverAddressField.getText();
-                }
-            }
-        });
-        connectButton.setPosition(0, 450, Align.topLeft);
-        addActor(connectButton);
-
-        disconnectButton = new TextButton("Disconnect", skin);
-        disconnectButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                netDriver.getClient().disconnect();
-            }
-        });
-        disconnectButton.setPosition(0, 400, Align.topLeft);
-        addActor(disconnectButton);
+        mainMenu = new MainMenu(game, skin);
+        mainMenu.setPosition(0, GameProperties.WINDOW_HEIGHT, Align.topLeft);
+        addActor(mainMenu);
 
         forceMeter = new ForceMeter(skin);
         forceMeter.setPosition(GameProperties.WINDOW_WIDTH, 0, Align.bottomRight);
@@ -119,6 +101,7 @@ public class UIStage extends Stage {
                 refreshPlayerScore(event.playerId);
             }
         });
+        mainMenu.refreshElementStates();
     }
 
     private void refreshScoreBoard() {

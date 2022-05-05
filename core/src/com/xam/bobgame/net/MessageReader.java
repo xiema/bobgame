@@ -28,7 +28,7 @@ import com.xam.bobgame.utils.BitPacker;
 public class MessageReader {
 
     private BitPacker builder = new BitPacker();
-    private Engine engine;
+    private GameEngine engine;
 
     private MessageInfo[] messageInfos = new MessageInfo[NetDriver.MAX_MESSAGE_HISTORY];
     private int messageIdCounter = 0;
@@ -102,8 +102,8 @@ public class MessageReader {
         return messageInfos[messageId % messageInfos.length];
     }
 
-    public int deserialize(Message message, Engine engine) {
-        this.engine = engine;
+    public int deserialize(Message message, Engine engine, int clientId) {
+        this.engine = (GameEngine) engine;
         builder.setBuffer(message.getByteBuffer());
         send = false;
 
@@ -111,10 +111,11 @@ public class MessageReader {
 
         switch (message.getType()) {
             case Update:
-                if (((GameEngine) engine).getLastSnapshotFrame() == -1) {
+                if (engine.getSystem(NetDriver.class).getMode() == NetDriver.Mode.Client && this.engine.getLastSnapshotFrame() == -1) {
                     Log.info("Got " + message + " Waiting for snapshot");
                     return -1;
                 }
+                // TODO: Server should only receive Event types
                 while (entryCount-- > 0) {
                     Message.UpdateType updateType = Message.UpdateType.values()[readInt(-1, 0, Message.UpdateType.values().length - 1)];
                     switch (updateType) {
@@ -122,7 +123,7 @@ public class MessageReader {
                             readSystemUpdate();
                             break;
                         case Event:
-                            readEvent();
+                            readEvent(clientId);
                             break;
                     }
                     if (entryCount > 0) {
@@ -132,11 +133,10 @@ public class MessageReader {
                 break;
             case Snapshot:
                 readSystemSnapshot();
-                if (readPlayerId(null) == -1) return -1;
                 ((GameEngine) engine).setLastSnapshotFrame();
                 break;
             case Input:
-                readEvent();
+                readEvent(clientId);
                 break;
             case Empty:
                 // empty
@@ -149,7 +149,7 @@ public class MessageReader {
     }
 
     public int serialize(Message message, Engine engine, Message.MessageType type, ConnectionManager.ConnectionSlot connectionSlot) {
-        this.engine = engine;
+        this.engine = (GameEngine) engine;
         builder.setBuffer(message.getByteBuffer());
         send = true;
 
@@ -176,7 +176,7 @@ public class MessageReader {
     }
 
     public int serializeInput(Message message, Engine engine, PlayerControlEvent event) {
-        this.engine = engine;
+        this.engine = (GameEngine) engine;
         builder.setBuffer(message.getByteBuffer());
         send = true;
 
@@ -193,7 +193,7 @@ public class MessageReader {
     }
 
     public int serializeEvent(Message message, Engine engine, NetDriver.NetworkEvent event) {
-        this.engine = engine;
+        this.engine = (GameEngine) engine;
         builder.setBuffer(message.getByteBuffer());
         send = true;
 
@@ -216,13 +216,14 @@ public class MessageReader {
         return 0;
     }
 
-    public int readEvent() {
+    private int readEvent(int clientId) {
         int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);
         //noinspection unchecked
         NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
         event.read(builder, engine, false);
 
         if (!send) {
+            event.clientId = clientId;
             engine.getSystem(EventsSystem.class).queueEvent(event);
         }
 

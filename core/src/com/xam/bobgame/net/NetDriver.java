@@ -83,6 +83,7 @@ public class NetDriver extends EntitySystem {
             EntityCreatedEvent.class,
             EntityDespawnedEvent.class,
             PlayerDeathEvent.class,
+            RequestJoinEvent.class,
     };
 
     public static int getNetworkEventIndex(Class<? extends NetworkEvent> clazz) {
@@ -213,6 +214,12 @@ public class NetDriver extends EntitySystem {
 
     public void setMode(Mode mode) {
         this.mode = mode;
+        if (mode == Mode.Server) {
+            ((GameEngine) getEngine()).setupServer();
+        }
+        else {
+            ((GameEngine) getEngine()).setupClient();
+        }
     }
 
     public Mode getMode() {
@@ -223,8 +230,25 @@ public class NetDriver extends EntitySystem {
         return mode == Mode.Server ? server : null;
     }
 
+    public boolean startServer() {
+        server.start();
+        return server.isRunning();
+    }
+
     public NetClient getClient() {
         return mode == Mode.Client ? client : null;
+    }
+
+    public boolean connectToServer(String hostAddress) {
+        return client.connect(hostAddress);
+    }
+
+    public boolean isServerRunning() {
+        return mode == Mode.Server && server.isRunning();
+    }
+
+    public boolean isClientConnected() {
+        return mode == Mode.Client && client.isConnected();
     }
 
     public ConnectionManager getConnectionManager() {
@@ -248,6 +272,8 @@ public class NetDriver extends EntitySystem {
     }
 
     public static class  NetworkEvent implements GameEvent {
+
+        public int clientId = -1;
 
         protected int readInt(BitPacker packer, int i, int min, int max, boolean send) {
             if (send) {
@@ -294,12 +320,13 @@ public class NetDriver extends EntitySystem {
         }
 
         public NetworkEvent copyTo(NetworkEvent event) {
+            event.clientId = clientId;
             return event;
         }
 
         @Override
         public void reset() {
-
+            clientId = -1;
         }
     }
 
@@ -339,7 +366,7 @@ public class NetDriver extends EntitySystem {
                 int clientId = connectionManager.getClientId(connection);
                 if (clientId != -1) {
                     if (returnPacket.decode(byteBuffer) != -1) {
-            //            Log.info("Received Packet " + returnPacket.localSeqNum + ": " + returnPacket.getMessage());
+//                        Log.info("Received Packet " + returnPacket.localSeqNum + ": " + returnPacket.getMessage());
                         synchronized (transport) {
                             if (!transport.updateReceived(returnPacket, clientId)) {
                                 r = returnPacket;

@@ -23,9 +23,8 @@ import com.xam.bobgame.utils.HeadlessCommandRunnable;
 import java.util.Map;
 
 public class BoBGame extends ApplicationAdapter {
-	int mode = 0;
-
 	static boolean headless = false;
+	static boolean devMode = false;
 
 	GameEngine engine;
 	NetDriver netDriver;
@@ -51,13 +50,8 @@ public class BoBGame extends ApplicationAdapter {
 
 	public BoBGame(Map<String, String> runArgs) {
 		if (runArgs != null) {
-			if (runArgs.containsKey("server")) {
-				mode = 1;
-			}
-			else if (runArgs.containsKey("client")) {
-				mode = 2;
-			}
 			headless = runArgs.containsKey("headless");
+			devMode = runArgs.containsKey("devMode");
 		}
 	}
 	
@@ -67,6 +61,7 @@ public class BoBGame extends ApplicationAdapter {
 		gameDefinitions = new GameDefinitions();
 		gameDefinitions.createDefinitions(false);
 		engine.initialize();
+		netDriver = engine.getSystem(NetDriver.class);
 
 		GameProfile.load();
 
@@ -84,17 +79,16 @@ public class BoBGame extends ApplicationAdapter {
 			uiStage = new UIStage(this, uiViewport, batch, skin);
 			uiStage.initialize(engine);
 
-			devTools = new DevTools(this);
-			devTools.loadUI();
+			if (devMode) {
+				devTools = new DevTools(this);
+				devTools.loadUI();
+			}
 		}
 		else {
 			headlessCommandThread = new Thread(new HeadlessCommandRunnable(this));
 			headlessCommandThread.start();
+			netDriver.startServer();
 		}
-
-		netDriver = engine.getSystem(NetDriver.class);
-
-		engine.setMode(mode == 1 ? NetDriver.Mode.Server : NetDriver.Mode.Client);
 	}
 
 	@Override
@@ -111,20 +105,20 @@ public class BoBGame extends ApplicationAdapter {
 			uiViewport.apply(true);
 			uiStage.draw();
 
-			devTools.render(GameProperties.SIMULATION_UPDATE_INTERVAL);
+			if (devMode) devTools.render(GameProperties.SIMULATION_UPDATE_INTERVAL);
 		}
 	}
 
 	@Override
 	public void resize(int width, int height) {
 		viewport.update(width, height);
-		devTools.resize(width, height);
+		if (devMode) devTools.resize(width, height);
 	}
 
 	@Override
 	public void dispose () {
 		GameProfile.save();
-		devTools.saveSettings();
+		if (devMode) devTools.saveSettings();
 		batch.dispose();
 		netDriver.stop();
 		if (headlessCommandThread != null) headlessCommandThread.interrupt();
