@@ -26,6 +26,8 @@ import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.DebugUtils;
 import com.xam.bobgame.utils.MathUtils2;
 
+import java.util.Arrays;
+
 public class PhysicsSystem extends EntitySystem {
     public static final float SIM_UPDATE_STEP = 1f / 60f;
 
@@ -138,10 +140,14 @@ public class PhysicsSystem extends EntitySystem {
 
     @Override
     public void removedFromEngine(Engine engine) {
+        // TODO: dispose walls?
         world.dispose();
         world = null;
+        wallBodies = null;
+        wallSprites = null;
         entities = null;
         gravFieldEntities = null;
+
         EntityUtils.removeEntityListeners(engine, entityListeners);
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);

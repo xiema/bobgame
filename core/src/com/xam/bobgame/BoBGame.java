@@ -3,20 +3,18 @@ package com.xam.bobgame;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
-import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.utils.ScreenUtils;
-import com.badlogic.gdx.utils.XmlReader;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.definitions.GameDefinitions;
 import com.xam.bobgame.dev.DevTools;
 import com.xam.bobgame.graphics.GraphicsRenderer;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.ui.UIStage;
-import com.xam.bobgame.utils.DebugUtils;
 import com.xam.bobgame.utils.GameProfile;
 import com.xam.bobgame.utils.HeadlessCommandRunnable;
 
@@ -52,6 +50,9 @@ public class BoBGame extends ApplicationAdapter {
 		if (runArgs != null) {
 			headless = runArgs.containsKey("headless");
 			devMode = runArgs.containsKey("devMode");
+		}
+		if (devMode) {
+			Log.set(Log.LEVEL_DEBUG);
 		}
 	}
 	

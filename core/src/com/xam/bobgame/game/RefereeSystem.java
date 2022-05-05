@@ -30,6 +30,7 @@ public class RefereeSystem extends EntitySystem {
     };
 
     private int playerCount = 0;
+    private int localPlayerId = -1;
 
     private final boolean[] playerExists = new boolean[NetDriver.MAX_CLIENTS];
     private final int[] playerControlMap = new int[NetDriver.MAX_CLIENTS];
@@ -53,6 +54,12 @@ public class RefereeSystem extends EntitySystem {
                 else {
                     ((GameEngine) getEngine()).resumeGame();
                 }
+            }
+        });
+        listeners.put(ClientDisconnectedEvent.class, new EventListenerAdapter<ClientDisconnectedEvent>() {
+            @Override
+            public void handleEvent(ClientDisconnectedEvent event) {
+                removePlayer(event.playerId);
             }
         });
         listeners.put(PlayerDeathEvent.class, new EventListenerAdapter<PlayerDeathEvent>() {
@@ -91,9 +98,7 @@ public class RefereeSystem extends EntitySystem {
     public void addedToEngine(Engine engine) {
         EntityUtils.addEntityListeners(engine, entityListeners);
         engine.getSystem(EventsSystem.class).addListeners(listeners);
-        Arrays.fill(playerControlMap, -1);
-        Arrays.fill(playerScores, 0);
-        Arrays.fill(playerRespawnTime, 0);
+        reset();
     }
 
     @Override
@@ -101,7 +106,17 @@ public class RefereeSystem extends EntitySystem {
         EntityUtils.removeEntityListeners(engine, entityListeners);
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);
+        reset();
+    }
+
+    private void reset() {
+        Arrays.fill(playerExists, false);
+        Arrays.fill(playerControlMap, -1);
+        Arrays.fill(playerScores, 0);
+        Arrays.fill(playerRespawnTime, 0);
+        playerCount = 0;
         matchStarted = false;
+        localPlayerId = -1;
     }
 
     @Override
@@ -113,7 +128,6 @@ public class RefereeSystem extends EntitySystem {
         }
     }
 
-    private int localPlayerId = -1;
 
     public boolean isMatchStarted() {
         return matchStarted;
@@ -170,10 +184,23 @@ public class RefereeSystem extends EntitySystem {
         }
     }
 
+    private int getEmptyPlayerSlot() {
+        for (int i = 0; i < playerExists.length; ++i) {
+            if (!playerExists[i]) return i;
+        }
+        return -1;
+    }
+
     public void joinPlayer(int clientId) {
         GameEngine engine = (GameEngine) getEngine();
         NetDriver netDriver = engine.getSystem(NetDriver.class);
-        int playerId = playerCount;
+
+        int playerId = getEmptyPlayerSlot();
+        if (playerId == -1) {
+            Log.info("Too many players");
+            return;
+        }
+
         playerExists[playerId] = true;
         playerCount++;
 
@@ -187,7 +214,7 @@ public class RefereeSystem extends EntitySystem {
             ConnectionManager connectionManager = netDriver.getConnectionManager();
             connectionManager.getConnectionSlot(clientId).setPlayerId(playerId);
             connectionManager.acceptConnection(clientId);
-            Log.info("Player " + playerId + " joined in slot " + clientId);
+            Log.info("Client " + clientId + " joined as Player " + playerId);
             PlayerAssignEvent assignEvent = Pools.obtain(PlayerAssignEvent.class);
             assignEvent.playerId = playerId;
             netDriver.queueClientEvent(clientId, assignEvent, false);
@@ -199,6 +226,20 @@ public class RefereeSystem extends EntitySystem {
         engine.getSystem(EventsSystem.class).triggerEvent(joinedEvent);
 
         return;
+    }
+
+    public void removePlayer(int playerId) {
+        GameEngine engine = (GameEngine) getEngine();
+        Entity entity = engine.getEntityById(playerControlMap[playerId]);
+        if (entity != null) engine.removeEntity(entity);
+        playerExists[playerId] = false;
+        playerControlMap[playerId] = -1;
+        playerRespawnTime[playerId] = 0;
+        playerScores[playerId] = 0;
+
+        Log.info("Player " + playerId + "removed");
+
+        playerCount--;
     }
 
     private Entity spawnPlayerBall(int playerId) {

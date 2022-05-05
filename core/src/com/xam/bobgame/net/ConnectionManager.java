@@ -6,6 +6,7 @@ import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.events.ClientConnectedEvent;
+import com.xam.bobgame.events.ClientDisconnectedEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.events.PlayerControlEvent;
 import com.xam.bobgame.utils.Bits2;
@@ -200,7 +201,7 @@ public class ConnectionManager {
         }
 
         public void transitionState(ConnectionState newState) {
-            Log.info("Connection " + clientId + " transition from " + state + " to " + newState);
+            Log.debug("Connection " + clientId + " transition from " + state + " to " + newState);
             this.state = newState;
             t = 0;
         }
@@ -254,6 +255,7 @@ public class ConnectionManager {
             @Override
             int read(ConnectionSlot slot, Packet in) {
                 if (in.type == Packet.PacketType.ConnectionChallengeResponse) {
+                    Log.info("Host " + slot.hostAddress + " connected as Client " + slot.clientId);
                     ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);
                     event.clientId = slot.clientId;
                     slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
@@ -279,6 +281,11 @@ public class ConnectionManager {
             @Override
             int read(ConnectionSlot slot, Packet in) {
                 if (in.type == Packet.PacketType.Disconnect) {
+                    Log.info("Client " + slot.clientId + " (" + slot.hostAddress + ") disconnected");
+                    ClientDisconnectedEvent event = Pools.obtain(ClientDisconnectedEvent.class);
+                    event.clientId = slot.clientId;
+                    event.playerId = slot.playerId;
+                    slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
                     slot.netDriver.connectionManager.removeConnection(slot.clientId);
                 }
 //                return readData(slot, in);

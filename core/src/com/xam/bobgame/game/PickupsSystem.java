@@ -108,6 +108,7 @@ public class PickupsSystem extends EntitySystem {
             engine.removeEntityListener(entry.value);
         }
         pickupEntities = null;
+        pickupIds.clear();
     }
 
     private float timer = 0;

@@ -45,6 +45,7 @@ public class ControlSystem extends EntitySystem {
     public void addedToEngine(Engine engine) {
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         eventsSystem.addListeners(listeners);
+        for (Vector2 vec : mousePositions) vec.setZero();
         Arrays.fill(buttonHoldDurations, -1);
         Arrays.fill(buttonStates, false);
     }
@@ -84,12 +85,12 @@ public class ControlSystem extends EntitySystem {
 
     private void control(int controlId, int entityId, float x, float y, int buttonId, boolean buttonState) {
         if (controlId < 0 || controlId >= NetDriver.MAX_CLIENTS) {
-            Log.error("ControlSystem", "Invalid controlId: " + controlId);
+            Log.debug("ControlSystem", "Invalid controlId: " + controlId);
             return;
         }
         Entity entity = ((GameEngine) getEngine()).getEntityById(entityId);
         if (entity == null) {
-            Log.error("ControlSystem", "Invalid entityId: " + entityId);
+            Log.debug("ControlSystem", "Invalid entityId: " + entityId);
             return;
         }
 

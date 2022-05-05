@@ -28,7 +28,6 @@ public class NetClient extends Client {
         start();
         try {
             connect(5000, host, NetDriver.PORT_TCP, NetDriver.PORT_UDP);
-            Log.info("Connected to " + host);
             GameProfile.lastConnectedServerAddress = host;
             netDriver.setMode(NetDriver.Mode.Client);
             return true;

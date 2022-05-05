@@ -59,7 +59,7 @@ public class UIStage extends Stage {
         bitrateLabel.setPosition(0, 0, Align.bottomLeft);
         addActor(bitrateLabel);
 
-        mainMenu = new MainMenu(game, skin);
+        mainMenu = new MainMenu(skin);
         mainMenu.setPosition(0, GameProperties.WINDOW_HEIGHT, Align.topLeft);
         addActor(mainMenu);
 
@@ -101,6 +101,7 @@ public class UIStage extends Stage {
                 refreshPlayerScore(event.playerId);
             }
         });
+        mainMenu.initialize(engine);
         mainMenu.refreshElementStates();
     }
 

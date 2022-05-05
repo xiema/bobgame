@@ -6,19 +6,20 @@ import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.ObjectMap;
 import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
+import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.GameProfile;
 
 public class MainMenu extends Table {
 
-    final BoBGame game;
-    final GameEngine engine;
-    final RefereeSystem refereeSystem;
-    final NetDriver netDriver;
+    GameEngine engine;
+    RefereeSystem refereeSystem;
+    NetDriver netDriver;
     final Skin skin;
 
     final Cell<?> joinCell;
@@ -33,12 +34,10 @@ public class MainMenu extends Table {
     final TextButton startServerButton;
     final TextButton stopServerButton;
 
-    public MainMenu(BoBGame game, Skin skin) {
-        this.game = game;
+    private final ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
+
+    public MainMenu(Skin skin) {
         this.skin = skin;
-        engine = game.getEngine();
-        refereeSystem = engine.getSystem(RefereeSystem.class);
-        netDriver = engine.getSystem(NetDriver.class);
 
         serverAddressField = new TextField(GameProfile.lastConnectedServerAddress, skin);
 
@@ -106,6 +105,21 @@ public class MainMenu extends Table {
         row();
         serverCell = add(startServerButton);
         setSize(getPrefWidth(), getPrefHeight());
+
+        listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
+            @Override
+            public void handleEvent(PlayerAssignEvent event) {
+                refreshElementStates();
+            }
+        });
+    }
+
+    void initialize(GameEngine engine) {
+        this.engine = engine;
+        refereeSystem = engine.getSystem(RefereeSystem.class);
+        netDriver = engine.getSystem(NetDriver.class);
+
+        engine.getSystem(EventsSystem.class).addListeners(listeners);
     }
 
     void refreshElementStates() {

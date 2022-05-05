@@ -93,7 +93,7 @@ public class MessageReader {
 
     public void setMessageInfo(Message message) {
         message.messageId = messageIdCounter;
-        message.frameNum = ((GameEngine) engine).getCurrentFrame();
+        message.frameNum = engine.getCurrentFrame();
         messageInfos[messageIdCounter % messageInfos.length].set(message);
         messageIdCounter++;
     }
@@ -259,15 +259,15 @@ public class MessageReader {
     }
 
     private int readSystemUpdate() {
-        IntMap<Entity> entityMap = ((GameEngine) engine).getEntityMap();
-        IntArray sortedEntityIds = ((GameEngine) engine).getSortedEntityIds();
+        IntMap<Entity> entityMap = engine.getEntityMap();
+        IntArray sortedEntityIds = engine.getSortedEntityIds();
 
         int cnt = readInt(sortedEntityIds.size, 0, NetDriver.MAX_ENTITY_ID);
         for (int i = 0; i < cnt; ++i) {
             int entityId = readInt(send ? sortedEntityIds.get(i) : -1, 0, NetDriver.MAX_ENTITY_ID);
             Entity entity = entityMap.get(entityId, null);
             if (entity == null) {
-                Log.warn("Unable to update state of entity " + entityId);
+                Log.debug("Unable to update state of entity " + entityId);
             }
             readPhysicsBody(entity == null ? null : ComponentMappers.physicsBody.get(entity));
         }

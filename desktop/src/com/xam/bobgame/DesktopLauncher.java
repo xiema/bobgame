@@ -29,6 +29,9 @@ public class DesktopLauncher {
 				case "-c":
 					runArgs.put("client", "");
 					break;
+				case "--devmode":
+					runArgs.put("devmode", "");
+					break;
 			}
 			i++;
 		}

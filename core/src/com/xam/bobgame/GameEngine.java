@@ -81,7 +81,7 @@ public class GameEngine extends PooledEngine {
             removeSystem(eventsSystem);
             removeSystem(refereeSystem);
             for (EntitySystem system : getSystems()) systems.add(system);
-            Log.info("All systems removed");
+//            Log.info("All systems removed");
 
             addSystem(netDriver);
             addSystem(eventsSystem);
