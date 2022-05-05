@@ -2,21 +2,28 @@ package com.xam.bobgame.game;
 
 import com.badlogic.ashley.core.*;
 import com.badlogic.ashley.utils.ImmutableArray;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
-import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.GravitationalFieldComponent;
 import com.xam.bobgame.components.HazardComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
+import com.xam.bobgame.definitions.MapDefinition;
 import com.xam.bobgame.entity.ComponentMappers;
+import com.xam.bobgame.entity.EntityType;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.graphics.TextureDef;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.DebugUtils;
 import com.xam.bobgame.utils.MathUtils2;
@@ -28,7 +35,8 @@ public class PhysicsSystem extends EntitySystem {
     private ImmutableArray<Entity> gravFieldEntities;
 
     private World world;
-    private Body[] walls = new Body[4];
+    private Body[] wallBodies;
+    private Sprite[] wallSprites;
     private boolean enabled = false;
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
@@ -42,8 +50,12 @@ public class PhysicsSystem extends EntitySystem {
     private int velIterations = 6, posIterations = 2;
     private float simUpdateStep = SIM_UPDATE_STEP;
 
+    private Filter nullFilter = new Filter();
+
     public PhysicsSystem(int priority) {
         super(priority);
+
+        nullFilter.maskBits = 0;
 
         listeners.put(ButtonReleaseEvent.class, new EventListenerAdapter<ButtonReleaseEvent>() {
             @Override
@@ -93,6 +105,7 @@ public class PhysicsSystem extends EntitySystem {
                 fd.isSensor = true;
                 fd.shape = new CircleShape();
                 fd.shape.setRadius(gravField.radius);
+                fd.filter.categoryBits = 8;
                 gravField.fixture = physicsBody.body.createFixture(fd);
                 gravField.fixture.setUserData(new FixtureData(entity, true));
                 fd.shape.dispose();
@@ -114,7 +127,9 @@ public class PhysicsSystem extends EntitySystem {
     public void addedToEngine(Engine engine) {
         world = new World(new Vector2(0, 0), true);
         world.setContactListener(contactListener);
-        createWalls();
+
+        MapDefinition mapDefinition = ((GameEngine) engine).getGameDefinitions().getDefinition("0", MapDefinition.class);
+        createWalls(mapDefinition);
 
         entities = engine.getEntitiesFor(Family.all(PhysicsBodyComponent.class).get());
         gravFieldEntities = engine.getEntitiesFor(Family.all(GravitationalFieldComponent.class).get());
@@ -140,12 +155,10 @@ public class PhysicsSystem extends EntitySystem {
 
     @Override
     public void update(float deltaTime) {
-        if (enabled) {
-            for (Entity entity : gravFieldEntities) {
-                GravitationalFieldComponent gravField = ComponentMappers.gravFields.get(entity);
-                for (Entity entity2 : gravField.affectedEntities) {
-                    applyGravity(entity, entity2);
-                }
+        for (Entity entity : gravFieldEntities) {
+            GravitationalFieldComponent gravField = ComponentMappers.gravFields.get(entity);
+            for (Entity entity2 : gravField.affectedEntities) {
+                applyGravity(entity, entity2);
             }
         }
 
@@ -153,35 +166,47 @@ public class PhysicsSystem extends EntitySystem {
         quantizePhysics();
     }
 
-    private void createWalls() {
+    private void createWalls(MapDefinition mapDefinition) {
         BodyDef bodyDef = new BodyDef();
         PolygonShape shape = new PolygonShape();
 
-        // bottom
-        bodyDef.position.set(GameProperties.MAP_WIDTH * 0.5f, 0);
-        shape.setAsBox(GameProperties.MAP_WIDTH, 0.5f);
-        walls[0] = world.createBody(bodyDef);
-        walls[0].createFixture(shape, 0);
+        wallBodies = new Body[mapDefinition.walls.size()];
+        wallSprites = new Sprite[mapDefinition.walls.size()];
 
-        // left
-        bodyDef.position.set(0, GameProperties.MAP_HEIGHT * 0.5f);
-        shape.setAsBox(0.5f, GameProperties.MAP_HEIGHT);
-        walls[1] = world.createBody(bodyDef);
-        walls[1].createFixture(shape, 0);
+        for (int i = 0; i < mapDefinition.walls.size(); ++i) {
+            MapDefinition.Wall wall = mapDefinition.walls.get(i);
+            bodyDef.position.set(wall.x, wall.y);
+            shape.setAsBox(wall.w, wall.h);
 
-        // top
-        bodyDef.position.set(GameProperties.MAP_WIDTH * 0.5f, GameProperties.MAP_HEIGHT);
-        shape.setAsBox(GameProperties.MAP_WIDTH, 0.5f);
-        walls[2] = world.createBody(bodyDef);
-        walls[2].createFixture(shape, 0);
+            wallBodies[i] = world.createBody(bodyDef);
+            FixtureDef fixtureDef = new FixtureDef();
+            fixtureDef.shape = shape;
+            fixtureDef.density = 0;
+            fixtureDef.filter.categoryBits = 4;
+            wallBodies[i].createFixture(fixtureDef);
 
-        // right
-        bodyDef.position.set(GameProperties.MAP_WIDTH, GameProperties.MAP_HEIGHT * 0.5f);
-        shape.setAsBox(0.5f, GameProperties.MAP_HEIGHT);
-        walls[3] = world.createBody(bodyDef);
-        walls[3].createFixture(shape, 0);
+            if (!BoBGame.isHeadless()) {
+                TextureDef textureDef = new TextureDef();
+                textureDef.wh = 32;
+                textureDef.type = TextureDef.TextureType.Wall;
+                textureDef.color.set(Color.LIGHT_GRAY);
+                textureDef.textureVal1 = 32;
+                textureDef.textureVal2 = 32;
+                Texture texture = textureDef.createTexture();
+                Sprite sprite = new Sprite(new TextureRegion(texture));
+                sprite.setSize(wall.w, wall.h);
+                sprite.setOriginCenter();
+                sprite.setOriginBasedPosition(wall.x, wall.y);
+    //            sprite.setPosition(wall.x, wall.y);
+                wallSprites[i] = sprite;
+            }
+        }
 
         shape.dispose();
+    }
+
+    public Sprite[] getWallSprites() {
+        return wallSprites;
     }
 
     public void clearForces() {
@@ -263,6 +288,7 @@ public class PhysicsSystem extends EntitySystem {
     };
 
     private ContactListener contactListener = new ContactListener() {
+
         @Override
         public void beginContact(Contact contact) {
             Object ud1 = contact.getFixtureA().getUserData();
@@ -277,18 +303,14 @@ public class PhysicsSystem extends EntitySystem {
                 ComponentMappers.gravFields.get(fd2.entity).affectedEntities.add(fd1.entity);
             }
             else {
-                HazardComponent hazard1 = ComponentMappers.hazards.get(fd1.entity);
-                HazardComponent hazard2 = ComponentMappers.hazards.get(fd2.entity);
-                HazardContactEvent event = null;
-                if (hazard1 != null && hazard2 == null) {
-                    event = Pools.obtain(HazardContactEvent.class);
-                    event.entity = fd2.entity;
-                    event.hazard = fd1.entity;
-                }
-                else if (hazard2 != null && hazard1 == null) {
-                    event = Pools.obtain(HazardContactEvent.class);
-                    event.entity = fd1.entity;
-                    event.hazard = fd2.entity;
+                EntityType type1 = ComponentMappers.identity.get(fd1.entity).type;
+                EntityType type2 = ComponentMappers.identity.get(fd2.entity).type;
+                GameEvent event = null;
+                if (type1 == EntityType.Hazard && type2 == EntityType.Player) {
+                    HazardContactEvent hazardEvent = Pools.obtain(HazardContactEvent.class);
+                    hazardEvent.entity = fd2.entity;
+                    hazardEvent.hazard = fd1.entity;
+                    event = hazardEvent;
                 }
                 if (event != null) {
                     getEngine().getSystem(EventsSystem.class).queueEvent(event);
@@ -313,7 +335,35 @@ public class PhysicsSystem extends EntitySystem {
 
         @Override
         public void preSolve(Contact contact, Manifold oldManifold) {
-
+            Fixture f1 = contact.getFixtureA();
+            Fixture f2 = contact.getFixtureB();
+            Object ud1 = f1.getUserData();
+            Object ud2 = f2.getUserData();
+            FixtureData fd1 = ud1 == null ? null : (FixtureData) ud1;
+            FixtureData fd2 = ud2 == null ? null : (FixtureData) ud2;
+            if (fd1 == null || fd2 == null) return;
+            EntityType type1 = ComponentMappers.identity.get(fd1.entity).type;
+            EntityType type2 = ComponentMappers.identity.get(fd2.entity).type;
+            GameEvent event = null;
+            if (type2 == EntityType.Pickup && type1 != EntityType.Pickup) {
+                PickupContactEvent pickupEvent = Pools.obtain(PickupContactEvent.class);
+                pickupEvent.entity = fd1.entity;
+                pickupEvent.pickup = fd2.entity;
+                event = pickupEvent;
+                f2.setFilterData(nullFilter);
+                contact.setEnabled(false);
+            }
+            else if (type1 == EntityType.Pickup && type2 != EntityType.Pickup) {
+                PickupContactEvent pickupEvent = Pools.obtain(PickupContactEvent.class);
+                pickupEvent.entity = fd2.entity;
+                pickupEvent.pickup = fd1.entity;
+                event = pickupEvent;
+                f1.setFilterData(nullFilter);
+                contact.setEnabled(false);
+            }
+            if (event != null) {
+                getEngine().getSystem(EventsSystem.class).queueEvent(event);
+            }
         }
 
         @Override

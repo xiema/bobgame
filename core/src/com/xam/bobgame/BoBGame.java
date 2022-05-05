@@ -11,6 +11,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.XmlReader;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import com.xam.bobgame.definitions.GameDefinitions;
 import com.xam.bobgame.dev.DevTools;
 import com.xam.bobgame.graphics.GraphicsRenderer;
 import com.xam.bobgame.net.NetDriver;
@@ -26,11 +27,13 @@ public class BoBGame extends ApplicationAdapter {
 
 	static boolean headless = false;
 
-	SpriteBatch batch;
 	GameEngine engine;
+	NetDriver netDriver;
+	GameDefinitions gameDefinitions;
+
+	SpriteBatch batch;
 	GraphicsRenderer renderer;
 	Viewport viewport;
-	NetDriver netDriver;
 	Stage stage;
 
 	UIStage uiStage;
@@ -61,6 +64,8 @@ public class BoBGame extends ApplicationAdapter {
 	@Override
 	public void create () {
 		engine = new GameEngine(this);
+		gameDefinitions = new GameDefinitions();
+		gameDefinitions.createDefinitions(false);
 		engine.initialize();
 
 		GameProfile.load();

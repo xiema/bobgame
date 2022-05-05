@@ -21,6 +21,8 @@ public class AIArrive<T extends Vector<T>> extends Arrive<T> {
 
     protected T offset;
 
+    private Location<T> tempLoc;
+
     @SuppressWarnings("unchecked")
     public void set(AIComponent ai, Steerable<T> steerable) {
         setOwner(steerable);
@@ -31,6 +33,7 @@ public class AIArrive<T extends Vector<T>> extends Arrive<T> {
         if (offset == null) {
             offset = (T) steerable.newLocation().getPosition();
         }
+        tempLoc = owner.newLocation();
     }
 
     public void setOffset(T offset) {
@@ -106,6 +109,41 @@ public class AIArrive<T extends Vector<T>> extends Arrive<T> {
 //        return steering;
 //    }
 
+    protected SteeringAcceleration<T> pursue(SteeringAcceleration<T> steering, T targetPosition) {
+        float maxAccel = getLimiter().getMaxLinearAcceleration();
+        float maxVel= getLimiter().getMaxLinearSpeed();
+        T disp = steering.linear.set(targetPosition).sub(getOwner().getPosition());
+
+        T vel = getOwner().getLinearVelocity();
+        float dot = disp.dot(vel);
+        if (dot <= 0) {
+            return steer(steering, targetPosition);
+        }
+
+        float dist = disp.len();
+        float spd = maxVel;
+
+        float sinj = (float) Math.sin(dot / (dist * spd));
+        float r = dist / (2 * sinj);
+        float reqAccel = Math.min(maxAccel, Math.abs((r * spd / (2 - r))));
+
+        T dir = tempLoc.getPosition();
+        dir.set(vel).scl(-dot / vel.dot(vel)).add(disp).nor();
+        if (disp.dot(dir) * disp.dot(vel) < 0) {
+            dir.scl(-reqAccel);
+        }
+        else {
+            dir.scl(reqAccel);
+        }
+
+        float q = (float) Math.sqrt(Math.abs(spd / 2 - r));
+
+        float remAccel = reqAccel == maxAccel ? 0 : (float) Math.sqrt(maxAccel * maxAccel - reqAccel * reqAccel);
+        steering.linear.set(vel).nor().scl(spd).sub(vel).scl(1 / GameProperties.SIMULATION_UPDATE_INTERVAL).limit(remAccel).add(dir);
+
+        return steering;
+    }
+
     protected SteeringAcceleration<T> steer(SteeringAcceleration<T> steering, T targetPosition) {
         T vel = getOwner().getLinearVelocity();
         T dir = steering.linear.set(targetPosition).sub(owner.getPosition());
@@ -115,7 +153,7 @@ public class AIArrive<T extends Vector<T>> extends Arrive<T> {
         float maxAccel = getLimiter().getMaxLinearAcceleration();
         float projMagnitude = vel.dot(dir);
 
-        T rej = getOwner().newLocation().getPosition();
+        T rej = tempLoc.getPosition();
         rej.set(dir).scl(-projMagnitude).add(vel);
         float rejMagnitude = rej.len();
 
@@ -166,7 +204,8 @@ public class AIArrive<T extends Vector<T>> extends Arrive<T> {
 //            arrive(steering, targetPosition);
 //            if (steering.linear.len2() < getLimiter().getZeroLinearSpeedThreshold()) steering.linear.setZero();
 //        }
-        steer(steering, targetPosition);
+//        steer(steering, targetPosition);
+        pursue(steering, targetPosition);
         return steering;
     }
 }

@@ -8,10 +8,6 @@ import com.badlogic.gdx.ai.utils.random.IntegerDistribution;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pool;
 import com.badlogic.gdx.utils.Pools;
-import com.badlogic.gdx.utils.reflect.ClassReflection;
-import com.badlogic.gdx.utils.reflect.Field;
-import com.badlogic.gdx.utils.reflect.ReflectionException;
-import com.xam.bobgame.GameDefinitions;
 
 import java.util.StringTokenizer;
 

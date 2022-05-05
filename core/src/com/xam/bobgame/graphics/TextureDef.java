@@ -9,6 +9,7 @@ public class TextureDef {
     public TextureType type = TextureType.PlayerBall;
     public int wh;
     public int textureVal1;
+    public int textureVal2;
     public Color color = new Color();
 
     public Texture createTexture() {
@@ -39,7 +40,19 @@ public class TextureDef {
                 pmap.dispose();
                 return tx;
             }
-        };
+        },
+        Wall(2) {
+            @Override
+            Texture createTexture(TextureDef textureDef) {
+                Pixmap pmap = new Pixmap(textureDef.wh, textureDef.wh, Pixmap.Format.RGBA8888);
+                pmap.setColor(textureDef.color);
+                pmap.fillRectangle((textureDef.wh - textureDef.textureVal1) / 2, (textureDef.wh - textureDef.textureVal2) / 2, textureDef.textureVal1, textureDef.textureVal2);
+                Texture tx = new Texture(pmap);
+                pmap.dispose();
+                return tx;
+            }
+        },
+        ;
 
         private int value;
 

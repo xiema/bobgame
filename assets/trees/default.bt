@@ -1,5 +1,10 @@
 root
-    selector
-        dynamicGuardSelector
-            (timer seconds:2) success
-            setTargetPosition x:"uniform,2,18" y:"uniform,2,18"
+    sequence
+        setTargetPosition x:"uniform,2,7" y:"uniform,2,7"
+        arrive
+        setTargetPosition x:"uniform,13,18" y:"uniform,2,7"
+        arrive
+        setTargetPosition x:"uniform,13,18" y:"uniform,13,18"
+        arrive
+        setTargetPosition x:"uniform,2,7" y:"uniform,13,18"
+        arrive

@@ -4,6 +4,7 @@ import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.physics.box2d.BodyDef;
+import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.*;
 import com.xam.bobgame.graphics.TextureDef;
@@ -21,7 +22,7 @@ public class EntityFactory {
 
         IdentityComponent identity = createIdentity(engine, EntityType.Player);
         PhysicsBodyComponent physicsBody = ComponentFactory.physicsBody(engine, BodyDef.BodyType.DynamicBody, GameProperties.START_X, GameProperties.START_Y, GameProperties.LINEAR_DAMPENING,
-                0, 0.5f, 0.5f, 0.1f, 0.8f);
+                0, 0.5f, 0.5f, 0.1f, 0.8f, false);
         TextureDef textureDef = new TextureDef();
         textureDef.type = TextureDef.TextureType.PlayerBall;
         textureDef.wh = 32;
@@ -36,12 +37,41 @@ public class EntityFactory {
         return entity;
     }
 
+    public static Entity createStar(Engine engine) {
+        Entity entity = engine.createEntity();
+
+        IdentityComponent identity = createIdentity(engine, EntityType.Pickup);
+        PhysicsBodyComponent physicsBody = ComponentFactory.physicsBody(engine, BodyDef.BodyType.DynamicBody, GameProperties.START_X, GameProperties.START_Y, GameProperties.LINEAR_DAMPENING,
+                0, 0.2f, 2f, 0.1f, 0.2f, false);
+        physicsBody.fixtureDef.filter.categoryBits = 2;
+        physicsBody.fixtureDef.filter.maskBits = (short) (0xFFFF - 2);
+
+        TextureDef textureDef = new TextureDef();
+        textureDef.type = TextureDef.TextureType.PlayerBall;
+        textureDef.wh = 32;
+        textureDef.textureVal1 = 16;
+        textureDef.color.set(Color.YELLOW);
+        GraphicsComponent graphics = ComponentFactory.graphics(engine, textureDef, 0.4f, 0.4f, 0);
+
+        PickupComponent pickup = ComponentFactory.pickup(engine, 10f);
+
+        entity.add(identity);
+        entity.add(physicsBody);
+        entity.add(graphics);
+        entity.add(pickup);
+
+        return entity;
+    }
+
     public static Entity createHoleHazard(Engine engine, float x, float y, float radius) {
         Entity entity = engine.createEntity();
 
         IdentityComponent identity = createIdentity(engine, EntityType.Hazard);
         PhysicsBodyComponent physicsBody = ComponentFactory.physicsBody(engine, BodyDef.BodyType.KinematicBody, x, y, 0,
-                0, 0.25f, 0, 0, 0);
+                0, 0.25f, 0, 0, 0, true);
+        physicsBody.fixtureDef.filter.categoryBits = 2;
+        physicsBody.fixtureDef.filter.maskBits = ~2;
+
         TextureDef textureDef = new TextureDef();
         textureDef.type = TextureDef.TextureType.HazardHole;
         textureDef.wh = 128;

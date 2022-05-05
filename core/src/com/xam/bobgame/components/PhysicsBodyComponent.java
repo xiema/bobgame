@@ -43,5 +43,8 @@ public class PhysicsBodyComponent extends Component2 implements Poolable {
         fixtureDef.density = readFloat(packer, fixtureDef.density, 0, 16, NetDriver.RES_MASS, write);
         fixtureDef.friction = readFloat(packer, fixtureDef.friction, 0, 16, NetDriver.RES_MASS, write);
         fixtureDef.restitution = readFloat(packer, fixtureDef.restitution, 0, 16, NetDriver.RES_MASS, write);
+        fixtureDef.isSensor = readBoolean(packer, fixtureDef.isSensor, write);
+        fixtureDef.filter.categoryBits = (short) readInt(packer, fixtureDef.filter.categoryBits & 0xFFFF, 0, 0xFFFF, write);
+        fixtureDef.filter.maskBits = (short) readInt(packer, fixtureDef.filter.maskBits & 0xFFFF, 0, 0xFFFF, write);
     }
 }

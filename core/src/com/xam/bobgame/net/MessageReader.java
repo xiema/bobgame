@@ -114,7 +114,7 @@ public class MessageReader {
         switch (message.getType()) {
             case Update:
                 if (((GameEngine) engine).getLastSnapshotFrame() == -1) {
-                    Log.info("Waiting for snapshot");
+                    Log.info("Got " + message + " Waiting for snapshot");
                     return -1;
                 }
                 while (entryCount-- > 0) {

@@ -8,6 +8,7 @@ import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
@@ -22,6 +23,7 @@ import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
+import com.xam.bobgame.components.AIComponent;
 import com.xam.bobgame.components.GraphicsComponent;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
@@ -33,6 +35,7 @@ import com.xam.bobgame.utils.MathUtils2;
 public class GraphicsRenderer {
     private GameEngine engine;
     private ImmutableArray<Entity> entities;
+    private ImmutableArray<Entity> aiEntities;
     private Stage stage;
 
     @SuppressWarnings("unchecked")
@@ -49,6 +52,7 @@ public class GraphicsRenderer {
         for (int i = 0; i < 4; ++i) zSortedEntities[i] = new Array<>();
 
         entities = engine.getEntitiesFor(Family.all(PhysicsBodyComponent.class, GraphicsComponent.class).get());
+        aiEntities = engine.getEntitiesFor(Family.all(AIComponent.class).get());
 
         entityListeners.put(Family.all(GraphicsComponent.class).get(), new EntityListener() {
             @Override
@@ -105,9 +109,11 @@ public class GraphicsRenderer {
         for (int i = 3; i >= 1; --i) {
             drawEntities(batch, i);
         }
+        drawWalls(batch);
         batch.end();
         shapeRenderer.begin();
         drawGuideLine();
+        drawTargets();
         shapeRenderer.end();
         batch.begin();
         drawEntities(batch, 0);
@@ -141,5 +147,21 @@ public class GraphicsRenderer {
         shapeRenderer.setColor(Color.GREEN);
         shapeRenderer.set(ShapeRenderer.ShapeType.Line);
         shapeRenderer.line(tfm.getPosition(), tempVec);
+    }
+
+    private void drawWalls(Batch batch) {
+        Sprite[] wallSprites = engine.getSystem(PhysicsSystem.class).getWallSprites();
+        for (Sprite sprite : wallSprites) {
+            sprite.draw(batch);
+        }
+    }
+
+    private void drawTargets() {
+        shapeRenderer.setColor(Color.RED);
+        shapeRenderer.set(ShapeRenderer.ShapeType.Filled);
+        for (Entity entity : aiEntities) {
+            AIComponent ai = ComponentMappers.ai.get(entity);
+            shapeRenderer.circle(ai.target.getX(), ai.target.getY(), 0.1f, 4);
+        }
     }
 }

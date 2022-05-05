@@ -16,7 +16,7 @@ import com.xam.bobgame.utils.DebugUtils;
 import java.nio.ByteBuffer;
 
 public class NetDriver extends EntitySystem {
-    public static final int DATA_MAX_WORDS = 256;
+    public static final int DATA_MAX_WORDS = 1024;
     public static final int DATA_MAX_SIZE = DATA_MAX_WORDS * 4;
     public static final float BUFFER_TIME_LIMIT = 0.15f;
     public static final int MAX_CLIENTS = 32;
@@ -37,7 +37,7 @@ public class NetDriver extends EntitySystem {
     public static final float RES_COLOR = 1e-4f;
     public static final float MIN_ORIENTATION = -3.14159f;
     public static final float MAX_ORIENTATION = 3.14159f;
-    public static final int MAX_ENTITY_ID = 2047;
+    public static final int MAX_ENTITY_ID = 4095;
 
     public static final float MAX_GRAVITY_STRENGTH = 128;
     public static final float RES_GRAVITY_STRENGTH = 1e-2f;
@@ -46,6 +46,7 @@ public class NetDriver extends EntitySystem {
 
     public static final int MIN_SCORE = -512;
     public static final int MAX_SCORE = 511;
+    public static final int MAX_SCORE_INCREMENT = 31;
 
     public static final float FRICTION_FACTOR = 2f;
     public static final float RESTITUTION_FACTOR = 0f;
@@ -77,8 +78,10 @@ public class NetDriver extends EntitySystem {
             PlayerAssignEvent.class,
             PlayerJoinedEvent.class,
             PlayerControlEvent.class,
+            PlayerScoreEvent.class,
             ScoreBoardUpdateEvent.class,
             EntityCreatedEvent.class,
+            EntityDespawnedEvent.class,
             PlayerDeathEvent.class,
     };
 

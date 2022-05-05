@@ -7,7 +7,7 @@ import com.badlogic.gdx.ai.btree.utils.PooledBehaviorTreeLibrary;
 import com.badlogic.gdx.assets.loaders.FileHandleResolver;
 import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.ai.tasks.MoveTask;
+import com.xam.bobgame.ai.tasks.ArriveTask;
 import com.xam.bobgame.ai.tasks.SetTargetPositionTask;
 import com.xam.bobgame.utils.SuffixFileHandleResolver;
 
@@ -38,7 +38,7 @@ public class GameBehaviorTreeLibrary extends PooledBehaviorTreeLibrary {
 
     public void addLibraryTasks() {
         Class<?>[] customClasses = new Class<?>[] {
-                MoveTask.class,
+                ArriveTask.class,
                 SetTargetPositionTask.class,
         };
         for (Class<?> c : customClasses) {

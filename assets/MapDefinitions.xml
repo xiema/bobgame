@@ -1,0 +1,11 @@
+<MapDefinitions>
+    <MapDefinition>
+        <id>0</id>
+        <Walls>
+            <Wall x="10" y="0" w="20" h="0.2"/>
+            <Wall x="0" y="10" w="0.2" h="20"/>
+            <Wall x="10" y="20" w="20" h="0.2"/>
+            <Wall x="20" y="10" w="0.2" h="20"/>
+        </Walls>
+    </MapDefinition>
+</MapDefinitions>

@@ -6,6 +6,16 @@ import com.xam.bobgame.utils.BitPacker;
 
 public class Component2 implements Component {
 
+    protected boolean readBoolean(BitPacker packer, boolean b, boolean write) {
+        if (write) {
+            packer.packInt(b ? 1 : 0, 0, 1);
+            return b;
+        }
+        else {
+            return packer.unpackInt(0, 1) == 1;
+        }
+    }
+
     protected int readInt(BitPacker packer, int i, int min, int max, boolean write) {
         if (write) {
             packer.packInt(i, min, max);

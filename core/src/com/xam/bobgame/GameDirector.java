@@ -49,14 +49,18 @@ public class GameDirector extends EntitySystem {
             @Override
             public void handleEvent(PlayerDeathEvent event) {
                 if (playerControlMap[event.playerId] == event.entityId) playerControlMap[event.playerId] = -1;
-                Entity entity = ((GameEngine) getEngine()).getEntityById(event.entityId);
-                if (entity != null) getEngine().removeEntity(entity);
             }
         });
         listeners.put(PlayerBallSpawnedEvent.class, new EventListenerAdapter<PlayerBallSpawnedEvent>() {
             @Override
             public void handleEvent(PlayerBallSpawnedEvent event) {
                 playerControlMap[event.playerId] = event.entityId;
+            }
+        });
+        listeners.put(PlayerScoreEvent.class, new EventListenerAdapter<PlayerScoreEvent>() {
+            @Override
+            public void handleEvent(PlayerScoreEvent event) {
+                playerScores[event.playerId] += event.scoreIncrement;
             }
         });
     }
@@ -82,7 +86,7 @@ public class GameDirector extends EntitySystem {
         for (int i = 0; i < playerRespawnTime.length; ++i) {
             if (!playerExists[i]) continue;
             playerRespawnTime[i] -= deltaTime;
-            if (enabled && playerRespawnTime[i] <= 0 && playerControlMap[i] == -1) spawnPlayerBall(i, true);
+            if (enabled && playerRespawnTime[i] <= 0 && playerControlMap[i] == -1) spawnPlayerBall(i);
         }
     }
 
@@ -121,7 +125,7 @@ public class GameDirector extends EntitySystem {
         Entity entity = EntityFactory.createHoleHazard(getEngine(), MathUtils.random(2, GameProperties.MAP_WIDTH -2), MathUtils.random(2, GameProperties.MAP_HEIGHT -2), 2);
         getEngine().addEntity(entity);
 
-//        localPlayerId = joinPlayer(-1);
+        localPlayerId = joinPlayer(-1);
     }
 
     public void setLocalPlayerId(int playerId) {
@@ -134,7 +138,7 @@ public class GameDirector extends EntitySystem {
         playerExists[playerId] = true;
         playerCount++;
 
-        spawnPlayerBall(playerId, true);
+        spawnPlayerBall(playerId);
 
         // remote client
         if (clientId != -1) getEngine().getSystem(NetDriver.class).getServer().acceptConnection(clientId, playerId);
@@ -146,7 +150,7 @@ public class GameDirector extends EntitySystem {
         return playerId;
     }
 
-    private Entity spawnPlayerBall(int playerId, boolean sendEvent) {
+    private Entity spawnPlayerBall(int playerId) {
         Engine engine = getEngine();
         Entity entity = EntityFactory.createPlayer(engine, playerColor[playerId % playerColor.length]);
         engine.addEntity(entity);
@@ -158,12 +162,6 @@ public class GameDirector extends EntitySystem {
         event.entityId = entityId;
         event.playerId = playerId;
         getEngine().getSystem(EventsSystem.class).queueEvent(event);
-
-        if (sendEvent) {
-            EntityCreatedEvent netEvent = Pools.obtain(EntityCreatedEvent.class);
-            netEvent.entityId = entityId;
-            getEngine().getSystem(NetDriver.class).queueClientEvent(-1, netEvent, false);
-        }
 
         return entity;
     }
@@ -193,6 +191,8 @@ public class GameDirector extends EntitySystem {
         scoreEvent.playerId = playerId;
         netDriver.queueClientEvent(-1, scoreEvent);
         eventsSystem.queueEvent(scoreEvent);
+
+        getEngine().removeEntity(entity);
 
         playerRespawnTime[playerId] = GameProperties.PLAYER_RESPAWN_TIME;
     }

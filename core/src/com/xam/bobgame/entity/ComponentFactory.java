@@ -20,7 +20,7 @@ public class ComponentFactory {
     }
 
     public static PhysicsBodyComponent physicsBody(Engine engine, BodyDef.BodyType bodyType, float xPos, float yPos, float linearDamping,
-                                                   int shapeType, float shapeVal1, float density, float friction, float restitution) {
+                                                   int shapeType, float shapeVal1, float density, float friction, float restitution, boolean isSensor) {
         PhysicsBodyComponent pb = engine.createComponent(PhysicsBodyComponent.class);
 
         pb.bodyDef = new BodyDef();
@@ -36,6 +36,7 @@ public class ComponentFactory {
         fixtureDef.density = density;
         fixtureDef.friction = friction;
         fixtureDef.restitution = restitution;
+        fixtureDef.isSensor = isSensor;
         pb.fixtureDef = fixtureDef;
 
         return pb;
@@ -60,6 +61,12 @@ public class ComponentFactory {
         gf.strength = strength;
         gf.radius = radius;
         return gf;
+    }
+
+    public static PickupComponent pickup(Engine engine, float maxLifeTime) {
+        PickupComponent p = engine.createComponent(PickupComponent.class);
+        p.maxLifeTime = maxLifeTime;
+        return p;
     }
 
     public static Texture textureCircle(int wh, int radius, Color color) {

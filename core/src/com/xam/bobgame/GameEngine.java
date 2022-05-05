@@ -8,11 +8,13 @@ import com.badlogic.gdx.utils.*;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.ai.AISystem;
+import com.xam.bobgame.definitions.GameDefinitions;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.game.HazardsSystem;
 import com.xam.bobgame.game.PhysicsSystem;
+import com.xam.bobgame.game.PickupsSystem;
 import com.xam.bobgame.net.NetDriver;
 
 import java.util.Arrays;
@@ -56,8 +58,9 @@ public class GameEngine extends PooledEngine {
         addSystem(gameDirector = new GameDirector(10));
         addSystem(new ControlSystem(20));
         addSystem(new AISystem(30));
-        addSystem(new PhysicsSystem(40));
-        addSystem(new HazardsSystem(50));
+        addSystem(new PickupsSystem(40));
+        addSystem(new PhysicsSystem(50));
+        addSystem(new HazardsSystem(60));
 
         eventsSystem.addListeners(listeners);
     }
@@ -167,6 +170,12 @@ public class GameEngine extends PooledEngine {
             int ins = Arrays.binarySearch(sortedEntityIds.items, 0, sortedEntityIds.size, entityID);
             sortedEntityIds.insert(ins >= 0 ? ins : -(ins + 1), entityID);
         }
+
+        if (netDriver.getMode() == NetDriver.Mode.Server) {
+            EntityCreatedEvent netEvent = Pools.obtain(EntityCreatedEvent.class);
+            netEvent.entityId = entityID;
+            netDriver.queueClientEvent(-1, netEvent, false);
+        }
     }
 
     @Override
@@ -182,6 +191,16 @@ public class GameEngine extends PooledEngine {
         super.removeEntityInternal(entity);
     }
 
+    @Override
+    public void removeEntity(Entity entity) {
+        if (netDriver.getMode() == NetDriver.Mode.Server) {
+            EntityDespawnedEvent event = Pools.obtain(EntityDespawnedEvent.class);
+            event.entityId = EntityUtils.getId(entity);
+            netDriver.queueClientEvent(-1, event, false);
+        }
+        super.removeEntity(entity);
+    }
+
     public void setMode(NetDriver.Mode mode) {
         if (mode == NetDriver.Mode.Server) {
             netDriver.setMode(NetDriver.Mode.Server);
@@ -193,6 +212,7 @@ public class GameEngine extends PooledEngine {
             getSystem(PhysicsSystem.class).setPosIterations(2);
             getSystem(PhysicsSystem.class).setVelIterations(6);
             getSystem(HazardsSystem.class).setEnabled(true);
+            getSystem(PickupsSystem.class).setEnabled(true);
             gameSetup();
         }
         else {
@@ -229,6 +249,10 @@ public class GameEngine extends PooledEngine {
 
     public IntArray getSortedEntityIds() {
         return sortedEntityIds;
+    }
+
+    public GameDefinitions getGameDefinitions() {
+        return game.gameDefinitions;
     }
 
     //    public SharedMemoryChecker getMemCheck() {
