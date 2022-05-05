@@ -7,9 +7,8 @@ import com.badlogic.gdx.ai.utils.random.Distribution;
 import com.badlogic.gdx.ai.utils.random.FloatDistribution;
 import com.badlogic.gdx.ai.utils.random.IntegerDistribution;
 import com.badlogic.gdx.math.Vector2;
-import com.xam.bobgame.GameDirector;
+import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.components.AIComponent;
-import com.xam.bobgame.components.Component2;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.net.NetDriver;
@@ -551,9 +550,9 @@ public class GameStates {
 
         @Override
         public float getFloat() {
-            GameDirector gameDirector = engine.getSystem(GameDirector.class);
+            RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
             Entity entity;
-            if (gameDirector != null && (entity = gameDirector.getPlayerEntity(playerId)) != null) {
+            if (refereeSystem != null && (entity = refereeSystem.getPlayerEntity(playerId)) != null) {
                 Vector2 position = ComponentMappers.physicsBody.get(entity).body.getPosition();
                 lastPlayerX[playerId] = position.x;
                 lastPlayerY[playerId] = position.y;

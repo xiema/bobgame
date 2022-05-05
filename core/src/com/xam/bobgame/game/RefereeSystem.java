@@ -1,4 +1,4 @@
-package com.xam.bobgame;
+package com.xam.bobgame.game;
 
 import com.badlogic.ashley.core.*;
 import com.badlogic.ashley.utils.ImmutableArray;
@@ -6,6 +6,8 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.GameEngine;
+import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
@@ -17,7 +19,7 @@ import com.xam.bobgame.net.NetDriver;
 
 import java.util.Arrays;
 
-public class GameDirector extends EntitySystem {
+public class RefereeSystem extends EntitySystem {
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
     private ObjectMap<Family, EntityListener> entityListeners = new ObjectMap<>();
@@ -35,7 +37,7 @@ public class GameDirector extends EntitySystem {
 
     private boolean enabled = false;
 
-    public GameDirector(int priority) {
+    public RefereeSystem(int priority) {
         super(priority);
 
         listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {

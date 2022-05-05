@@ -1,6 +1,5 @@
 package com.xam.bobgame.graphics;
 
-import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.ashley.core.EntityListener;
 import com.badlogic.ashley.core.Family;
@@ -18,9 +17,8 @@ import com.badlogic.gdx.physics.box2d.Transform;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
-import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.BoBGame;
-import com.xam.bobgame.GameDirector;
+import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.AIComponent;
@@ -28,9 +26,7 @@ import com.xam.bobgame.components.GraphicsComponent;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
-import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.game.PhysicsSystem;
-import com.xam.bobgame.utils.MathUtils2;
 
 public class GraphicsRenderer {
     private GameEngine engine;
@@ -137,7 +133,7 @@ public class GraphicsRenderer {
     }
 
     private void drawGuideLine() {
-        Entity entity = engine.getSystem(GameDirector.class).getLocalPlayerEntity();
+        Entity entity = engine.getSystem(RefereeSystem.class).getLocalPlayerEntity();
         if (entity == null || ComponentMappers.identity.get(entity).despawning) return;
 
         PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);

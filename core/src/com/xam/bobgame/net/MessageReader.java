@@ -10,7 +10,7 @@ import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.utils.IntMap;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.GameDirector;
+import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.*;
@@ -22,8 +22,6 @@ import com.xam.bobgame.events.PlayerControlEvent;
 import com.xam.bobgame.events.ScoreBoardRefreshEvent;
 import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.game.PhysicsSystem;
-import com.xam.bobgame.game.ShapeDef;
-import com.xam.bobgame.graphics.TextureDef;
 import com.xam.bobgame.utils.BitPacker;
 
 @SuppressWarnings("UnusedReturnValue")
@@ -254,7 +252,7 @@ public class MessageReader {
             builder.packInt(connectionSlot.playerId, 0, 32);
         }
         else {
-            engine.getSystem(GameDirector.class).setLocalPlayerId(builder.unpackInt(0, 32));
+            engine.getSystem(RefereeSystem.class).setLocalPlayerId(builder.unpackInt(0, 32));
         }
         return 0;
     }
@@ -294,8 +292,8 @@ public class MessageReader {
             entityCreator.read(builder, engine, send);
         }
 
-        GameDirector gameDirector = engine.getSystem(GameDirector.class);
-        int[] playerControlMap = gameDirector.getPlayerControlMap();
+        RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
+        int[] playerControlMap = refereeSystem.getPlayerControlMap();
 
         for (i = 0; i < 32; ++i) {
             playerControlMap[i] = readInt(playerControlMap[i], -1, 254);
@@ -368,10 +366,10 @@ public class MessageReader {
     }
 
     private int readPlayerScores(boolean refresh) {
-        GameDirector gameDirector = engine.getSystem(GameDirector.class);
-        boolean[] playerExists = gameDirector.getPlayerExists();
-        int[] playerControlMap = gameDirector.getPlayerControlMap();
-        int[] playerScores = gameDirector.getPlayerScores();
+        RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
+        boolean[] playerExists = refereeSystem.getPlayerExists();
+        int[] playerControlMap = refereeSystem.getPlayerControlMap();
+        int[] playerScores = refereeSystem.getPlayerScores();
 
         for (int i = 0; i < playerControlMap.length; ++i) {
             playerExists[i] = readInt(playerExists[i] ? 1 : 0, 0, 1) == 1;

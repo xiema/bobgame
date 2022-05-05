@@ -10,9 +10,8 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.viewport.Viewport;
-import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.BoBGame;
-import com.xam.bobgame.GameDirector;
+import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
@@ -124,9 +123,9 @@ public class UIStage extends Stage {
 
     private void refreshScoreBoard() {
         scoreTable.clear();
-        GameDirector gameDirector = game.getEngine().getSystem(GameDirector.class);
-        int[] playerControlMap = gameDirector.getPlayerControlMap();
-        int[] playerScores = gameDirector.getPlayerScores();
+        RefereeSystem refereeSystem = game.getEngine().getSystem(RefereeSystem.class);
+        int[] playerControlMap = refereeSystem.getPlayerControlMap();
+        int[] playerScores = refereeSystem.getPlayerScores();
         for (int i = 0; i < playerControlMap.length; ++i) {
             if (playerControlMap[i] != -1) {
                 addPlayer(i);
@@ -136,9 +135,9 @@ public class UIStage extends Stage {
     }
 
     private void refreshPlayerScore(int playerId) {
-        GameDirector gameDirector = game.getEngine().getSystem(GameDirector.class);
+        RefereeSystem refereeSystem = game.getEngine().getSystem(RefereeSystem.class);
         if (playerScoreLabels[playerId] == null) return;
-        playerScoreLabels[playerId].setText(gameDirector.getPlayerScores()[playerId]);
+        playerScoreLabels[playerId].setText(refereeSystem.getPlayerScores()[playerId]);
     }
 
     public void addPlayer(int playerId) {
@@ -160,9 +159,9 @@ public class UIStage extends Stage {
     @Override
     public void act(float delta) {
         super.act(delta);
-        GameDirector gameDirector = game.getEngine().getSystem(GameDirector.class);
-        boolean[] playerExists = gameDirector.getPlayerExists();
-        int[] playerScores = gameDirector.getPlayerScores();
+        RefereeSystem refereeSystem = game.getEngine().getSystem(RefereeSystem.class);
+        boolean[] playerExists = refereeSystem.getPlayerExists();
+        int[] playerScores = refereeSystem.getPlayerScores();
         for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
             if (playerExists[i]) {
                 setPlayerScore(i, playerScores[i]);

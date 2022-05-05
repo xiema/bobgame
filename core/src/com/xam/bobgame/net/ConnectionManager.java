@@ -1,12 +1,9 @@
 package com.xam.bobgame.net;
 
-import com.badlogic.ashley.core.Engine;
-import com.badlogic.ashley.core.Entity;
 import com.badlogic.gdx.utils.Pool;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.events.ClientConnectedEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.events.PlayerControlEvent;

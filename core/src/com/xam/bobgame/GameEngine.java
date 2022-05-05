@@ -11,10 +11,7 @@ import com.xam.bobgame.ai.AISystem;
 import com.xam.bobgame.definitions.GameDefinitions;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
-import com.xam.bobgame.game.ControlSystem;
-import com.xam.bobgame.game.HazardsSystem;
-import com.xam.bobgame.game.PhysicsSystem;
-import com.xam.bobgame.game.PickupsSystem;
+import com.xam.bobgame.game.*;
 import com.xam.bobgame.net.NetDriver;
 
 import java.util.Arrays;
@@ -23,7 +20,7 @@ public class GameEngine extends PooledEngine {
     private BoBGame game;
 
     private EventsSystem eventsSystem;
-    private GameDirector gameDirector;
+    private RefereeSystem refereeSystem;
     private NetDriver netDriver;
 
     private int lastSnapshot = -1;
@@ -55,7 +52,7 @@ public class GameEngine extends PooledEngine {
     public void initialize() {
         addSystem(netDriver = new NetDriver(0));
         addSystem(eventsSystem = new EventsSystem(1));
-        addSystem(gameDirector = new GameDirector(10));
+        addSystem(refereeSystem = new RefereeSystem(10));
         addSystem(new ControlSystem(20));
         addSystem(new AISystem(30));
         addSystem(new PickupsSystem(40));
@@ -66,7 +63,7 @@ public class GameEngine extends PooledEngine {
     }
 
     public void gameSetup() {
-        gameDirector.setupGame();
+        refereeSystem.setupGame();
     }
 
     @Override
@@ -75,13 +72,13 @@ public class GameEngine extends PooledEngine {
             Array<EntitySystem> systems = new Array<>();
             removeSystem(netDriver);
             removeSystem(eventsSystem);
-            removeSystem(gameDirector);
+            removeSystem(refereeSystem);
             for (EntitySystem system : getSystems()) systems.add(system);
             Log.info("All systems removed");
 
             addSystem(netDriver);
             addSystem(eventsSystem);
-            addSystem(gameDirector);
+            addSystem(refereeSystem);
             for (EntitySystem system : systems) addSystem(system);
 
             for (EntitySystem system : getSystems()) system.setProcessing(true);
@@ -119,7 +116,7 @@ public class GameEngine extends PooledEngine {
     public void addInputProcessor(InputMultiplexer inputMultiplexer, final Viewport viewport) {
         inputMultiplexer.addProcessor(new InputAdapter() {
             public void userInput(int x, int y, int button, boolean state) {
-                if (gameDirector.getLocalPlayerEntityId() == -1) return;
+                if (refereeSystem.getLocalPlayerEntityId() == -1) return;
 
                 PlayerControlEvent event = Pools.obtain(PlayerControlEvent.class);
                 tempVec.set(x, y);
@@ -128,8 +125,8 @@ public class GameEngine extends PooledEngine {
                 event.y = tempVec.y;
                 event.buttonId = button;
                 event.buttonState = state;
-                event.controlId = gameDirector.getLocalPlayerId();
-                event.entityId = gameDirector.getLocalPlayerEntityId();
+                event.controlId = refereeSystem.getLocalPlayerId();
+                event.entityId = refereeSystem.getLocalPlayerEntityId();
 
                 netDriver.queueClientEvent(-1, event);
                 eventsSystem.queueEvent(event);
@@ -205,7 +202,7 @@ public class GameEngine extends PooledEngine {
         if (mode == NetDriver.Mode.Server) {
             netDriver.setMode(NetDriver.Mode.Server);
             netDriver.getServer().start(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
-            gameDirector.setEnabled(true);
+            refereeSystem.setEnabled(true);
             getSystem(ControlSystem.class).setEnabled(true);
             getSystem(ControlSystem.class).setControlFacing(true);
             getSystem(PhysicsSystem.class).setEnabled(true);

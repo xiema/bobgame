@@ -7,7 +7,6 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Transform;
 import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.PhysicsBodyComponent;
@@ -63,13 +62,13 @@ public class ControlSystem extends EntitySystem {
             for (int i = 0; i < buttonStates.length; ++i) updatePlayer(i);
         }
         else {
-            updatePlayer(getEngine().getSystem(GameDirector.class).getLocalPlayerId());
+            updatePlayer(getEngine().getSystem(RefereeSystem.class).getLocalPlayerId());
         }
     }
 
     private void updatePlayer(int controlId) {
         if (controlId == -1) return;
-        Entity entity = getEngine().getSystem(GameDirector.class).getPlayerEntity(controlId);
+        Entity entity = getEngine().getSystem(RefereeSystem.class).getPlayerEntity(controlId);
         if (entity == null) return;
 
         if (buttonStates[controlId]) {

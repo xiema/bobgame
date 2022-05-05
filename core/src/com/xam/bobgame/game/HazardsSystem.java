@@ -3,8 +3,6 @@ package com.xam.bobgame.game;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.utils.ObjectMap;
-import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 
@@ -21,12 +19,12 @@ public class HazardsSystem extends EntitySystem {
             @Override
             public void handleEvent(HazardContactEvent event) {
                 if (enabled) {
-                    GameDirector gameDirector = getEngine().getSystem(GameDirector.class);
+                    RefereeSystem refereeSystem = getEngine().getSystem(RefereeSystem.class);
                     int entityId = EntityUtils.getId(event.entity);
                     if (entityId == -1) return;
-                    int playerId = gameDirector.getEntityPlayerId(entityId);
+                    int playerId = refereeSystem.getEntityPlayerId(entityId);
                     if (playerId == -1) return;
-                    gameDirector.killPlayer(playerId);
+                    refereeSystem.killPlayer(playerId);
                 }
             }
         });

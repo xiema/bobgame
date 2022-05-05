@@ -2,7 +2,6 @@ package com.xam.bobgame.game;
 
 import com.badlogic.ashley.core.*;
 import com.badlogic.ashley.utils.ImmutableArray;
-import com.badlogic.gdx.Net;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
@@ -10,7 +9,6 @@ import com.badlogic.gdx.utils.IntSet;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
@@ -47,7 +45,7 @@ public class PickupsSystem extends EntitySystem {
                         pickupIden.despawning = true;
                         getEngine().removeEntity(event.pickup);
 
-                        int playerId = getEngine().getSystem(GameDirector.class).getEntityPlayerId(iden.id);
+                        int playerId = getEngine().getSystem(RefereeSystem.class).getEntityPlayerId(iden.id);
                         if (playerId == -1) {
                             Log.warn("Player entity does not belong to any player.");
                             return;

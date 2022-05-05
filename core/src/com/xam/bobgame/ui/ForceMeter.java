@@ -2,9 +2,7 @@ package com.xam.bobgame.ui;
 
 import com.badlogic.gdx.scenes.scene2d.ui.ProgressBar;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.utils.ObjectMap;
-import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.GameDirector;
+import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
@@ -42,7 +40,7 @@ public class ForceMeter extends ProgressBar {
         eventsSystem.addListener(PlayerControlEvent.class, new EventListenerAdapter<PlayerControlEvent>() {
             @Override
             public void handleEvent(PlayerControlEvent event) {
-                if (event.controlId != ForceMeter.this.engine.getSystem(GameDirector.class).getLocalPlayerId()) return;
+                if (event.controlId != ForceMeter.this.engine.getSystem(RefereeSystem.class).getLocalPlayerId()) return;
                 if (event.buttonId != 0) return;
                 buttonState = event.buttonState;
             }

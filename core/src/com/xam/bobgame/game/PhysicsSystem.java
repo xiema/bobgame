@@ -12,11 +12,9 @@ import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
 import com.xam.bobgame.BoBGame;
-import com.xam.bobgame.GameDirector;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.GravitationalFieldComponent;
-import com.xam.bobgame.components.HazardComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.definitions.MapDefinition;
 import com.xam.bobgame.entity.ComponentMappers;
@@ -61,7 +59,7 @@ public class PhysicsSystem extends EntitySystem {
             @Override
             public void handleEvent(ButtonReleaseEvent event) {
                 if (enabled) {
-                    Entity entity = getEngine().getSystem(GameDirector.class).getPlayerEntity(event.playerId);
+                    Entity entity = getEngine().getSystem(RefereeSystem.class).getPlayerEntity(event.playerId);
                     if (entity == null) return;
                     PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
 //                    tempVec.set(event.x, event.y).sub(pb.body.getPosition()).nor().scl(500f * forceFactor);
