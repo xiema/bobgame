@@ -1,9 +1,6 @@
 package com.xam.bobgame.buffs;
 
-import com.badlogic.ashley.core.Engine;
-import com.badlogic.ashley.core.Entity;
-import com.badlogic.ashley.core.EntitySystem;
-import com.badlogic.ashley.core.Family;
+import com.badlogic.ashley.core.*;
 import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.utils.Null;
 import com.badlogic.gdx.utils.ObjectMap;
@@ -21,20 +18,31 @@ public class BuffSystem extends EntitySystem {
     private ImmutableArray<Entity> buffableEntities;
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
+    private ObjectMap<Family, EntityListener> entityListeners = new ObjectMap<>();
 
     public BuffSystem(int priority) {
         super(priority);
 
-        listeners.put(EntityDespawnedEvent.class, new EventListenerAdapter<EntityDespawnedEvent>() {
+//        listeners.put(EntityDespawnedEvent.class, new EventListenerAdapter<EntityDespawnedEvent>() {
+//            @Override
+//            public void handleEvent(EntityDespawnedEvent event) {
+//                Entity entity = ((GameEngine) getEngine()).getEntityById(event.entityId);
+//                if (entity != null) {
+//                }
+//                else {
+//                    Log.warn("BuffSystem", "Despawned entity with id " + event.entityId + " not found");
+//                }
+//            }
+//        });
+        entityListeners.put(Family.all(BuffableComponent.class).get(), new EntityListener() {
             @Override
-            public void handleEvent(EntityDespawnedEvent event) {
-                Entity entity = ((GameEngine) getEngine()).getEntityById(event.entityId);
-                if (entity != null) {
-                    removeBuffs(entity);
-                }
-                else {
-                    Log.warn("BuffSystem", "Despawned entity with id " + event.entityId + " not found");
-                }
+            public void entityAdded(Entity entity) {
+
+            }
+
+            @Override
+            public void entityRemoved(Entity entity) {
+                removeBuffs(entity);
             }
         });
     }
@@ -42,14 +50,20 @@ public class BuffSystem extends EntitySystem {
     @Override
     public void addedToEngine(Engine engine) {
         buffableEntities = engine.getEntitiesFor(Family.all(BuffableComponent.class).get());
-        engine.getSystem(EventsSystem.class).addListeners(listeners);
+//        engine.getSystem(EventsSystem.class).addListeners(listeners);
+        for (ObjectMap.Entry<Family, EntityListener> entry : entityListeners) {
+            engine.addEntityListener(entry.key, entry.value);
+        }
     }
 
     @Override
     public void removedFromEngine(Engine engine) {
         buffableEntities = null;
-        EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
-        if (eventsSystem != null) eventsSystem.removeListeners(listeners);
+//        EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
+//        if (eventsSystem != null) eventsSystem.removeListeners(listeners);
+        for (ObjectMap.Entry<Family, EntityListener> entry : entityListeners) {
+            engine.removeEntityListener(entry.value);
+        }
     }
 
     @Override

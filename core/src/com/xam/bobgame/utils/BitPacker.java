@@ -14,6 +14,8 @@ public class BitPacker {
     private int scratchBits = 0;
     private int totalBits = 0;
 
+    private boolean write = false;
+
     public BitPacker() {
 
     }
@@ -36,8 +38,75 @@ public class BitPacker {
         clear();
     }
 
+    public void setReadMode() {
+        write = false;
+    }
+
+    public void setWriteMode() {
+        write = true;
+    }
+
+    public boolean isReadMode() {
+        return !write;
+    }
+
+    public boolean isWriteMode() {
+        return write;
+    }
+
     public boolean hasRemaining() {
         return buffer.remaining() > (scratchBits + 7) / 8;
+    }
+
+
+    public int readInt(int i, int min, int max) {
+        if (write) {
+            packInt(i, min, max);
+            return i;
+        }
+        else {
+            return unpackInt(min, max);
+        }
+    }
+
+    public float readFloat(float f) {
+        if (write) {
+            packFloat(f);
+            return f;
+        }
+        else {
+            return unpackFloat();
+        }
+    }
+
+    public float readFloat(float f, float min, float max, float res) {
+        if (write) {
+            packFloat(f, min, max, res);
+            return f;
+        }
+        else {
+            return unpackFloat(min, max, res);
+        }
+    }
+
+    public byte readByte(byte b) {
+        if (write) {
+            packByte(b);
+            return b;
+        }
+        else {
+            return unpackByte();
+        }
+    }
+
+    public boolean readBoolean(boolean b) {
+        if (write) {
+            packInt(b ? 1 : 0, 0, 1);
+            return b;
+        }
+        else {
+            return unpackInt(0, 1) == 1;
+        }
     }
 
     public byte unpackByte() {

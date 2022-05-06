@@ -18,8 +18,6 @@ import com.xam.bobgame.events.*;
 import com.xam.bobgame.net.ConnectionManager;
 import com.xam.bobgame.net.NetDriver;
 
-import java.util.Arrays;
-
 public class RefereeSystem extends EntitySystem {
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
@@ -32,10 +30,12 @@ public class RefereeSystem extends EntitySystem {
     private int playerCount = 0;
     private int localPlayerId = -1;
 
-    private final boolean[] playerExists = new boolean[NetDriver.MAX_CLIENTS];
-    private final int[] playerControlMap = new int[NetDriver.MAX_CLIENTS];
-    private final int[] playerScores = new int[NetDriver.MAX_CLIENTS];
-    private final float[] playerRespawnTimes = new float[NetDriver.MAX_CLIENTS];
+    private final PlayerInfo[] playerInfos = new PlayerInfo[NetDriver.MAX_CLIENTS];
+
+//    private final boolean[] playerExists = new boolean[NetDriver.MAX_CLIENTS];
+//    private final int[] playerControlMap = new int[NetDriver.MAX_CLIENTS];
+//    private final int[] playerScores = new int[NetDriver.MAX_CLIENTS];
+//    private final float[] playerRespawnTimes = new float[NetDriver.MAX_CLIENTS];
 
     private boolean enabled = false;
 
@@ -70,13 +70,13 @@ public class RefereeSystem extends EntitySystem {
         listeners.put(PlayerDeathEvent.class, new EventListenerAdapter<PlayerDeathEvent>() {
             @Override
             public void handleEvent(PlayerDeathEvent event) {
-                if (playerControlMap[event.playerId] == event.entityId) playerControlMap[event.playerId] = -1;
+                if (playerInfos[event.playerId].controlledEntityId == event.entityId) playerInfos[event.playerId].controlledEntityId = -1;
             }
         });
         listeners.put(PlayerBallSpawnedEvent.class, new EventListenerAdapter<PlayerBallSpawnedEvent>() {
             @Override
             public void handleEvent(PlayerBallSpawnedEvent event) {
-                playerControlMap[event.playerId] = event.entityId;
+                playerInfos[event.playerId].controlledEntityId = event.entityId;
             }
         });
         listeners.put(PlayerScoreEvent.class, new EventListenerAdapter<PlayerScoreEvent>() {
@@ -84,7 +84,7 @@ public class RefereeSystem extends EntitySystem {
             public void handleEvent(PlayerScoreEvent event) {
                 // TODO: combine enabled flag for systems
                 if (enabled) {
-                    playerScores[event.playerId] += event.scoreIncrement;
+                    playerInfos[event.playerId].score += event.scoreIncrement;
                     ScoreBoardRefreshEvent scoreBoardEvent = Pools.obtain(ScoreBoardRefreshEvent.class);
                     getEngine().getSystem(NetDriver.class).queueClientEvent(-1, scoreBoardEvent, true);
                     getEngine().getSystem(EventsSystem.class).triggerEvent(scoreBoardEvent);
@@ -103,6 +103,8 @@ public class RefereeSystem extends EntitySystem {
                 setLocalPlayerId(event.playerId);
             }
         });
+
+        for (int i = 0; i < playerInfos.length; ++i) playerInfos[i] = new PlayerInfo();
     }
 
     @Override
@@ -121,10 +123,9 @@ public class RefereeSystem extends EntitySystem {
     }
 
     private void reset() {
-        Arrays.fill(playerExists, false);
-        Arrays.fill(playerControlMap, -1);
-        Arrays.fill(playerScores, 0);
-        Arrays.fill(playerRespawnTimes, 0);
+        for (PlayerInfo playerInfo : playerInfos) {
+            playerInfo.reset();
+        }
         playerCount = 0;
         matchStarted = false;
         localPlayerId = -1;
@@ -132,10 +133,10 @@ public class RefereeSystem extends EntitySystem {
 
     @Override
     public void update(float deltaTime) {
-        for (int i = 0; i < playerRespawnTimes.length; ++i) {
-            if (!playerExists[i]) continue;
-            playerRespawnTimes[i] -= deltaTime;
-            if (enabled && playerRespawnTimes[i] <= 0 && playerControlMap[i] == -1) spawnPlayerBall(i);
+        for (int i = 0; i < playerInfos.length; ++i) {
+            if (!playerInfos[i].inPlay) continue;
+            playerInfos[i].respawnTime = Math.max(0, playerInfos[i].respawnTime - deltaTime);
+            if (enabled && playerInfos[i].respawnTime <= 0 && playerInfos[i].controlledEntityId == -1) spawnPlayerBall(i);
         }
     }
 
@@ -155,7 +156,7 @@ public class RefereeSystem extends EntitySystem {
 
     public int getLocalPlayerEntityId() {
         if (localPlayerId == -1) return -1;
-        return playerControlMap[localPlayerId];
+        return playerInfos[localPlayerId].controlledEntityId;
     }
 
     public int getLocalPlayerId() {
@@ -163,7 +164,7 @@ public class RefereeSystem extends EntitySystem {
     }
 
     public int getPlayerEntityId(int playerId) {
-        return playerControlMap[playerId];
+        return playerInfos[playerId].controlledEntityId;
     }
 
     public Entity getPlayerEntity(int playerId) {
@@ -171,8 +172,8 @@ public class RefereeSystem extends EntitySystem {
     }
 
     public int getEntityPlayerId(int entityId) {
-        for (int i = 0; i < playerControlMap.length; ++i) {
-            if (playerControlMap[i] == entityId) return i;
+        for (int i = 0; i < playerInfos.length; ++i) {
+            if (playerInfos[i].controlledEntityId == entityId) return i;
         }
         return -1;
     }
@@ -196,8 +197,8 @@ public class RefereeSystem extends EntitySystem {
     }
 
     private int getEmptyPlayerSlot() {
-        for (int i = 0; i < playerExists.length; ++i) {
-            if (!playerExists[i]) return i;
+        for (int i = 0; i < playerInfos.length; ++i) {
+            if (!playerInfos[i].inPlay) return i;
         }
         return -1;
     }
@@ -212,7 +213,7 @@ public class RefereeSystem extends EntitySystem {
             return;
         }
 
-        playerExists[playerId] = true;
+        playerInfos[playerId].inPlay = true;
         playerCount++;
 
 //        spawnPlayerBall(playerId);
@@ -242,12 +243,9 @@ public class RefereeSystem extends EntitySystem {
 
     public void removePlayer(int playerId, boolean kicked) {
         GameEngine engine = (GameEngine) getEngine();
-        Entity entity = engine.getEntityById(playerControlMap[playerId]);
+        Entity entity = engine.getEntityById(playerInfos[playerId].controlledEntityId);
         if (entity != null) engine.removeEntity(entity);
-        playerExists[playerId] = false;
-        playerControlMap[playerId] = -1;
-        playerRespawnTimes[playerId] = 0;
-        playerScores[playerId] = 0;
+        playerInfos[playerId].reset();
 
         if (kicked) {
             Log.info("Player " + playerId + " was kicked from the game.");
@@ -277,7 +275,7 @@ public class RefereeSystem extends EntitySystem {
         BuffSystem.addBuff(entity, entity, BuffDefs.SpawnInvBuffDef, 3);
 
         int entityId = EntityUtils.getId(entity);
-        playerControlMap[playerId] = entityId;
+        playerInfos[playerId].controlledEntityId = entityId;
 
         PlayerBallSpawnedEvent event = Pools.obtain(PlayerBallSpawnedEvent.class);
         event.entityId = entityId;
@@ -298,7 +296,7 @@ public class RefereeSystem extends EntitySystem {
         pb.body.setTransform(pb.bodyDef.position.x, pb.bodyDef.position.y, 0);
         pb.body.setLinearVelocity(0, 0);
 
-        playerScores[playerId]--;
+        playerInfos[playerId].score--;
 
         NetDriver netDriver = getEngine().getSystem(NetDriver.class);
 
@@ -319,26 +317,14 @@ public class RefereeSystem extends EntitySystem {
 
         getEngine().removeEntity(entity);
 
-        playerRespawnTimes[playerId] = GameProperties.PLAYER_RESPAWN_TIME;
-    }
-
-    public int[] getPlayerControlMap() {
-        return playerControlMap;
-    }
-
-    public int[] getPlayerScores() {
-        return playerScores;
-    }
-
-    public float[] getPlayerRespawnTimes() {
-        return playerRespawnTimes;
-    }
-
-    public boolean[] getPlayerExists() {
-        return playerExists;
+        playerInfos[playerId].respawnTime = GameProperties.PLAYER_RESPAWN_TIME;
     }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public PlayerInfo getPlayerInfo(int playerId) {
+        return playerInfos[playerId];
     }
 }

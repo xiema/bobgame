@@ -10,6 +10,7 @@ import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.game.PlayerInfo;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.net.NetDriver;
 
@@ -92,14 +93,12 @@ public class ScoreBoard extends Table {
     private void refreshScoreBoard() {
 //        Log.info("refreshScoreBoard");
         RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
-        boolean[] playerExists = refereeSystem.getPlayerExists();
-        int[] playerScores = refereeSystem.getPlayerScores();
-        float[] playerRespawnTimes = refereeSystem.getPlayerRespawnTimes();
         rowCount = 0;
-        for (int i = 0; i < playerExists.length; ++i) {
-            if (playerExists[i]) {
+        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
+            PlayerInfo playerInfo = refereeSystem.getPlayerInfo(i);
+            if (playerInfo.inPlay) {
                 addPlayer(i);
-                setPlayerScore(i, playerScores[i], playerRespawnTimes[i]);
+                setPlayerScore(i, playerInfo.score, playerInfo.respawnTime);
             }
         }
 
@@ -114,7 +113,7 @@ public class ScoreBoard extends Table {
     private void refreshPlayerScore(int playerId) {
         RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
         if (playerScoreLabels[playerId] == null) return;
-        playerScoreLabels[playerId].setText(refereeSystem.getPlayerScores()[playerId]);
+        playerScoreLabels[playerId].setText(refereeSystem.getPlayerInfo(playerId).score);
     }
 
     public void addPlayer(int playerId) {
@@ -153,12 +152,10 @@ public class ScoreBoard extends Table {
     public void act(float delta) {
         super.act(delta);
         RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
-        boolean[] playerExists = refereeSystem.getPlayerExists();
-        int[] playerScores = refereeSystem.getPlayerScores();
-        float[] playerRespawnTimes = refereeSystem.getPlayerRespawnTimes();
         for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
-            if (playerExists[i]) {
-                setPlayerScore(i, playerScores[i], playerRespawnTimes[i]);
+            PlayerInfo playerInfo = refereeSystem.getPlayerInfo(i);
+            if (playerInfo.inPlay) {
+                setPlayerScore(i, playerInfo.score, playerInfo.respawnTime);
             }
         }
     }

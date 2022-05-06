@@ -10,7 +10,7 @@ import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.utils.IntMap;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.game.RefereeSystem;
+import com.xam.bobgame.game.*;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.*;
@@ -20,14 +20,12 @@ import com.xam.bobgame.events.EntityCreatedEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.events.PlayerControlEvent;
 import com.xam.bobgame.events.ScoreBoardRefreshEvent;
-import com.xam.bobgame.game.ControlSystem;
-import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.utils.BitPacker;
 
 @SuppressWarnings("UnusedReturnValue")
 public class MessageReader {
 
-    private BitPacker builder = new BitPacker();
+    private BitPacker packer = new BitPacker();
     private GameEngine engine;
 
     private MessageInfo[] messageInfos = new MessageInfo[NetDriver.MAX_MESSAGE_HISTORY];
@@ -39,57 +37,57 @@ public class MessageReader {
         }
     }
 
-    private boolean send = false;
+//    private boolean send = false;
 
-    private int readInt(int i, int min, int max) {
-        if (send) {
-            builder.packInt(i, min, max);
-            return i;
-        }
-        else {
-            return builder.unpackInt(min, max);
-        }
-    }
-
-    private float readFloat(float f) {
-        if (send) {
-            builder.packFloat(f);
-            return f;
-        }
-        else {
-            return builder.unpackFloat();
-        }
-    }
-
-    private float readFloat(float f, float min, float max, float res) {
-        if (send) {
-            builder.packFloat(f, min, max, res);
-            return f;
-        }
-        else {
-            return builder.unpackFloat(min, max, res);
-        }
-    }
-
-    private byte readByte(byte b) {
-        if (send) {
-            builder.packByte(b);
-            return b;
-        }
-        else {
-            return builder.unpackByte();
-        }
-    }
-
-    private boolean readBoolean(boolean b) {
-        if (send) {
-            builder.packInt(b ? 1 : 0, 0, 1);
-            return b;
-        }
-        else {
-            return builder.unpackInt(0, 1) == 1;
-        }
-    }
+//    private int readInt(int i, int min, int max) {
+//        if (send) {
+//            packer.packInt(i, min, max);
+//            return i;
+//        }
+//        else {
+//            return packer.unpackInt(min, max);
+//        }
+//    }
+//
+//    private float readFloat(float f) {
+//        if (send) {
+//            packer.packFloat(f);
+//            return f;
+//        }
+//        else {
+//            return packer.unpackFloat();
+//        }
+//    }
+//
+//    private float readFloat(float f, float min, float max, float res) {
+//        if (send) {
+//            packer.packFloat(f, min, max, res);
+//            return f;
+//        }
+//        else {
+//            return packer.unpackFloat(min, max, res);
+//        }
+//    }
+//
+//    private byte readByte(byte b) {
+//        if (send) {
+//            packer.packByte(b);
+//            return b;
+//        }
+//        else {
+//            return packer.unpackByte();
+//        }
+//    }
+//
+//    private boolean readBoolean(boolean b) {
+//        if (send) {
+//            packer.packInt(b ? 1 : 0, 0, 1);
+//            return b;
+//        }
+//        else {
+//            return packer.unpackInt(0, 1) == 1;
+//        }
+//    }
 
     public void setMessageInfo(Message message) {
         message.messageId = messageIdCounter;
@@ -104,8 +102,8 @@ public class MessageReader {
 
     public int deserialize(Message message, Engine engine, int clientId) {
         this.engine = (GameEngine) engine;
-        builder.setBuffer(message.getByteBuffer());
-        send = false;
+        packer.setBuffer(message.getByteBuffer());
+        packer.setReadMode();
 
         int entryCount = message.entryCount;
 
@@ -117,7 +115,7 @@ public class MessageReader {
                 }
                 // TODO: Server should only receive Event types
                 while (entryCount-- > 0) {
-                    Message.UpdateType updateType = Message.UpdateType.values()[readInt(-1, 0, Message.UpdateType.values().length - 1)];
+                    Message.UpdateType updateType = Message.UpdateType.values()[packer.readInt(-1, 0, Message.UpdateType.values().length - 1)];
                     switch (updateType) {
                         case System:
                             readSystemUpdate();
@@ -127,7 +125,7 @@ public class MessageReader {
                             break;
                     }
                     if (entryCount > 0) {
-                        builder.skipToNextByte();
+                        packer.skipToNextByte();
                     }
                 }
                 break;
@@ -154,14 +152,14 @@ public class MessageReader {
 
     public int serialize(Message message, Engine engine, Message.MessageType type, ConnectionManager.ConnectionSlot connectionSlot) {
         this.engine = (GameEngine) engine;
-        builder.setBuffer(message.getByteBuffer());
-        send = true;
+        packer.setBuffer(message.getByteBuffer());
+        packer.setWriteMode();
 
         message.setType(type);
         setMessageInfo(message);
         switch (type) {
             case Update:
-                builder.packInt(Message.UpdateType.System.getValue(), 0, Message.UpdateType.values().length - 1);
+                packer.packInt(Message.UpdateType.System.getValue(), 0, Message.UpdateType.values().length - 1);
                 if (readSystemUpdate() == -1) return -1;
                 break;
             case Snapshot:
@@ -171,9 +169,9 @@ public class MessageReader {
             case Empty:
                 break;
         }
-        builder.padToNextByte();
-        builder.flush(true);
-        message.setLength(builder.getTotalBytes());
+        packer.padToNextByte();
+        packer.flush(true);
+        message.setLength(packer.getTotalBytes());
         message.entryCount = 1;
 
         return 0;
@@ -181,16 +179,16 @@ public class MessageReader {
 
     public int serializeInput(Message message, Engine engine, PlayerControlEvent event) {
         this.engine = (GameEngine) engine;
-        builder.setBuffer(message.getByteBuffer());
-        send = true;
+        packer.setBuffer(message.getByteBuffer());
+        packer.setWriteMode();
 
         message.setType(Message.MessageType.Input);
         setMessageInfo(message);
-        builder.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
-        event.read(builder, engine, true);
-        builder.padToNextByte();
-        builder.flush(true);
-        message.setLength(builder.getTotalBytes());
+        packer.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
+        event.read(packer, engine, true);
+        packer.padToNextByte();
+        packer.flush(true);
+        message.setLength(packer.getTotalBytes());
         message.entryCount = 1;
 
         return 0;
@@ -198,39 +196,39 @@ public class MessageReader {
 
     public int serializeEvent(Message message, Engine engine, NetDriver.NetworkEvent event) {
         this.engine = (GameEngine) engine;
-        builder.setBuffer(message.getByteBuffer());
-        send = true;
+        packer.setBuffer(message.getByteBuffer());
+        packer.setWriteMode();
 
         message.setType(Message.MessageType.Update);
         setMessageInfo(message);
-        builder.packInt(Message.UpdateType.Event.getValue(), 0, Message.UpdateType.values().length - 1);
+        packer.packInt(Message.UpdateType.Event.getValue(), 0, Message.UpdateType.values().length - 1);
         message.eventTypes.add(event.getClass());
         int typeIndex = NetDriver.getNetworkEventIndex(event.getClass());
         if (typeIndex == -1) {
             Log.error("Unknown typeIndex for " + event.getClass());
             return -1;
         }
-        builder.packInt(typeIndex, 0, NetDriver.networkEventClasses.length - 1);
-        event.read(builder, engine, true);
-        builder.padToNextByte();
-        builder.flush(true);
-        message.setLength(builder.getTotalBytes());
+        packer.packInt(typeIndex, 0, NetDriver.networkEventClasses.length - 1);
+        event.read(packer, engine, true);
+        packer.padToNextByte();
+        packer.flush(true);
+        message.setLength(packer.getTotalBytes());
         message.entryCount = 1;
 
         return 0;
     }
 
     private int readEvent(int clientId) {
-        int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);
+        int type = packer.unpackInt(0, NetDriver.networkEventClasses.length - 1);
         if (type >= NetDriver.networkEventClasses.length) {
             Log.error("MessageReader", "Invalid network event id " + type + " from client " + clientId);
             return -1;
         }
         //noinspection unchecked
         NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
-        event.read(builder, engine, false);
+        event.read(packer, engine, packer.isWriteMode());
 
-        if (!send) {
+        if (packer.isReadMode()) {
             event.clientId = clientId;
             engine.getSystem(EventsSystem.class).queueEvent(event);
         }
@@ -249,7 +247,7 @@ public class MessageReader {
 ////        Log.info("clientID=0 playerId=" + netDriver.getConnectionManager().getPlayerId(0));
 //        event.read(builder, false);
 //
-//        if (!send) {
+//        if (packer.isReadMode()) {
 //            engine.getSystem(EventsSystem.class).queueEvent(event);
 //        }
 //
@@ -257,11 +255,11 @@ public class MessageReader {
 //    }
 
     private int readPlayerId(ConnectionManager.ConnectionSlot connectionSlot) {
-        if (send) {
-            builder.packInt(connectionSlot.playerId, 0, 32);
+        if (packer.isWriteMode()) {
+            packer.packInt(connectionSlot.playerId, 0, 32);
         }
         else {
-            engine.getSystem(RefereeSystem.class).setLocalPlayerId(builder.unpackInt(0, 32));
+            engine.getSystem(RefereeSystem.class).setLocalPlayerId(packer.unpackInt(0, 32));
         }
         return 0;
     }
@@ -269,7 +267,7 @@ public class MessageReader {
     private int readSystemUpdate() {
         readPhysicsBodies();
         readControlStates();
-        readPlayerScores(false);
+        readPlayerInfos(false);
 
         return 0;
     }
@@ -278,25 +276,19 @@ public class MessageReader {
 
     private int readSystemSnapshot() {
         ImmutableArray<Entity> entities = engine.getEntities();
-        int cnt = readInt(entities.size(), 0, NetDriver.MAX_ENTITY_ID);
+        int cnt = packer.readInt(entities.size(), 0, NetDriver.MAX_ENTITY_ID);
         int i = 0;
         while (cnt-- > 0) {
-            if (send) {
+            if (packer.isWriteMode()) {
                 Entity entity = entities.get(i++);
                 entityCreator.entityId = EntityUtils.getId(entity);
             }
             // TODO: include entity position
-            entityCreator.read(builder, engine, send);
+            // TODO: use new NetSerializable interface
+            entityCreator.read(packer, engine, packer.isWriteMode());
         }
 
-        RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
-        int[] playerControlMap = refereeSystem.getPlayerControlMap();
-
-        for (i = 0; i < 32; ++i) {
-            playerControlMap[i] = readInt(playerControlMap[i], -1, 254);
-        }
-
-        readPlayerScores(true);
+        readPlayerInfos(true);
 
         return 0;
     }
@@ -305,9 +297,9 @@ public class MessageReader {
         IntMap<Entity> entityMap = engine.getEntityMap();
         IntArray sortedEntityIds = engine.getSortedEntityIds();
 
-        int cnt = readInt(sortedEntityIds.size, 0, NetDriver.MAX_ENTITY_ID);
+        int cnt = packer.readInt(sortedEntityIds.size, 0, NetDriver.MAX_ENTITY_ID);
         for (int i = 0; i < cnt; ++i) {
-            int entityId = readInt(send ? sortedEntityIds.get(i) : -1, 0, NetDriver.MAX_ENTITY_ID);
+            int entityId = packer.readInt(packer.isWriteMode() ? sortedEntityIds.get(i) : -1, 0, NetDriver.MAX_ENTITY_ID);
             Entity entity = entityMap.get(entityId, null);
             if (entity == null) {
                 Log.debug("Unable to update state of entity " + entityId);
@@ -326,36 +318,36 @@ public class MessageReader {
 
         Transform tfm;
         if (pb == null || pb.body == null) {
-            Log.warn("MessageReader.readPhysicsBody", "Invalid PhysicsBodyComponent");
+            Log.debug("MessageReader.readPhysicsBody", "Invalid PhysicsBodyComponent");
             tfm = tempTfm;
         }
         else {
             tfm = pb.body.getTransform();
         }
 
-        float t1 = readFloat(tfm.vals[0], -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
-        float t2 = readFloat(tfm.vals[1], -3, GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION);
-        float t3 = readFloat(tfm.getRotation(), NetDriver.MIN_ORIENTATION, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
+        float t1 = packer.readFloat(tfm.vals[0], -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
+        float t2 = packer.readFloat(tfm.vals[1], -3, GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION);
+        float t3 = packer.readFloat(tfm.getRotation(), NetDriver.MIN_ORIENTATION, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
 
         Vector2 vel = pb == null ? tempVec : pb.body.getLinearVelocity();
-        zero = readInt(vel.x == 0 ? 0 : 1, 0, 1) == 0;
-        float v1 = zero ? 0 : readFloat(vel.x, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
-        zero = readInt(vel.y == 0 ? 0 : 1, 0, 1) == 0;
-        float v2 = zero ? 0 : readFloat(vel.y, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
+        zero = packer.readInt(vel.x == 0 ? 0 : 1, 0, 1) == 0;
+        float v1 = zero ? 0 : packer.readFloat(vel.x, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
+        zero = packer.readInt(vel.y == 0 ? 0 : 1, 0, 1) == 0;
+        float v2 = zero ? 0 : packer.readFloat(vel.y, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
 
         float angularVel = pb == null ? 0 : pb.body.getAngularVelocity();
-        zero = readInt(angularVel == 0 ? 0 : 1, 0, 1) == 0;
-        float v3 = zero ? 0 : readFloat(angularVel, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
+        zero = packer.readInt(angularVel == 0 ? 0 : 1, 0, 1) == 0;
+        float v3 = zero ? 0 : packer.readFloat(angularVel, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
 
         MassData md = pb == null ? tempMassData : pb.body.getMassData();
-        zero = readInt(md.mass == 0 ? 0 : 1, 0, 1) == 0;
-        float m = zero ? 0 : readFloat(md.mass, 0, 10, NetDriver.RES_MASS);
-        float c1 = readFloat(md.center.x, -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
-        float c2 = readFloat(md.center.y, -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
-        zero = readInt(md.I == 0 ? 0 : 1, 0, 1) == 0;
-        float i = zero ? 0 : readFloat(md.I, 0, 10, NetDriver.RES_MASS);
+        zero = packer.readInt(md.mass == 0 ? 0 : 1, 0, 1) == 0;
+        float m = zero ? 0 : packer.readFloat(md.mass, 0, 10, NetDriver.RES_MASS);
+        float c1 = packer.readFloat(md.center.x, -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
+        float c2 = packer.readFloat(md.center.y, -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
+        zero = packer.readInt(md.I == 0 ? 0 : 1, 0, 1) == 0;
+        float i = zero ? 0 : packer.readFloat(md.I, 0, 10, NetDriver.RES_MASS);
 
-        if (!send && pb != null) {
+        if (packer.isReadMode() && pb != null) {
             PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) pb.body.getUserData();
             if (physicsHistory == null) {
                 Log.warn("MessageReader.readPhysicsBody", "Body has no UserData");
@@ -385,31 +377,23 @@ public class MessageReader {
 
     private int readControlStates() {
         ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
-        boolean[] buttonStates = controlSystem.getButtonStates();
-        float[] buttonHoldDurations = controlSystem.getButtonHoldDurations();
-        for (int i = 0; i < buttonStates.length; ++i) {
-            buttonStates[i] = readInt(buttonStates[i] ? 1 : 0, 0, 1) != 0;
-            buttonHoldDurations[i] = readFloat(buttonHoldDurations[i], -NetDriver.RES_HOLD_DURATION, GameProperties.CHARGE_DURATION_2, NetDriver.RES_HOLD_DURATION);
+        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
+            PlayerControlInfo playerControlInfo = controlSystem.getPlayerControlInfo(i);
+            playerControlInfo.read(packer, engine);
         }
 
         return 0;
     }
 
-    private int readPlayerScores(boolean refresh) {
+    private int readPlayerInfos(boolean refresh) {
         RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
-        boolean[] playerExists = refereeSystem.getPlayerExists();
-        int[] playerControlMap = refereeSystem.getPlayerControlMap();
-        int[] playerScores = refereeSystem.getPlayerScores();
-        float[] playerRespawnTimes = refereeSystem.getPlayerRespawnTimes();
 
-        for (int i = 0; i < playerControlMap.length; ++i) {
-            playerExists[i] = readInt(playerExists[i] ? 1 : 0, 0, 1) == 1;
-            playerControlMap[i] = readInt(playerControlMap[i], -1, NetDriver.MAX_ENTITY_ID);
-            playerScores[i] = readInt(playerScores[i], NetDriver.MIN_SCORE, NetDriver.MAX_SCORE);
-            playerRespawnTimes[i] = readFloat(playerRespawnTimes[i], 0, GameProperties.PLAYER_RESPAWN_TIME, 0.125f);
+        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
+            PlayerInfo playerInfo = refereeSystem.getPlayerInfo(i);
+            playerInfo.read(packer, engine);
         }
 
-        if (!send && refresh) {
+        if (packer.isReadMode() && refresh) {
             ScoreBoardRefreshEvent event = Pools.obtain(ScoreBoardRefreshEvent.class);
             engine.getSystem(EventsSystem.class).queueEvent(event);
         }

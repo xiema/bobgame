@@ -24,7 +24,7 @@ public class ForceMeter extends ProgressBar {
     @Override
     public void act(float delta) {
         int playerId = engine.getSystem(RefereeSystem.class).getLocalPlayerId();
-        if (playerId != -1 && engine.getSystem(ControlSystem.class).getButtonStates()[playerId]) {
+        if (playerId != -1 && engine.getSystem(ControlSystem.class).getPlayerControlInfo(playerId).buttonState) {
             holdDuration = (Math.max(0, holdDuration) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
         }
         else {

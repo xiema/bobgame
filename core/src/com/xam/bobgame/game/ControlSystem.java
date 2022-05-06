@@ -19,9 +19,10 @@ import java.util.Arrays;
 public class ControlSystem extends EntitySystem {
     private IntSet idSet = new IntSet();
 
-    private Vector2[] mousePositions = new Vector2[NetDriver.MAX_CLIENTS];
-    private float[] buttonHoldDurations = new float[NetDriver.MAX_CLIENTS];
-    private boolean[] buttonStates = new boolean[NetDriver.MAX_CLIENTS];
+    private PlayerControlInfo[] playerControlInfos = new PlayerControlInfo[NetDriver.MAX_CLIENTS];
+//    private Vector2[] mousePositions = new Vector2[NetDriver.MAX_CLIENTS];
+//    private float[] buttonHoldDurations = new float[NetDriver.MAX_CLIENTS];
+//    private boolean[] buttonStates = new boolean[NetDriver.MAX_CLIENTS];
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
@@ -40,21 +41,19 @@ public class ControlSystem extends EntitySystem {
         listeners.put(PlayerDeathEvent.class, new EventListenerAdapter<PlayerDeathEvent>() {
             @Override
             public void handleEvent(PlayerDeathEvent event) {
-                buttonHoldDurations[event.playerId] = 0;
-                buttonStates[event.playerId] = false;
+                playerControlInfos[event.playerId].holdDuration = 0;
+                playerControlInfos[event.playerId].buttonState = false;
             }
         });
 
-        for (int i = 0; i < mousePositions.length; ++i) mousePositions[i] = new Vector2();
+        for (int i = 0; i < playerControlInfos.length; ++i) playerControlInfos[i] = new PlayerControlInfo();
     }
 
     @Override
     public void addedToEngine(Engine engine) {
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         eventsSystem.addListeners(listeners);
-        for (Vector2 vec : mousePositions) vec.setZero();
-        Arrays.fill(buttonHoldDurations, -1);
-        Arrays.fill(buttonStates, false);
+        for (PlayerControlInfo playerControlInfo : playerControlInfos) playerControlInfo.reset();
     }
 
     @Override
@@ -67,24 +66,24 @@ public class ControlSystem extends EntitySystem {
     @Override
     public void update(float deltaTime) {
         if (controlFacing) {
-            for (int i = 0; i < buttonStates.length; ++i) updatePlayer(i);
+            for (int i = 0; i < playerControlInfos.length; ++i) updatePlayer(i);
         }
         else {
             updatePlayer(getEngine().getSystem(RefereeSystem.class).getLocalPlayerId());
         }
     }
 
-    private void updatePlayer(int controlId) {
-        if (controlId == -1) return;
-        Entity entity = getEngine().getSystem(RefereeSystem.class).getPlayerEntity(controlId);
+    private void updatePlayer(int playerId) {
+        if (playerId == -1) return;
+        Entity entity = getEngine().getSystem(RefereeSystem.class).getPlayerEntity(playerId);
         if (entity == null) return;
 
-        if (buttonStates[controlId]) {
-            buttonHoldDurations[controlId] = ((buttonHoldDurations[controlId] < 0 ? 0 : buttonHoldDurations[controlId]) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
+        if (playerControlInfos[playerId].buttonState) {
+            playerControlInfos[playerId].holdDuration = ((playerControlInfos[playerId].holdDuration < 0 ? 0 : playerControlInfos[playerId].holdDuration) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
         }
         PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
         Transform tfm = pb.body.getTransform();
-        tfm.setOrientation(tempVec.set(mousePositions[controlId].x - tfm.vals[0], mousePositions[controlId].y - tfm.vals[1]));
+        tfm.setOrientation(tempVec.set(playerControlInfos[playerId].cursorPosition.x - tfm.vals[0], playerControlInfos[playerId].cursorPosition.y - tfm.vals[1]));
         pb.body.setTransform(tfm.getPosition(), tfm.getRotation());
     }
 
@@ -101,31 +100,19 @@ public class ControlSystem extends EntitySystem {
             return;
         }
 
-        mousePositions[controlId].set(x, y);
+        playerControlInfos[controlId].cursorPosition.set(x, y);
 
         if (buttonId != 0) return;
-        if (buttonStates[controlId] && !buttonState) {
+        if (playerControlInfos[controlId].buttonState && !buttonState) {
             ButtonReleaseEvent event = Pools.obtain(ButtonReleaseEvent.class);
             event.playerId = controlId;
-            event.holdDuration = buttonHoldDurations[controlId];
+            event.holdDuration = playerControlInfos[controlId].holdDuration;
             event.x = x;
             event.y = y;
             getEngine().getSystem(EventsSystem.class).triggerEvent(event);
-            buttonHoldDurations[controlId] = -NetDriver.RES_HOLD_DURATION;
+            playerControlInfos[controlId].holdDuration = -NetDriver.RES_HOLD_DURATION;
         }
-        buttonStates[controlId] = buttonState;
-    }
-
-    public boolean[] getButtonStates() {
-        return buttonStates;
-    }
-
-    public Vector2 getMousePosition(int controlId) {
-        return mousePositions[controlId];
-    }
-
-    public float[] getButtonHoldDurations() {
-        return buttonHoldDurations;
+        playerControlInfos[controlId].buttonState = buttonState;
     }
 
     public void setEnabled(boolean enabled) {
@@ -138,5 +125,9 @@ public class ControlSystem extends EntitySystem {
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public PlayerControlInfo getPlayerControlInfo(int playerId) {
+        return playerControlInfos[playerId];
     }
 }
