@@ -37,6 +37,13 @@ public class ControlSystem extends EntitySystem {
                 control(event.controlId, event.entityId, event.x, event.y, event.buttonId, event.buttonState);
             }
         });
+        listeners.put(PlayerDeathEvent.class, new EventListenerAdapter<PlayerDeathEvent>() {
+            @Override
+            public void handleEvent(PlayerDeathEvent event) {
+                buttonHoldDurations[event.playerId] = 0;
+                buttonStates[event.playerId] = false;
+            }
+        });
 
         for (int i = 0; i < mousePositions.length; ++i) mousePositions[i] = new Vector2();
     }

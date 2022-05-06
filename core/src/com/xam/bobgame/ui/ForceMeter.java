@@ -2,16 +2,15 @@ package com.xam.bobgame.ui;
 
 import com.badlogic.gdx.scenes.scene2d.ui.ProgressBar;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
-import com.xam.bobgame.events.*;
 import com.xam.bobgame.utils.MathUtils2;
 
 public class ForceMeter extends ProgressBar {
 
     private float holdDuration = -1;
-    private boolean buttonState = false;
 
     private GameEngine engine = null;
 
@@ -24,7 +23,8 @@ public class ForceMeter extends ProgressBar {
 
     @Override
     public void act(float delta) {
-        if (buttonState) {
+        int playerId = engine.getSystem(RefereeSystem.class).getLocalPlayerId();
+        if (playerId != -1 && engine.getSystem(ControlSystem.class).getButtonStates()[playerId]) {
             holdDuration = (Math.max(0, holdDuration) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
         }
         else {
@@ -35,15 +35,5 @@ public class ForceMeter extends ProgressBar {
 
     public void initialize(GameEngine engine) {
         this.engine = engine;
-        EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
-
-        eventsSystem.addListener(PlayerControlEvent.class, new EventListenerAdapter<PlayerControlEvent>() {
-            @Override
-            public void handleEvent(PlayerControlEvent event) {
-                if (event.controlId != ForceMeter.this.engine.getSystem(RefereeSystem.class).getLocalPlayerId()) return;
-                if (event.buttonId != 0) return;
-                buttonState = event.buttonState;
-            }
-        });
     }
 }
