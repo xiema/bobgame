@@ -11,6 +11,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
+import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
@@ -61,16 +62,24 @@ public class PhysicsSystem extends EntitySystem {
             @Override
             public void handleEvent(ButtonReleaseEvent event) {
                 if (enabled) {
-                    Entity entity = getEngine().getSystem(RefereeSystem.class).getPlayerEntity(event.playerId);
+                    RefereeSystem refereeSystem = getEngine().getSystem(RefereeSystem.class);
+                    Entity entity = refereeSystem.getPlayerEntity(event.playerId);
                     if (entity == null) return;
                     PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
-//                    tempVec.set(event.x, event.y).sub(pb.body.getPosition()).nor().scl(500f * forceFactor);
-                    float strength = GameProperties.PLAYER_FORCE_STRENGTH * MathUtils2.mirror.apply(event.holdDuration / GameProperties.CHARGE_DURATION_2);
+                    PlayerInfo playerInfo = refereeSystem.getPlayerInfo(event.playerId);
+
                     tempVec.set(event.x, event.y).sub(pb.body.getPosition()).nor();
                     tempVec2.set(pb.body.getLinearVelocity()).scl(pb.body.getMass() / SIM_UPDATE_STEP);
                     float scalarProj = tempVec2.dot(tempVec);
                     tempVec3.set(tempVec).scl(-scalarProj).add(tempVec2);
+
+                    float chargeAmount = (event.holdDuration * GameProperties.CHARGE_RATE) % (2 * playerInfo.stamina);
+                    chargeAmount = (chargeAmount <= playerInfo.stamina ? chargeAmount : (playerInfo.stamina * 2 - chargeAmount)) / GameProperties.PLAYER_STAMINA_MAX;
+                    float strength = GameProperties.PLAYER_FORCE_STRENGTH * chargeAmount;
+//                    Log.info("strength=" + strength);
                     pb.body.applyForceToCenter(tempVec.scl(Math.max(0, strength - tempVec3.len())).sub(tempVec3), true);
+
+                    playerInfo.stamina = Math.max(GameProperties.PLAYER_STAMINA_MIN, playerInfo.stamina - chargeAmount * GameProperties.PLAYER_STAMINA_LOSS);
                 }
             }
         });

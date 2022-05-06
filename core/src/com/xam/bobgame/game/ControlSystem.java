@@ -20,9 +20,6 @@ public class ControlSystem extends EntitySystem {
     private IntSet idSet = new IntSet();
 
     private PlayerControlInfo[] playerControlInfos = new PlayerControlInfo[NetDriver.MAX_CLIENTS];
-//    private Vector2[] mousePositions = new Vector2[NetDriver.MAX_CLIENTS];
-//    private float[] buttonHoldDurations = new float[NetDriver.MAX_CLIENTS];
-//    private boolean[] buttonStates = new boolean[NetDriver.MAX_CLIENTS];
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
@@ -78,20 +75,21 @@ public class ControlSystem extends EntitySystem {
         Entity entity = getEngine().getSystem(RefereeSystem.class).getPlayerEntity(playerId);
         if (entity == null) return;
 
-        if (playerControlInfos[playerId].buttonState) {
-            playerControlInfos[playerId].holdDuration = ((playerControlInfos[playerId].holdDuration < 0 ? 0 : playerControlInfos[playerId].holdDuration) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
+        PlayerControlInfo playerControlInfo = playerControlInfos[playerId];
+        if (playerControlInfo.buttonState) {
+            playerControlInfo.holdDuration = ((playerControlInfo.holdDuration < 0 ? 0 : playerControlInfo.holdDuration) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
         }
         PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
         Transform tfm = pb.body.getTransform();
-        tfm.setOrientation(tempVec.set(playerControlInfos[playerId].cursorPosition.x - tfm.vals[0], playerControlInfos[playerId].cursorPosition.y - tfm.vals[1]));
+        tfm.setOrientation(tempVec.set(playerControlInfo.cursorPosition.x - tfm.vals[0], playerControlInfo.cursorPosition.y - tfm.vals[1]));
         pb.body.setTransform(tfm.getPosition(), tfm.getRotation());
     }
 
     private final Vector2 tempVec = new Vector2();
 
-    private void control(int controlId, int entityId, float x, float y, int buttonId, boolean buttonState) {
-        if (controlId < 0 || controlId >= NetDriver.MAX_CLIENTS) {
-            Log.debug("ControlSystem", "Invalid controlId: " + controlId);
+    private void control(int playerId, int entityId, float x, float y, int buttonId, boolean buttonState) {
+        if (playerId < 0 || playerId >= NetDriver.MAX_CLIENTS) {
+            Log.debug("ControlSystem", "Invalid playerId: " + playerId);
             return;
         }
         Entity entity = ((GameEngine) getEngine()).getEntityById(entityId);
@@ -100,19 +98,20 @@ public class ControlSystem extends EntitySystem {
             return;
         }
 
-        playerControlInfos[controlId].cursorPosition.set(x, y);
+        PlayerInfo playerInfo = getEngine().getSystem(RefereeSystem.class).getPlayerInfo(playerId);
+        playerControlInfos[playerId].cursorPosition.set(x, y);
 
         if (buttonId != 0) return;
-        if (playerControlInfos[controlId].buttonState && !buttonState) {
+        if (playerControlInfos[playerId].buttonState && !buttonState) {
             ButtonReleaseEvent event = Pools.obtain(ButtonReleaseEvent.class);
-            event.playerId = controlId;
-            event.holdDuration = playerControlInfos[controlId].holdDuration;
+            event.playerId = playerId;
+            event.holdDuration = playerControlInfos[playerId].holdDuration;
             event.x = x;
             event.y = y;
             getEngine().getSystem(EventsSystem.class).triggerEvent(event);
-            playerControlInfos[controlId].holdDuration = -NetDriver.RES_HOLD_DURATION;
+            playerControlInfos[playerId].holdDuration = -NetDriver.RES_HOLD_DURATION;
         }
-        playerControlInfos[controlId].buttonState = buttonState;
+        playerControlInfos[playerId].buttonState = buttonState;
     }
 
     public void setEnabled(boolean enabled) {

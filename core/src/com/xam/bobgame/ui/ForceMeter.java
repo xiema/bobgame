@@ -2,15 +2,18 @@ package com.xam.bobgame.ui;
 
 import com.badlogic.gdx.scenes.scene2d.ui.ProgressBar;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.game.ControlSystem;
+import com.xam.bobgame.game.PlayerControlInfo;
+import com.xam.bobgame.game.PlayerInfo;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
-import com.xam.bobgame.utils.MathUtils2;
 
 public class ForceMeter extends ProgressBar {
 
-    private float holdDuration = -1;
+    private float forceValue = -1;
+    private float stamina = 100;
 
     private GameEngine engine = null;
 
@@ -23,14 +26,20 @@ public class ForceMeter extends ProgressBar {
 
     @Override
     public void act(float delta) {
-        int playerId = engine.getSystem(RefereeSystem.class).getLocalPlayerId();
-        if (playerId != -1 && engine.getSystem(ControlSystem.class).getPlayerControlInfo(playerId).buttonState) {
-            holdDuration = (Math.max(0, holdDuration) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
+        RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
+        int playerId = refereeSystem.getLocalPlayerId();
+        if (playerId != -1) {
+            PlayerInfo playerInfo = refereeSystem.getPlayerInfo(playerId);
+            stamina = playerInfo.stamina;
+            PlayerControlInfo playerControlInfo = engine.getSystem(ControlSystem.class).getPlayerControlInfo(playerId);
+            forceValue = (playerControlInfo.holdDuration * GameProperties.CHARGE_RATE) % (stamina * 2f);
         }
         else {
-            holdDuration = 0;
+            forceValue = 0;
         }
-        setValue(getMaxValue() * MathUtils2.mirror.apply(holdDuration / GameProperties.CHARGE_DURATION_2));
+        setHeight(stamina * 3);
+        setRange(0, stamina);
+        setValue(forceValue <= stamina ? forceValue : (2 * stamina - forceValue));
     }
 
     public void initialize(GameEngine engine) {

@@ -32,18 +32,12 @@ public class RefereeSystem extends EntitySystem {
 
     private final PlayerInfo[] playerInfos = new PlayerInfo[NetDriver.MAX_CLIENTS];
 
-//    private final boolean[] playerExists = new boolean[NetDriver.MAX_CLIENTS];
-//    private final int[] playerControlMap = new int[NetDriver.MAX_CLIENTS];
-//    private final int[] playerScores = new int[NetDriver.MAX_CLIENTS];
-//    private final float[] playerRespawnTimes = new float[NetDriver.MAX_CLIENTS];
-
     private boolean enabled = false;
 
     private boolean matchStarted = false;
 
     public RefereeSystem(int priority) {
         super(priority);
-
         listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
             @Override
             public void handleEvent(ClientConnectedEvent event) {
@@ -136,6 +130,7 @@ public class RefereeSystem extends EntitySystem {
         for (int i = 0; i < playerInfos.length; ++i) {
             if (!playerInfos[i].inPlay) continue;
             playerInfos[i].respawnTime = Math.max(0, playerInfos[i].respawnTime - deltaTime);
+            playerInfos[i].stamina = Math.max(GameProperties.PLAYER_STAMINA_MIN, Math.min(100, playerInfos[i].stamina + deltaTime * GameProperties.PLAYER_STAMINA_RECOVERY));
             if (enabled && playerInfos[i].respawnTime <= 0 && playerInfos[i].controlledEntityId == -1) spawnPlayerBall(i);
         }
     }

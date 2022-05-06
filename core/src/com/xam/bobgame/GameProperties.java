@@ -22,6 +22,11 @@ public class GameProperties {
 
     public static final float PLAYER_RESPAWN_TIME = 5;
     public static final float PLAYER_SPAWN_MARGIN = 3;
+    public static final float PLAYER_STAMINA_LOSS = 48;
+    public static final float PLAYER_STAMINA_RECOVERY = 13;
+    public static final float PLAYER_STAMINA_MIN = 30;
+    public static final float PLAYER_STAMINA_MAX = 100;
+    public static final float CHARGE_RATE = PLAYER_STAMINA_MAX / CHARGE_DURATION;
 
     public static final float SIMULATION_UPDATE_INTERVAL = 1f / 60f;
 }
