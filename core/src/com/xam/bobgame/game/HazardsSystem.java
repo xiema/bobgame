@@ -3,6 +3,8 @@ package com.xam.bobgame.game;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.xam.bobgame.buffs.BuffDefs;
+import com.xam.bobgame.buffs.BuffSystem;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 
@@ -20,6 +22,7 @@ public class HazardsSystem extends EntitySystem {
             public void handleEvent(HazardContactEvent event) {
                 if (enabled) {
                     RefereeSystem refereeSystem = getEngine().getSystem(RefereeSystem.class);
+                    if (BuffSystem.hasBuffDef(event.entity, BuffDefs.SpawnInvBuffDef)) return;
                     int entityId = EntityUtils.getId(event.entity);
                     if (entityId == -1) return;
                     int playerId = refereeSystem.getEntityPlayerId(entityId);

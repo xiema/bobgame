@@ -7,6 +7,8 @@ import com.badlogic.gdx.utils.*;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
+import com.xam.bobgame.buffs.BuffDefs;
+import com.xam.bobgame.buffs.BuffSystem;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
@@ -267,6 +269,8 @@ public class RefereeSystem extends EntitySystem {
         Engine engine = getEngine();
         Entity entity = EntityFactory.createPlayer(engine, playerColor[playerId % playerColor.length]);
         engine.addEntity(entity);
+
+        BuffSystem.addBuff(entity, entity, BuffDefs.SpawnInvBuffDef, 3);
 
         int entityId = EntityUtils.getId(entity);
         playerControlMap[playerId] = entityId;

@@ -12,5 +12,6 @@ public class ComponentMappers {
     public static final ComponentMapper<HazardComponent> hazards = ComponentMapper.getFor(HazardComponent.class);
     public static final ComponentMapper<PickupComponent> pickups = ComponentMapper.getFor(PickupComponent.class);
     public static final ComponentMapper<SteerableComponent> steerables = ComponentMapper.getFor(SteerableComponent.class);
+    public static final ComponentMapper<BuffableComponent> buffables = ComponentMapper.getFor(BuffableComponent.class);
     public static final ComponentMapper<AIComponent> ai = ComponentMapper.getFor(AIComponent.class);
 }

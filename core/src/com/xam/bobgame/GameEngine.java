@@ -8,6 +8,7 @@ import com.badlogic.gdx.utils.*;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.ai.AISystem;
+import com.xam.bobgame.buffs.BuffSystem;
 import com.xam.bobgame.definitions.GameDefinitions;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
@@ -22,6 +23,7 @@ public class GameEngine extends PooledEngine {
             ControlSystem.class,
             AISystem.class,
             PickupsSystem.class,
+            BuffSystem.class,
             PhysicsSystem.class,
             HazardsSystem.class,
     };
@@ -77,8 +79,9 @@ public class GameEngine extends PooledEngine {
         addSystem(new ControlSystem(20));
         addSystem(new AISystem(30));
         addSystem(new PickupsSystem(40));
-        addSystem(new PhysicsSystem(50));
-        addSystem(new HazardsSystem(60));
+        addSystem(new BuffSystem(50));
+        addSystem(new PhysicsSystem(60));
+        addSystem(new HazardsSystem(70));
 
         pauseGame();
 
@@ -236,6 +239,7 @@ public class GameEngine extends PooledEngine {
         getSystem(PhysicsSystem.class).setEnabled(true);
         getSystem(HazardsSystem.class).setEnabled(true);
         getSystem(PickupsSystem.class).setEnabled(true);
+        getSystem(BuffSystem.class).setEnabled(true);
         getSystem(RefereeSystem.class).setEnabled(true);
     }
 
@@ -246,6 +250,7 @@ public class GameEngine extends PooledEngine {
         getSystem(PhysicsSystem.class).setEnabled(false);
         getSystem(HazardsSystem.class).setEnabled(false);
         getSystem(PickupsSystem.class).setEnabled(false);
+        getSystem(BuffSystem.class).setEnabled(false);
         getSystem(RefereeSystem.class).setEnabled(false);
 //        getSystem(PhysicsSystem.class).setForceFactor(NetDriver.FORCE_FACTOR);
     }

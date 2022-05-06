@@ -29,10 +29,12 @@ public class EntityFactory {
         textureDef.textureVal1 = 16;
         textureDef.color.set(color);
         GraphicsComponent graphics = ComponentFactory.graphics(engine, textureDef, 1, 1, 0);
+        BuffableComponent buffable = ComponentFactory.buffable(engine);
 
         entity.add(identity);
         entity.add(physicsBody);
         entity.add(graphics);
+        entity.add(buffable);
 
         return entity;
     }
