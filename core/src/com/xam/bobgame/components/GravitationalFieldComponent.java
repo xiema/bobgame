@@ -8,7 +8,7 @@ import com.badlogic.gdx.utils.Pool.Poolable;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.BitPacker;
 
-public class GravitationalFieldComponent extends Component2 implements Poolable {
+public class GravitationalFieldComponent implements Component2, Poolable {
 
     public Fixture fixture;
     public float strength = 0;
@@ -24,8 +24,9 @@ public class GravitationalFieldComponent extends Component2 implements Poolable 
     }
 
     @Override
-    public void read(BitPacker packer, Engine engine, boolean write) {
-        strength = readFloat(packer, strength, 0, NetDriver.MAX_GRAVITY_STRENGTH, NetDriver.RES_GRAVITY_STRENGTH, write);
-        radius = readFloat(packer, radius, 0, NetDriver.MAX_GRAVITY_RADIUS, NetDriver.RES_GRAVITY_RADIUS, write);
+    public int read(BitPacker packer, Engine engine) {
+        strength = packer.readFloat(strength, 0, NetDriver.MAX_GRAVITY_STRENGTH, NetDriver.RES_GRAVITY_STRENGTH);
+        radius = packer.readFloat(radius, 0, NetDriver.MAX_GRAVITY_RADIUS, NetDriver.RES_GRAVITY_RADIUS);
+        return 0;
     }
 }

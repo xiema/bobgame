@@ -25,8 +25,9 @@ public class PlayerScoreEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
-    public void read(BitPacker packer, Engine engine, boolean send) {
-        playerId = readInt(packer, playerId, 0, NetDriver.MAX_CLIENTS - 1, send);
-        scoreIncrement = readInt(packer, scoreIncrement, 0, NetDriver.MAX_SCORE_INCREMENT, send);
+    public int read(BitPacker packer, Engine engine) {
+        playerId = packer.readInt(playerId, 0, NetDriver.MAX_CLIENTS - 1);
+        scoreIncrement = packer.readInt(scoreIncrement, 0, NetDriver.MAX_SCORE_INCREMENT);
+        return 0;
     }
 }

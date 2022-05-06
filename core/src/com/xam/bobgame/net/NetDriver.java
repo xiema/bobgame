@@ -286,53 +286,9 @@ public class NetDriver extends EntitySystem {
         Client, Server
     }
 
-    public static class  NetworkEvent implements GameEvent {
+    public static abstract class NetworkEvent implements GameEvent, NetSerializable {
 
         public int clientId = -1;
-
-        protected int readInt(BitPacker packer, int i, int min, int max, boolean send) {
-            if (send) {
-                packer.packInt(i, min, max);
-                return i;
-            }
-            else {
-                return packer.unpackInt(min, max);
-            }
-        }
-
-        protected float readFloat(BitPacker packer, float f, float min, float max, float res, boolean send) {
-            if (send) {
-                packer.packFloat(f, min, max, res);
-                return f;
-            }
-            else {
-                return packer.unpackFloat(min, max, res);
-            }
-        }
-
-        protected byte readByte(BitPacker packer, byte b, boolean send) {
-            if (send) {
-                packer.packByte(b);
-                return b;
-            }
-            else {
-                return packer.unpackByte();
-            }
-        }
-
-        protected boolean readBoolean(BitPacker packer, boolean b, boolean send) {
-            if (send) {
-                packer.packInt(b ? 1 : 0, 0, 1);
-                return b;
-            }
-            else {
-                return packer.unpackInt(0, 1) == 1;
-            }
-        }
-
-        public void read(BitPacker packer, Engine engine, boolean send){
-
-        }
 
         public NetworkEvent copyTo(NetworkEvent event) {
             event.clientId = clientId;

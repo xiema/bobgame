@@ -30,10 +30,14 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
-    public void read(BitPacker packer, Engine engine, boolean send) {
-        entityId = readInt(packer, entityId, 0, NetDriver.MAX_ENTITY_ID, send);
-        
-        Entity entity = ((GameEngine) engine).getEntityById(entityId);
+    public int read(BitPacker packer, Engine engine) {
+        Entity entity = null;
+        if (packer.isWriteMode() && (entity = ((GameEngine) engine).getEntityById(entityId)) == null) {
+            Log.error("EntityCreatedEvent", "Entity with id " + entityId + " not found");
+            return -1;
+        }
+
+        entityId = packer.readInt(entityId, 0, NetDriver.MAX_ENTITY_ID);
 
         IdentityComponent iden;
         PhysicsBodyComponent pb;
@@ -41,40 +45,35 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
         HazardComponent hazard;
         GravitationalFieldComponent gravField;
 
-        if (send) {
-            if (entity == null) {
-                Log.error("EntityCreatedEvent", "Entity with id " + entityId + " not found");
-                return;
-            }
-
+        if (packer.isWriteMode() && entity != null) {
             iden = ComponentMappers.identity.get(entity);
             pb = ComponentMappers.physicsBody.get(entity);
             graphics = ComponentMappers.graphics.get(entity);
             hazard = ComponentMappers.hazards.get(entity);
             gravField = ComponentMappers.gravFields.get(entity);
 
-            readBoolean(packer, pb != null, send);
-            readBoolean(packer, graphics != null, send);
-            readBoolean(packer, hazard != null, send);
-            readBoolean(packer, gravField != null, send);
+            packer.readBoolean(pb != null);
+            packer.readBoolean(graphics != null);
+            packer.readBoolean(hazard != null);
+            packer.readBoolean(gravField != null);
         }
         else {
             if (entity == null) {
                 iden = engine.createComponent(IdentityComponent.class);
-                pb = readBoolean(packer, true, send) ? engine.createComponent(PhysicsBodyComponent.class) : null;
-                graphics = readBoolean(packer, true, send) ? engine.createComponent(GraphicsComponent.class) : null;
-                hazard = readBoolean(packer, true, send) ? engine.createComponent(HazardComponent.class) : null;
-                gravField = readBoolean(packer, true, send) ? engine.createComponent(GravitationalFieldComponent.class) : null;
+                pb = packer.readBoolean(true) ? engine.createComponent(PhysicsBodyComponent.class) : null;
+                graphics = packer.readBoolean(true) ? engine.createComponent(GraphicsComponent.class) : null;
+                hazard = packer.readBoolean(true) ? engine.createComponent(HazardComponent.class) : null;
+                gravField = packer.readBoolean(true) ? engine.createComponent(GravitationalFieldComponent.class) : null;
             }
             else {
                 // duplicate entity
                 Log.warn("Entity already exists " + entityId);
                 // TODO: remove extra components
                 iden = ComponentMappers.identity.get(entity);
-                pb = readBoolean(packer, true, send) ? ComponentMappers.physicsBody.get(entity) : null;
-                graphics = readBoolean(packer, true, send) ? ComponentMappers.graphics.get(entity) : null;
-                hazard = readBoolean(packer, true, send) ? ComponentMappers.hazards.get(entity) : null;
-                gravField = readBoolean(packer, true, send) ? ComponentMappers.gravFields.get(entity) : null;
+                pb = packer.readBoolean(true) ? ComponentMappers.physicsBody.get(entity) : null;
+                graphics = packer.readBoolean(true) ? ComponentMappers.graphics.get(entity) : null;
+                hazard = packer.readBoolean(true) ? ComponentMappers.hazards.get(entity) : null;
+                gravField = packer.readBoolean(true) ? ComponentMappers.gravFields.get(entity) : null;
             }
 
             if (pb != null) {
@@ -88,13 +87,13 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
         }
 
         iden.id = entityId;
-        iden.read(packer, engine, send);
-        if (pb != null) pb.read(packer, engine, send);
-        if (graphics != null) graphics.read(packer, engine, send);
-        if (hazard != null) hazard.read(packer, engine, send);
-        if (gravField != null) gravField.read(packer, engine, send);
+        iden.read(packer, engine);
+        if (pb != null) pb.read(packer, engine);
+        if (graphics != null) graphics.read(packer, engine);
+        if (hazard != null) hazard.read(packer, engine);
+        if (gravField != null) gravField.read(packer, engine);
 
-        if (!send) {
+        if (packer.isReadMode()) {
             if (entity == null) {
                 entity = engine.createEntity();
                 entity.add(iden);
@@ -105,5 +104,7 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
                 engine.addEntity(entity);
             }
         }
+
+        return 0;
     }
 }

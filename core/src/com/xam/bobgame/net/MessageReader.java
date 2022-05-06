@@ -185,7 +185,7 @@ public class MessageReader {
         message.setType(Message.MessageType.Input);
         setMessageInfo(message);
         packer.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
-        event.read(packer, engine, true);
+        event.read(packer, engine);
         packer.padToNextByte();
         packer.flush(true);
         message.setLength(packer.getTotalBytes());
@@ -209,7 +209,7 @@ public class MessageReader {
             return -1;
         }
         packer.packInt(typeIndex, 0, NetDriver.networkEventClasses.length - 1);
-        event.read(packer, engine, true);
+        event.read(packer, engine);
         packer.padToNextByte();
         packer.flush(true);
         message.setLength(packer.getTotalBytes());
@@ -226,7 +226,7 @@ public class MessageReader {
         }
         //noinspection unchecked
         NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
-        event.read(packer, engine, packer.isWriteMode());
+        event.read(packer, engine);
 
         if (packer.isReadMode()) {
             event.clientId = clientId;
@@ -235,24 +235,6 @@ public class MessageReader {
 
         return 0;
     }
-
-//    public int readEvent(Message message, Engine engine, int clientId) {
-//        this.engine = engine;
-//        builder.setBuffer(message.getByteBuffer());
-//        send = false;
-//
-//        int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);
-//        //noinspection unchecked
-//        NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
-////        Log.info("clientID=0 playerId=" + netDriver.getConnectionManager().getPlayerId(0));
-//        event.read(builder, false);
-//
-//        if (packer.isReadMode()) {
-//            engine.getSystem(EventsSystem.class).queueEvent(event);
-//        }
-//
-//        return 0;
-//    }
 
     private int readPlayerId(ConnectionManager.ConnectionSlot connectionSlot) {
         if (packer.isWriteMode()) {
@@ -285,7 +267,7 @@ public class MessageReader {
             }
             // TODO: include entity position
             // TODO: use new NetSerializable interface
-            entityCreator.read(packer, engine, packer.isWriteMode());
+            entityCreator.read(packer, engine);
         }
 
         readPlayerInfos(true);

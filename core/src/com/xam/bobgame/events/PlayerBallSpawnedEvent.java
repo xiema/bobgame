@@ -17,8 +17,9 @@ public class PlayerBallSpawnedEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
-    public void read(BitPacker packer, Engine engine, boolean send) {
-        playerId = readInt(packer, playerId, 0, NetDriver.MAX_CLIENTS - 1, send);
-        entityId = readInt(packer, entityId, 0, NetDriver.MAX_ENTITY_ID, send);
+    public int read(BitPacker packer, Engine engine) {
+        playerId = packer.readInt(playerId, 0, NetDriver.MAX_CLIENTS - 1);
+        entityId = packer.readInt(entityId, 0, NetDriver.MAX_ENTITY_ID);
+        return 0;
     }
 }

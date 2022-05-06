@@ -12,7 +12,7 @@ import com.xam.bobgame.game.ShapeDef;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.BitPacker;
 
-public class PhysicsBodyComponent extends Component2 implements Poolable {
+public class PhysicsBodyComponent implements Component2, Poolable {
     public BodyDef bodyDef;
     public FixtureDef fixtureDef;
     public ShapeDef shapeDef;
@@ -33,18 +33,19 @@ public class PhysicsBodyComponent extends Component2 implements Poolable {
     }
 
     @Override
-    public void read(BitPacker packer, Engine engine, boolean write) {
-        bodyDef.type = BodyDef.BodyType.values()[readInt(packer, bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length, write)];
-        bodyDef.position.x = readFloat(packer, bodyDef.position.x, -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION, write);
-        bodyDef.position.y = readFloat(packer, bodyDef.position.y, -3, GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION, write);
-        bodyDef.linearDamping = readFloat(packer, bodyDef.linearDamping, 0, 1, NetDriver.RES_MASS, write);
-        shapeDef.type = ShapeDef.ShapeType.values()[readInt(packer, shapeDef.type.getValue(), 0, ShapeDef.ShapeType.values().length, write)];
-        shapeDef.shapeVal1 = readFloat(packer, shapeDef.shapeVal1, 0, 16, NetDriver.RES_POSITION, write);
-        fixtureDef.density = readFloat(packer, fixtureDef.density, 0, 16, NetDriver.RES_MASS, write);
-        fixtureDef.friction = readFloat(packer, fixtureDef.friction, 0, 16, NetDriver.RES_MASS, write);
-        fixtureDef.restitution = readFloat(packer, fixtureDef.restitution, 0, 16, NetDriver.RES_MASS, write);
-        fixtureDef.isSensor = readBoolean(packer, fixtureDef.isSensor, write);
-        fixtureDef.filter.categoryBits = (short) readInt(packer, fixtureDef.filter.categoryBits & 0xFFFF, 0, 0xFFFF, write);
-        fixtureDef.filter.maskBits = (short) readInt(packer, fixtureDef.filter.maskBits & 0xFFFF, 0, 0xFFFF, write);
+    public int read(BitPacker packer, Engine engine) {
+        bodyDef.type = BodyDef.BodyType.values()[packer.readInt(bodyDef.type.getValue(), 0, BodyDef.BodyType.values().length)];
+        bodyDef.position.x = packer.readFloat(bodyDef.position.x, -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
+        bodyDef.position.y = packer.readFloat(bodyDef.position.y, -3, GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION);
+        bodyDef.linearDamping = packer.readFloat(bodyDef.linearDamping, 0, 1, NetDriver.RES_MASS);
+        shapeDef.type = ShapeDef.ShapeType.values()[packer.readInt(shapeDef.type.getValue(), 0, ShapeDef.ShapeType.values().length)];
+        shapeDef.shapeVal1 = packer.readFloat(shapeDef.shapeVal1, 0, 16, NetDriver.RES_POSITION);
+        fixtureDef.density = packer.readFloat(fixtureDef.density, 0, 16, NetDriver.RES_MASS);
+        fixtureDef.friction = packer.readFloat(fixtureDef.friction, 0, 16, NetDriver.RES_MASS);
+        fixtureDef.restitution = packer.readFloat(fixtureDef.restitution, 0, 16, NetDriver.RES_MASS);
+        fixtureDef.isSensor = packer.readBoolean(fixtureDef.isSensor);
+        fixtureDef.filter.categoryBits = (short) packer.readInt(fixtureDef.filter.categoryBits & 0xFFFF, 0, 0xFFFF);
+        fixtureDef.filter.maskBits = (short) packer.readInt(fixtureDef.filter.maskBits & 0xFFFF, 0, 0xFFFF);
+        return 0;
     }
 }

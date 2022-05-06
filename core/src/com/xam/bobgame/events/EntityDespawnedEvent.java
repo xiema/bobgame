@@ -25,17 +25,19 @@ public class EntityDespawnedEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
-    public void read(BitPacker packer, Engine engine, boolean send) {
-        entityId = readInt(packer, entityId, 0, NetDriver.MAX_ENTITY_ID, send);
+    public int read(BitPacker packer, Engine engine) {
+        entityId = packer.readInt(entityId, 0, NetDriver.MAX_ENTITY_ID);
 
-        if (!send) {
+        if (packer.isReadMode()) {
             Entity entity = ((GameEngine) engine).getEntityById(entityId);
             if (entity == null) {
                 Log.warn("EntityDespawnedEvent", "No entity found with id " + entityId);
-                return;
+                return 0;
             }
             ComponentMappers.identity.get(entity).despawning = true;
             engine.removeEntity(entity);
         }
+
+        return 0;
     }
 }

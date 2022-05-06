@@ -22,9 +22,10 @@ public class PlayerLeftEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
-    public void read(BitPacker packer, Engine engine, boolean send) {
-        playerId = readInt(packer, playerId, 0, NetDriver.MAX_CLIENTS - 1, send);
-        kicked = readBoolean(packer, kicked, send);
+    public int read(BitPacker packer, Engine engine) {
+        playerId = packer.readInt(playerId, 0, NetDriver.MAX_CLIENTS - 1);
+        kicked = packer.readBoolean(kicked);
+        return 0;
     }
 
     @Override

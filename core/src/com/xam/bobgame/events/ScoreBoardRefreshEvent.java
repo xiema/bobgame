@@ -9,7 +9,7 @@ import com.xam.bobgame.utils.BitPacker;
 public class ScoreBoardRefreshEvent extends NetDriver.NetworkEvent {
 
     @Override
-    public void read(BitPacker packer, Engine engine, boolean send) {
+    public int read(BitPacker packer, Engine engine) {
         RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
 
         for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
@@ -18,5 +18,7 @@ public class ScoreBoardRefreshEvent extends NetDriver.NetworkEvent {
             playerInfo.controlledEntityId = packer.readInt(playerInfo.controlledEntityId, -1, NetDriver.MAX_ENTITY_ID);
             playerInfo.score = packer.readInt(playerInfo.score, NetDriver.MIN_SCORE, NetDriver.MAX_SCORE);
         }
+
+        return 0;
     }
 }

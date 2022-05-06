@@ -5,7 +5,7 @@ import com.badlogic.gdx.utils.Pool.Poolable;
 import com.xam.bobgame.entity.EntityType;
 import com.xam.bobgame.utils.BitPacker;
 
-public class IdentityComponent extends Component2 implements Poolable {
+public class IdentityComponent implements Component2, Poolable {
     public int id = -1;
     public EntityType type = EntityType.Neutral;
     public boolean despawning = false;
@@ -18,8 +18,9 @@ public class IdentityComponent extends Component2 implements Poolable {
     }
 
     @Override
-    public void read(BitPacker packer, Engine engine, boolean write) {
+    public int read(BitPacker packer, Engine engine) {
         // id should be manually set
-        type = EntityType.values()[readInt(packer, type.getValue(), 0, EntityType.values().length, write)];
+        type = EntityType.values()[packer.readInt(type.getValue(), 0, EntityType.values().length)];
+        return 0;
     }
 }

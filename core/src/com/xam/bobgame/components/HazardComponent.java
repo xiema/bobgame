@@ -4,14 +4,14 @@ import com.badlogic.ashley.core.Engine;
 import com.badlogic.gdx.utils.Pool.Poolable;
 import com.xam.bobgame.utils.BitPacker;
 
-public class HazardComponent extends Component2 implements Poolable {
+public class HazardComponent implements Component2, Poolable {
     @Override
     public void reset() {
 
     }
 
     @Override
-    public void read(BitPacker packer, Engine engine, boolean write) {
-
+    public int read(BitPacker packer, Engine engine) {
+        return 0;
     }
 }

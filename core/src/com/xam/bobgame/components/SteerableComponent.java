@@ -1,15 +1,17 @@
 package com.xam.bobgame.components;
 
+import com.badlogic.ashley.core.Engine;
 import com.badlogic.gdx.ai.steer.Steerable;
 import com.badlogic.gdx.ai.utils.Location;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Transform;
-import com.badlogic.gdx.utils.Pool;
+import com.badlogic.gdx.utils.Pool.Poolable;
 import com.badlogic.gdx.utils.Pools;
 import com.xam.bobgame.ai.Location2;
+import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.utils.MathUtils2;
 
-public class SteerableComponent extends Component2 implements Steerable<Vector2>, Pool.Poolable {
+public class SteerableComponent implements Component2, Steerable<Vector2>, Poolable {
 
     public PhysicsBodyComponent physicsBody;
     public float maxLinearSpeed = 0.0f;
@@ -137,5 +139,10 @@ public class SteerableComponent extends Component2 implements Steerable<Vector2>
     @Override
     public Location<Vector2> newLocation() {
         return Pools.obtain(Location2.class);
+    }
+
+    @Override
+    public int read(BitPacker packer, Engine engine) {
+        return 0;
     }
 }
