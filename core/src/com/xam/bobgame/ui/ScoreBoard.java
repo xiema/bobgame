@@ -20,8 +20,10 @@ public class ScoreBoard extends Table {
 
     private final Cell<?>[] playerNameCells = new Cell[NetDriver.MAX_CLIENTS];
     private final Cell<?>[] playerScoreCells = new Cell[NetDriver.MAX_CLIENTS];
+    private final Cell<?>[] playerRespawnTimeCells = new Cell[NetDriver.MAX_CLIENTS];
     private final Label[] playerNameLabels = new Label[NetDriver.MAX_CLIENTS];
     private final Label[] playerScoreLabels = new Label[NetDriver.MAX_CLIENTS];
+    private final Label[] playerRespawnTimeLabels = new Label[NetDriver.MAX_CLIENTS];
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
@@ -36,8 +38,9 @@ public class ScoreBoard extends Table {
         columnDefaults(1).align(Align.right).fill().expand();
 
         for (int i = 0; i < playerNameLabels.length; ++i) {
-            playerNameCells[i] = add(playerNameLabels[i] = new Label("a", skin));
-            playerScoreCells[i] = add(playerScoreLabels[i] = new Label("a", skin));
+            playerNameCells[i] = add(playerNameLabels[i] = new Label("", skin));
+            playerScoreCells[i] = add(playerScoreLabels[i] = new Label("", skin));
+            playerRespawnTimeCells[i] = add(playerRespawnTimeLabels[i] = new Label("", skin));
             row();
         }
 
@@ -82,7 +85,7 @@ public class ScoreBoard extends Table {
     }
 
     private void reposition() {
-        setSize(250, 500);
+        setSize(350, 500);
         setPosition(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT, Align.topRight);
     }
 
@@ -91,17 +94,19 @@ public class ScoreBoard extends Table {
         RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
         boolean[] playerExists = refereeSystem.getPlayerExists();
         int[] playerScores = refereeSystem.getPlayerScores();
+        float[] playerRespawnTimes = refereeSystem.getPlayerRespawnTimes();
         rowCount = 0;
         for (int i = 0; i < playerExists.length; ++i) {
             if (playerExists[i]) {
                 addPlayer(i);
-                setPlayerScore(i, playerScores[i]);
+                setPlayerScore(i, playerScores[i], playerRespawnTimes[i]);
             }
         }
 
         for (int j = rowCount; j < playerNameCells.length; ++j) {
             playerNameCells[j].clearActor();
             playerScoreCells[j].clearActor();
+            playerRespawnTimeCells[j].clearActor();
         }
         reposition();
     }
@@ -116,10 +121,12 @@ public class ScoreBoard extends Table {
 //        Log.info("addPlayer " + playerId);
         Label playerNameLabel = playerNameLabels[playerId];
         Label playerScoreLabel = playerScoreLabels[playerId];
+        Label playerRespawnTimeLabel = playerRespawnTimeLabels[playerId];
         playerNameLabel.setText("PL." + playerId);
         playerScoreLabel.setText(0);
         playerNameCells[rowCount].setActor(playerNameLabel);
         playerScoreCells[rowCount].setActor(playerScoreLabel);
+        playerRespawnTimeCells[rowCount].setActor(playerRespawnTimeLabel);
         rowCount++;
         reposition();
     }
@@ -128,27 +135,31 @@ public class ScoreBoard extends Table {
 //        Log.info("addPlayer " + playerId);
         Label playerNameLabel = playerNameLabels[playerId];
         Label playerScoreLabel = playerScoreLabels[playerId];
+        Label playerRespawnTimeLabel = playerRespawnTimeLabels[playerId];
         getCell(playerNameLabel).clearActor();
         getCell(playerScoreLabel).clearActor();
+        getCell(playerRespawnTimeLabel).clearActor();
         rowCount--;
         reposition();
     }
 
-    public void setPlayerScore(int playerId, int score) {
+    public void setPlayerScore(int playerId, int score, float respawnTime) {
 //        Log.info("setPlayerScore " + playerId + " " + score);
         playerScoreLabels[playerId].setText(String.valueOf(score));
+        playerRespawnTimeLabels[playerId].setText(String.valueOf((int) respawnTime));
     }
 
-//    @Override
-//    public void act(float delta) {
-//        super.act(delta);
-//        RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
-//        boolean[] playerExists = refereeSystem.getPlayerExists();
-//        int[] playerScores = refereeSystem.getPlayerScores();
-//        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
-//            if (playerExists[i]) {
-//                setPlayerScore(i, playerScores[i]);
-//            }
-//        }
-//    }
+    @Override
+    public void act(float delta) {
+        super.act(delta);
+        RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
+        boolean[] playerExists = refereeSystem.getPlayerExists();
+        int[] playerScores = refereeSystem.getPlayerScores();
+        float[] playerRespawnTimes = refereeSystem.getPlayerRespawnTimes();
+        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
+            if (playerExists[i]) {
+                setPlayerScore(i, playerScores[i], playerRespawnTimes[i]);
+            }
+        }
+    }
 }

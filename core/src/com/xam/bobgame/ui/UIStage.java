@@ -56,7 +56,7 @@ public class UIStage extends Stage {
         addActor(mainMenu);
 
         forceMeter = new ForceMeter(skin);
-        forceMeter.setPosition(250, 0, Align.bottomRight);
+        forceMeter.setPosition(350, 0, Align.bottomRight);
         addActor(forceMeter);
 
         scoreBoard = new ScoreBoard(skin);

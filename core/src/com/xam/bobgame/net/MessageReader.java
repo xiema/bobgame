@@ -400,11 +400,13 @@ public class MessageReader {
         boolean[] playerExists = refereeSystem.getPlayerExists();
         int[] playerControlMap = refereeSystem.getPlayerControlMap();
         int[] playerScores = refereeSystem.getPlayerScores();
+        float[] playerRespawnTimes = refereeSystem.getPlayerRespawnTimes();
 
         for (int i = 0; i < playerControlMap.length; ++i) {
             playerExists[i] = readInt(playerExists[i] ? 1 : 0, 0, 1) == 1;
             playerControlMap[i] = readInt(playerControlMap[i], -1, NetDriver.MAX_ENTITY_ID);
             playerScores[i] = readInt(playerScores[i], NetDriver.MIN_SCORE, NetDriver.MAX_SCORE);
+            playerRespawnTimes[i] = readFloat(playerRespawnTimes[i], 0, GameProperties.PLAYER_RESPAWN_TIME, 0.125f);
         }
 
         if (!send && refresh) {

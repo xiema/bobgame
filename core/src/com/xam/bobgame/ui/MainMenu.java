@@ -131,6 +131,8 @@ public class MainMenu extends Table {
                 refreshElementStates();
             }
         });
+
+        setWidth(350);
     }
 
     void initialize(GameEngine engine) {

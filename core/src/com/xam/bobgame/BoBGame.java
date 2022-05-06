@@ -122,7 +122,10 @@ public class BoBGame extends ApplicationAdapter {
 
 	@Override
 	public void resize(int width, int height) {
-		viewport.update(width, height);
+		uiViewport.update(width, height);
+		int w = uiViewport.getScreenWidth(), h = uiViewport.getScreenHeight();
+		viewport.update(w, h);
+		viewport.setScreenPosition(uiViewport.getScreenX() + (w - viewport.getScreenWidth()) / 2, uiViewport.getScreenY() + (h - viewport.getScreenHeight()) / 2);
 		if (devMode) devTools.resize(width, height);
 	}
 

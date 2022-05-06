@@ -33,7 +33,7 @@ public class RefereeSystem extends EntitySystem {
     private final boolean[] playerExists = new boolean[NetDriver.MAX_CLIENTS];
     private final int[] playerControlMap = new int[NetDriver.MAX_CLIENTS];
     private final int[] playerScores = new int[NetDriver.MAX_CLIENTS];
-    private final float[] playerRespawnTime = new float[NetDriver.MAX_CLIENTS];
+    private final float[] playerRespawnTimes = new float[NetDriver.MAX_CLIENTS];
 
     private boolean enabled = false;
 
@@ -122,7 +122,7 @@ public class RefereeSystem extends EntitySystem {
         Arrays.fill(playerExists, false);
         Arrays.fill(playerControlMap, -1);
         Arrays.fill(playerScores, 0);
-        Arrays.fill(playerRespawnTime, 0);
+        Arrays.fill(playerRespawnTimes, 0);
         playerCount = 0;
         matchStarted = false;
         localPlayerId = -1;
@@ -130,10 +130,10 @@ public class RefereeSystem extends EntitySystem {
 
     @Override
     public void update(float deltaTime) {
-        for (int i = 0; i < playerRespawnTime.length; ++i) {
+        for (int i = 0; i < playerRespawnTimes.length; ++i) {
             if (!playerExists[i]) continue;
-            playerRespawnTime[i] -= deltaTime;
-            if (enabled && playerRespawnTime[i] <= 0 && playerControlMap[i] == -1) spawnPlayerBall(i);
+            playerRespawnTimes[i] -= deltaTime;
+            if (enabled && playerRespawnTimes[i] <= 0 && playerControlMap[i] == -1) spawnPlayerBall(i);
         }
     }
 
@@ -244,7 +244,7 @@ public class RefereeSystem extends EntitySystem {
         if (entity != null) engine.removeEntity(entity);
         playerExists[playerId] = false;
         playerControlMap[playerId] = -1;
-        playerRespawnTime[playerId] = 0;
+        playerRespawnTimes[playerId] = 0;
         playerScores[playerId] = 0;
 
         if (kicked) {
@@ -311,7 +311,7 @@ public class RefereeSystem extends EntitySystem {
 
         getEngine().removeEntity(entity);
 
-        playerRespawnTime[playerId] = GameProperties.PLAYER_RESPAWN_TIME;
+        playerRespawnTimes[playerId] = GameProperties.PLAYER_RESPAWN_TIME;
     }
 
     public int[] getPlayerControlMap() {
@@ -320,6 +320,10 @@ public class RefereeSystem extends EntitySystem {
 
     public int[] getPlayerScores() {
         return playerScores;
+    }
+
+    public float[] getPlayerRespawnTimes() {
+        return playerRespawnTimes;
     }
 
     public boolean[] getPlayerExists() {
