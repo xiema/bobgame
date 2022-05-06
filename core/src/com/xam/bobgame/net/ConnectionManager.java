@@ -23,8 +23,6 @@ public class ConnectionManager {
 
     private Bits2 activeConnectionsMask = new Bits2(NetDriver.MAX_CLIENTS);
 
-    private int hostClientId = -1;
-
     public ConnectionManager(NetDriver netDriver) {
         this.netDriver = netDriver;
     }
@@ -158,20 +156,6 @@ public class ConnectionManager {
         connectionSlots[clientId].state = ConnectionState.ServerConnected;
     }
 
-    public void acceptHostConnection(int clientId) {
-        connectionSlots[clientId].state = ConnectionState.ClientConnected;
-//        acceptConnection(clientId);
-        hostClientId = clientId;
-    }
-
-    public int getHostClientId() {
-        return hostClientId;
-    }
-
-    public ConnectionSlot getHostConnectionSlot() {
-        return connectionSlots[hostClientId];
-    }
-
     public ConnectionManager.ConnectionSlot getConnectionSlot(int clientId) {
         return connectionSlots[clientId];
     }
@@ -240,6 +224,14 @@ public class ConnectionManager {
 
         public void setPlayerId(int playerId) {
             this.playerId = playerId;
+        }
+
+        public String getHostAddress() {
+            return hostAddress;
+        }
+
+        public int getSalt() {
+            return salt;
         }
 
         public void transitionState(ConnectionState newState) {
@@ -472,7 +464,6 @@ public class ConnectionManager {
             int readMessage(ConnectionSlot slot, Message message) {
                 slot.transitionState(ClientConnected);
                 Log.info("Connected to " + slot.hostAddress);
-                GameProfile.clientSalt = slot.salt;
                 slot.netDriver.getClient().reconnectSalt = slot.salt;
                 slot.netDriver.getClient().setHostId(slot.clientId);
                 ClientConnected.readMessage(slot, message);

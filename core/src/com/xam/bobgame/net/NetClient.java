@@ -45,8 +45,6 @@ public class NetClient extends Client {
             else {
                 connect(5000, host, NetDriver.PORT_TCP, NetDriver.PORT_UDP);
             }
-
-            GameProfile.lastConnectedServerAddress = host;
             return true;
         } catch (IOException e) {
             stop();
@@ -58,6 +56,10 @@ public class NetClient extends Client {
 
     void setHostId(int hostId) {
         this.hostId = hostId;
+    }
+
+    public int getHostId() {
+        return hostId;
     }
 
     public void disconnect() {

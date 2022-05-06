@@ -12,6 +12,7 @@ import com.xam.bobgame.definitions.GameDefinitions;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.*;
+import com.xam.bobgame.net.ConnectionManager;
 import com.xam.bobgame.net.NetDriver;
 
 import java.util.Arrays;
@@ -54,6 +55,17 @@ public class GameEngine extends PooledEngine {
             @Override
             public void handleEvent(DisconnectEvent event) {
                 restart();
+            }
+        });
+        listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
+            @Override
+            public void handleEvent(ClientConnectedEvent event) {
+                if (netDriver.getMode() == NetDriver.Mode.Client) {
+                    ConnectionManager.ConnectionSlot connectionSlot = netDriver.getConnectionManager().getConnectionSlot(netDriver.getClient().getHostId());
+                    GameProfile.lastConnectedServerAddress = connectionSlot.getHostAddress();
+                    GameProfile.clientSalt = connectionSlot.getSalt();
+                    GameProfile.save();
+                }
             }
         });
     }
