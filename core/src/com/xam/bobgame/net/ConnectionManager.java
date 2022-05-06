@@ -102,11 +102,11 @@ public class ConnectionManager {
             slot.sendTransportPacket(slot.sendPacket);
         }
         slot.sendPacket.clear();
+        Log.info("Disconnecting from " + connectionSlots[clientId].hostAddress + " (slot " + clientId + ")");
         removeConnection(clientId);
     }
 
     public void removeConnection(int clientId) {
-        Log.info("Disconnecting from " + connectionSlots[clientId].hostAddress + " (slot " + clientId + ")");
         Pools.free(connectionSlots[clientId]);
         connectionSlots[clientId] = null;
         activeConnectionsMask.unset(clientId);
@@ -449,11 +449,13 @@ public class ConnectionManager {
                 else {
                     if (slot.state.read(slot, slot.syncPacket) == -1) return -1;
                 }
+//                Log.info("Queued packet " + slot.syncPacket);
                 slot.syncPacket.clear();
                 slot.t = 0;
             }
 
             while (slot.messageBuffer.get(slot.message)) {
+//                Log.info("Reading message " + slot.message);
                 slot.state.readMessage(slot, slot.message);
                 slot.message.clear();
             }

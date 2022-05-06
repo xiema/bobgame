@@ -120,6 +120,7 @@ public class MainMenu extends Table {
         netDriver = engine.getSystem(NetDriver.class);
 
         engine.getSystem(EventsSystem.class).addListeners(listeners);
+        refreshElementStates();
     }
 
     void refreshElementStates() {

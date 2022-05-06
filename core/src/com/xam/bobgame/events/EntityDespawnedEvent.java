@@ -30,6 +30,10 @@ public class EntityDespawnedEvent extends NetDriver.NetworkEvent {
 
         if (!send) {
             Entity entity = ((GameEngine) engine).getEntityById(entityId);
+            if (entity == null) {
+                Log.warn("EntityDespawnedEvent", "No entity found with id " + entityId);
+                return;
+            }
             ComponentMappers.identity.get(entity).despawning = true;
             engine.removeEntity(entity);
         }

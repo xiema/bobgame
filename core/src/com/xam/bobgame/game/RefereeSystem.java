@@ -1,7 +1,6 @@
 package com.xam.bobgame.game;
 
 import com.badlogic.ashley.core.*;
-import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.*;
@@ -14,7 +13,6 @@ import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityFactory;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
-import com.xam.bobgame.game.ControlSystem;
 import com.xam.bobgame.net.ConnectionManager;
 import com.xam.bobgame.net.NetDriver;
 
@@ -59,7 +57,12 @@ public class RefereeSystem extends EntitySystem {
         listeners.put(ClientDisconnectedEvent.class, new EventListenerAdapter<ClientDisconnectedEvent>() {
             @Override
             public void handleEvent(ClientDisconnectedEvent event) {
-                removePlayer(event.playerId);
+                if (event.playerId != -1) {
+                    leavePlayer(event.playerId);
+                }
+                else {
+                    Log.debug("Client " + event.clientId + " disconnected without joining");
+                }
             }
         });
         listeners.put(PlayerDeathEvent.class, new EventListenerAdapter<PlayerDeathEvent>() {
@@ -77,7 +80,13 @@ public class RefereeSystem extends EntitySystem {
         listeners.put(PlayerScoreEvent.class, new EventListenerAdapter<PlayerScoreEvent>() {
             @Override
             public void handleEvent(PlayerScoreEvent event) {
-                playerScores[event.playerId] += event.scoreIncrement;
+                // TODO: combine enabled flag for systems
+                if (enabled) {
+                    playerScores[event.playerId] += event.scoreIncrement;
+                    ScoreBoardRefreshEvent scoreBoardEvent = Pools.obtain(ScoreBoardRefreshEvent.class);
+                    getEngine().getSystem(NetDriver.class).queueClientEvent(-1, scoreBoardEvent, true);
+                    getEngine().getSystem(EventsSystem.class).triggerEvent(scoreBoardEvent);
+                }
             }
         });
         listeners.put(RequestJoinEvent.class, new EventListenerAdapter<RequestJoinEvent>() {
@@ -228,7 +237,7 @@ public class RefereeSystem extends EntitySystem {
         return;
     }
 
-    public void removePlayer(int playerId) {
+    public void leavePlayer(int playerId) {
         GameEngine engine = (GameEngine) getEngine();
         Entity entity = engine.getEntityById(playerControlMap[playerId]);
         if (entity != null) engine.removeEntity(entity);
@@ -237,7 +246,12 @@ public class RefereeSystem extends EntitySystem {
         playerRespawnTime[playerId] = 0;
         playerScores[playerId] = 0;
 
-        Log.info("Player " + playerId + "removed");
+        Log.info("Player " + playerId + " left the game.");
+
+        PlayerLeftEvent event = Pools.obtain(PlayerLeftEvent.class);
+        event.playerId = playerId;
+        engine.getSystem(NetDriver.class).queueClientEvent(-1, event);
+        engine.getSystem(EventsSystem.class).queueEvent(event);
 
         playerCount--;
     }
@@ -279,8 +293,12 @@ public class RefereeSystem extends EntitySystem {
         netDriver.queueClientEvent(-1, deathEvent, false);
         eventsSystem.queueEvent(deathEvent);
 
-        ScoreBoardUpdateEvent scoreEvent = Pools.obtain(ScoreBoardUpdateEvent.class);
-        scoreEvent.playerId = playerId;
+//        ScoreBoardUpdateEvent scoreEvent = Pools.obtain(ScoreBoardUpdateEvent.class);
+//        scoreEvent.playerId = playerId;
+//        netDriver.queueClientEvent(-1, scoreEvent);
+//        eventsSystem.queueEvent(scoreEvent);
+
+        ScoreBoardRefreshEvent scoreEvent = Pools.obtain(ScoreBoardRefreshEvent.class);
         netDriver.queueClientEvent(-1, scoreEvent);
         eventsSystem.queueEvent(scoreEvent);
 

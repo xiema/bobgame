@@ -79,7 +79,7 @@ public class NetDriver extends EntitySystem {
             PlayerJoinedEvent.class,
             PlayerControlEvent.class,
             PlayerScoreEvent.class,
-            ScoreBoardUpdateEvent.class,
+            ScoreBoardRefreshEvent.class,
             EntityCreatedEvent.class,
             EntityDespawnedEvent.class,
             PlayerDeathEvent.class,
@@ -366,7 +366,7 @@ public class NetDriver extends EntitySystem {
                 int clientId = connectionManager.getClientId(connection);
                 if (clientId != -1) {
                     if (returnPacket.decode(byteBuffer) != -1) {
-//                        Log.info("Received Packet " + returnPacket.localSeqNum + ": " + returnPacket.getMessage());
+//                        Log.info("Received Packet " + returnPacket);
                         synchronized (transport) {
                             if (!transport.updateReceived(returnPacket, clientId)) {
                                 r = returnPacket;

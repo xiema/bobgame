@@ -145,6 +145,10 @@ public class MessageReader {
                 return -1;
         }
 
+        if (message.getByteBuffer().hasRemaining()) {
+            Log.warn("Message has excess bytes");
+        }
+
         return 0;
     }
 
@@ -162,7 +166,7 @@ public class MessageReader {
                 break;
             case Snapshot:
                 if (readSystemSnapshot() == -1) return -1;
-                if (readPlayerId(connectionSlot) == -1) return -1;
+//                if (readPlayerId(connectionSlot) == -1) return -1;
                 break;
             case Empty:
                 break;
@@ -338,17 +342,21 @@ public class MessageReader {
 
         if (!send && pb != null) {
             PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) pb.body.getUserData();
-            physicsHistory.posXError.update(t1 - (tfm.vals[0] + physicsHistory.posXError.getAverage()));
-            physicsHistory.posYError.update(t2 - (tfm.vals[1] + physicsHistory.posYError.getAverage()));
-
-            tempVec.set(t1 - tfm.vals[0], t2 - tfm.vals[1]);
-            pb.body.setTransform(t1, t2, t3);
-            pb.body.setLinearVelocity(v1, v2);
-            pb.body.setAngularVelocity(v3);
-            tempMassData.mass = m;
-            tempMassData.center.set(c1, c2);
-            tempMassData.I = i;
-            pb.body.setMassData(tempMassData);
+            if (physicsHistory == null) {
+                Log.warn("MessageReader.readPhysicsBody", "Body has no UserData");
+            }
+            else {
+                physicsHistory.posXError.update(t1 - (tfm.vals[0] + physicsHistory.posXError.getAverage()));
+                physicsHistory.posYError.update(t2 - (tfm.vals[1] + physicsHistory.posYError.getAverage()));
+                tempVec.set(t1 - tfm.vals[0], t2 - tfm.vals[1]);
+                pb.body.setTransform(t1, t2, t3);
+                pb.body.setLinearVelocity(v1, v2);
+                pb.body.setAngularVelocity(v3);
+                tempMassData.mass = m;
+                tempMassData.center.set(c1, c2);
+                tempMassData.I = i;
+                pb.body.setMassData(tempMassData);
+            }
         }
 
         return 0;
@@ -374,7 +382,7 @@ public class MessageReader {
 
         for (int i = 0; i < playerControlMap.length; ++i) {
             playerExists[i] = readInt(playerExists[i] ? 1 : 0, 0, 1) == 1;
-            playerControlMap[i] = readInt(playerControlMap[i], -1, 254);
+            playerControlMap[i] = readInt(playerControlMap[i], -1, NetDriver.MAX_ENTITY_ID);
             playerScores[i] = readInt(playerScores[i], NetDriver.MIN_SCORE, NetDriver.MAX_SCORE);
         }
 

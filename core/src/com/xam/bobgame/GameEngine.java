@@ -224,6 +224,7 @@ public class GameEngine extends PooledEngine {
         getSystem(PhysicsSystem.class).setEnabled(true);
         getSystem(HazardsSystem.class).setEnabled(true);
         getSystem(PickupsSystem.class).setEnabled(true);
+        getSystem(RefereeSystem.class).setEnabled(true);
     }
 
     public void setupClient() {
@@ -233,6 +234,7 @@ public class GameEngine extends PooledEngine {
         getSystem(PhysicsSystem.class).setEnabled(false);
         getSystem(HazardsSystem.class).setEnabled(false);
         getSystem(PickupsSystem.class).setEnabled(false);
+        getSystem(RefereeSystem.class).setEnabled(false);
 //        getSystem(PhysicsSystem.class).setForceFactor(NetDriver.FORCE_FACTOR);
     }
 

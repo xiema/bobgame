@@ -53,8 +53,8 @@ public class PickupsSystem extends EntitySystem {
                         PlayerScoreEvent scoreEvent = Pools.obtain(PlayerScoreEvent.class);
                         scoreEvent.playerId = playerId;
                         scoreEvent.scoreIncrement = 1;
-                        NetDriver netDriver = getEngine().getSystem(NetDriver.class);
-                        netDriver.queueClientEvent(netDriver.getConnectionManager().getPlayerClientId(playerId), scoreEvent);
+//                        NetDriver netDriver = getEngine().getSystem(NetDriver.class);
+//                        netDriver.queueClientEvent(-1, scoreEvent);
                         getEngine().getSystem(EventsSystem.class).triggerEvent(scoreEvent);
                     }
                     else if (iden.type == EntityType.Hazard) {
