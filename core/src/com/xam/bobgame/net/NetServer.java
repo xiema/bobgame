@@ -6,6 +6,7 @@ import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Serialization;
 import com.esotericsoftware.kryonet.Server;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameEngine;
 
 import java.io.IOException;
@@ -37,8 +38,14 @@ public class NetServer extends Server {
         netDriver.setMode(NetDriver.Mode.Server);
         super.start();
         try {
-            bind(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
-            Log.info("Server listening on " + NetDriver.PORT_TCP + "/" + NetDriver.PORT_UDP);
+            if (BoBGame.isNoUDP()) {
+                bind(NetDriver.PORT_TCP);
+                Log.info("Server listening on " + NetDriver.PORT_TCP);
+            }
+            else {
+                bind(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
+                Log.info("Server listening on " + NetDriver.PORT_TCP + "/" + NetDriver.PORT_UDP);
+            }
         } catch (IOException e) {
             stop();
             e.printStackTrace();

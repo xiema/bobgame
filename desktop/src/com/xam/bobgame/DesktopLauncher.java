@@ -26,6 +26,9 @@ public class DesktopLauncher {
 				case "--noProfile":
 					runArgs.put("noProfile", "");
 					break;
+				case "--noUDP":
+					runArgs.put("noUDP", "");
+					break;
 				case "--devMode":
 					runArgs.put("devMode", "");
 					break;

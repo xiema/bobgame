@@ -75,6 +75,13 @@ public class ConnectionManager {
                     connectionSlot.initialize(netDriver);
                     connectionSlot.clientId = i;
                     connectionSlot.connection = connection;
+                    try {
+                        connection.getRemoteAddressUDP();
+                        connectionSlot.hasUDP = true;
+                        Log.debug("ConnectionManager", "Connecting to client " + i + " by UDP");
+                    } catch (NullPointerException e) {
+                        Log.warn("ConnectionManager", "Connecting to client " + i + " by TCP");
+                    }
                     connectionSlot.hostAddress = connection.getRemoteAddressTCP().getAddress().getHostAddress();
                     connectionSlot.state = netDriver.getMode() == NetDriver.Mode.Server ? ConnectionState.ServerEmpty : ConnectionState.ClientEmpty;
                     connectionSlots[i] = connectionSlot;
@@ -200,6 +207,8 @@ public class ConnectionManager {
         int clientId = -1;
         int playerId = -1;
 
+        boolean hasUDP = false;
+
         ConnectionState state = null;
         float t = 0;
         int salt = 0;
@@ -242,11 +251,21 @@ public class ConnectionManager {
         public void sendDataPacket(Packet packet) {
             packet.type = Packet.PacketType.Data;
 //            Log.info("Sending packet " + packet);
-            connection.sendUDP(packet);
+            if (hasUDP) {
+                connection.sendUDP(packet);
+            }
+            else {
+                connection.sendTCP(packet);
+            }
         }
 
         public void sendTransportPacket(Packet packet) {
-            connection.sendUDP(packet);
+            if (hasUDP) {
+                connection.sendUDP(packet);
+            }
+            else {
+                connection.sendTCP(packet);
+            }
         }
 
         int generateSalt() {
@@ -261,6 +280,7 @@ public class ConnectionManager {
         public void reset() {
             netDriver = null;
             connection = null;
+            hasUDP = false;
             clientId = -1;
             playerId = -1;
             state = null;
@@ -451,7 +471,7 @@ public class ConnectionManager {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
                 slot.transitionState(ClientConnected);
-                Log.info("Connected to " + slot.connection.getRemoteAddressUDP().getAddress().getHostAddress());
+                Log.info("Connected to " + slot.hostAddress);
                 GameProfile.clientSalt = slot.salt;
                 slot.netDriver.getClient().reconnectSalt = slot.salt;
                 slot.netDriver.getClient().setHostId(slot.clientId);

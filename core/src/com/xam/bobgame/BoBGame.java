@@ -23,6 +23,7 @@ public class BoBGame extends ApplicationAdapter {
 	static boolean headless = false;
 	static boolean devMode = false;
 	static boolean noProfile = false;
+	static boolean noUDP = false;
 
 	GameEngine engine;
 	NetDriver netDriver;
@@ -51,6 +52,8 @@ public class BoBGame extends ApplicationAdapter {
 			headless = runArgs.containsKey("headless");
 			devMode = runArgs.containsKey("devMode");
 			noProfile = runArgs.containsKey("noProfile");
+			noProfile = runArgs.containsKey("noProfile");
+			noUDP = runArgs.containsKey("noUDP");
 		}
 		if (devMode) {
 			Log.set(Log.LEVEL_DEBUG);
@@ -150,5 +153,9 @@ public class BoBGame extends ApplicationAdapter {
 
 	public static boolean isHeadless() {
 		return headless;
+	}
+
+	public static boolean isNoUDP() {
+		return noUDP;
 	}
 }

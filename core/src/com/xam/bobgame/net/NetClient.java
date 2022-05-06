@@ -6,6 +6,7 @@ import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Serialization;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.events.DisconnectEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.GameProfile;
@@ -33,8 +34,18 @@ public class NetClient extends Client {
         netDriver.setMode(NetDriver.Mode.Client);
         if (isConnected()) return false;
         start();
+        String[] add = host.split(":");
         try {
-            connect(5000, host, NetDriver.PORT_TCP, NetDriver.PORT_UDP);
+            if (add.length > 1) {
+                connect(5000, add[0], Integer.parseInt(add[1]));
+            }
+            else if (BoBGame.isNoUDP()) {
+                connect(5000, host, NetDriver.PORT_TCP);
+            }
+            else {
+                connect(5000, host, NetDriver.PORT_TCP, NetDriver.PORT_UDP);
+            }
+
             GameProfile.lastConnectedServerAddress = host;
             return true;
         } catch (IOException e) {
