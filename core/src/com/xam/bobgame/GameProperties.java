@@ -21,6 +21,7 @@ public class GameProperties {
     public static final float PICKUP_PUSH_STRENGTH = 80f;
 
     public static final float PLAYER_RESPAWN_TIME = 5;
+    public static final float PLAYER_SPAWN_MARGIN = 3;
 
     public static final float SIMULATION_UPDATE_INTERVAL = 1f / 60f;
 }

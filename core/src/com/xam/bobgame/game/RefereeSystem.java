@@ -268,6 +268,10 @@ public class RefereeSystem extends EntitySystem {
     private Entity spawnPlayerBall(int playerId) {
         Engine engine = getEngine();
         Entity entity = EntityFactory.createPlayer(engine, playerColor[playerId % playerColor.length]);
+        PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
+        physicsBody.bodyDef.position.x = MathUtils.random(GameProperties.PLAYER_SPAWN_MARGIN, GameProperties.MAP_WIDTH - GameProperties.PLAYER_SPAWN_MARGIN);
+        physicsBody.bodyDef.position.y = MathUtils.random(GameProperties.PLAYER_SPAWN_MARGIN, GameProperties.MAP_HEIGHT - GameProperties.PLAYER_SPAWN_MARGIN);
+
         engine.addEntity(entity);
 
         BuffSystem.addBuff(entity, entity, BuffDefs.SpawnInvBuffDef, 3);
