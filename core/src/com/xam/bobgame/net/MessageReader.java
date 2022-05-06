@@ -109,7 +109,7 @@ public class MessageReader {
 
         switch (message.getType()) {
             case Update:
-                if (engine.getSystem(NetDriver.class).getMode() == NetDriver.Mode.Client && this.engine.getLastSnapshotFrame() == -1) {
+                if (this.engine.getMode() == GameEngine.Mode.Client && this.engine.getLastSnapshotFrame() == -1) {
                     Log.info("Got " + message + " Waiting for snapshot");
                     return -1;
                 }

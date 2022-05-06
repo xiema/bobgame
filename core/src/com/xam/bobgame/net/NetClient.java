@@ -7,6 +7,7 @@ import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Serialization;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.BoBGame;
+import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.events.DisconnectEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.GameProfile;
@@ -26,13 +27,17 @@ public class NetClient extends Client {
         addListener(listener);
     }
 
+    public void setup() {
+        reconnectSalt = GameProfile.clientSalt;
+    }
+
     public boolean canReconnect() {
         return reconnectSalt != 0;
     }
 
     public boolean connect(String host) {
-        netDriver.setMode(NetDriver.Mode.Client);
         if (isConnected()) return false;
+        ((GameEngine) netDriver.getEngine()).setMode(GameEngine.Mode.Client);
         start();
         String[] add = host.split(":");
         try {
@@ -48,9 +53,9 @@ public class NetClient extends Client {
             return true;
         } catch (IOException e) {
             stop();
-            netDriver.setMode(null);
             e.printStackTrace();
         }
+        ((GameEngine) netDriver.getEngine()).setMode(GameEngine.Mode.None);
         return false;
     }
 
@@ -74,8 +79,6 @@ public class NetClient extends Client {
         GameProfile.clientSalt = 0;
 
         stop();
-
-        netDriver.setMode(null);
     }
 
     @Override
@@ -87,7 +90,7 @@ public class NetClient extends Client {
     private Listener listener = new Listener() {
         @Override
         public void connected(Connection connection) {
-            int clientId = netDriver.connectionManager.addConnection(connection);
+            int clientId = netDriver.connectionManager.addConnection(connection, false);
             if (reconnectSalt != 0) {
                 netDriver.connectionManager.initiateReconnect(clientId, reconnectSalt);
             }

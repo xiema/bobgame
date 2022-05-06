@@ -6,7 +6,6 @@ import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
-import com.xam.bobgame.GameProfile;
 import com.xam.bobgame.events.ClientConnectedEvent;
 import com.xam.bobgame.events.ClientDisconnectedEvent;
 import com.xam.bobgame.events.EventsSystem;
@@ -65,7 +64,7 @@ public class ConnectionManager {
         }
     }
 
-    public int addConnection(Connection connection) {
+    public int addConnection(Connection connection, boolean isServer) {
         synchronized (connectionSlots) {
             for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
                 if (connectionSlots[i] == null) {
@@ -81,7 +80,7 @@ public class ConnectionManager {
                         Log.warn("ConnectionManager", "Connecting to client " + i + " by TCP");
                     }
                     connectionSlot.hostAddress = connection.getRemoteAddressTCP().getAddress().getHostAddress();
-                    connectionSlot.state = netDriver.getMode() == NetDriver.Mode.Server ? ConnectionState.ServerEmpty : ConnectionState.ClientEmpty;
+                    connectionSlot.state = isServer ? ConnectionState.ServerEmpty : ConnectionState.ClientEmpty;
                     connectionSlots[i] = connectionSlot;
                     activeConnectionsMask.set(i);
 
@@ -386,7 +385,7 @@ public class ConnectionManager {
 
             @Override
             int update2(ConnectionSlot slot) {
-                slot.netDriver.getServer().syncClient(slot);
+                slot.netDriver.server.syncClient(slot);
                 return 0;
             }
         },
@@ -464,8 +463,8 @@ public class ConnectionManager {
             int readMessage(ConnectionSlot slot, Message message) {
                 slot.transitionState(ClientConnected);
                 Log.info("Connected to " + slot.hostAddress);
-                slot.netDriver.getClient().reconnectSalt = slot.salt;
-                slot.netDriver.getClient().setHostId(slot.clientId);
+                slot.netDriver.client.reconnectSalt = slot.salt;
+                slot.netDriver.client.setHostId(slot.clientId);
                 ClientConnected.readMessage(slot, message);
                 slot.messageBuffer.syncFrameNum = message.frameNum - NetDriver.JITTER_BUFFER_SIZE;
                 ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);

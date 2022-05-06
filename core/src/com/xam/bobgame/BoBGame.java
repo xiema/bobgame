@@ -82,12 +82,13 @@ public class BoBGame extends ApplicationAdapter {
 			skin = new Skin(Gdx.files.internal("skin/uiskin.json"));
 			uiViewport = new FitViewport(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT);
 			uiStage = new UIStage(this, uiViewport, batch, skin);
-			uiStage.initialize(engine);
 
 			// reconnection
 			if (GameProfile.clientSalt != 0) {
-				netDriver.setMode(NetDriver.Mode.Client);
+				engine.setupClient();
 			}
+
+			uiStage.initialize(engine);
 
 			if (devMode) {
 				devTools = new DevTools(this);

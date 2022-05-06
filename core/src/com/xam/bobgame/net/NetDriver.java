@@ -10,7 +10,6 @@ import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProfile;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.PhysicsSystem;
-import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.utils.Bits2;
 import com.xam.bobgame.utils.DebugUtils;
 
@@ -62,15 +61,14 @@ public class NetDriver extends EntitySystem {
     final PacketTransport transport = new PacketTransport(this);
     final NetSerialization serialization = new NetSerialization();
     final MessageReader messageReader = new MessageReader();
-    private final NetServer server = new NetServer(this, serialization);
-    private final NetClient client = new NetClient(this, serialization);
+    final NetServer server = new NetServer(this, serialization);
+    final NetClient client = new NetClient(this, serialization);
 
     /**
      * Events pending to be sent to connected clients. Not guaranteed to be sent in order.
      */
     final Array<ClientEvent> clientEvents = new Array<>(false, 4);
 
-    private Mode mode = Mode.Client;
     private float curTime = 0;
     private float curTimeDelta = 0;
 
@@ -103,21 +101,37 @@ public class NetDriver extends EntitySystem {
         return -1;
     }
 
-    public NetDriver() {
-        this(0);
-    }
+    private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
     public NetDriver(int priority) {
         super(priority);
+
+        listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
+            @Override
+            public void handleEvent(ClientConnectedEvent event) {
+                GameEngine engine = (GameEngine) getEngine();
+                if (engine.getMode() == GameEngine.Mode.Client) {
+                    ConnectionManager.ConnectionSlot connectionSlot = connectionManager.getConnectionSlot(client.getHostId());
+                    GameProfile.lastConnectedServerAddress = connectionSlot.getHostAddress();
+                    GameProfile.clientSalt = connectionSlot.getSalt();
+                    GameProfile.save();
+                    engine.resumeGame();
+                }
+            }
+        });
     }
 
     @Override
     public void addedToEngine(Engine engine) {
+        // TODO: set this here?
         client.reconnectSalt = GameProfile.clientSalt;
+        engine.getSystem(EventsSystem.class).addListeners(listeners);
     }
 
     @Override
     public void removedFromEngine(Engine engine) {
+        EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
+        if (eventsSystem != null) eventsSystem.removeListeners(listeners);
         for (ClientEvent clientEvent : clientEvents) Pools.free(clientEvent);
         clientEvents.clear();
         movingAverage.reset();
@@ -226,32 +240,25 @@ public class NetDriver extends EntitySystem {
         return ((GameEngine) getEngine()).getCurrentFrame();
     }
 
-    public void setMode(Mode mode) {
-        this.mode = mode;
-        if (mode == Mode.Server) {
-            ((GameEngine) getEngine()).setupServer();
-        }
-        else if (mode == Mode.Client){
-            ((GameEngine) getEngine()).setupClient();
-            client.reconnectSalt = GameProfile.clientSalt;
-        }
-    }
-
-    public Mode getMode() {
-        return mode;
-    }
-
-    public NetServer getServer() {
-        return mode == Mode.Server ? server : null;
-    }
-
     public boolean startServer() {
         server.start();
         return server.isRunning();
     }
 
-    public NetClient getClient() {
-        return mode == Mode.Client ? client : null;
+    public void stopServer() {
+        server.stop();
+    }
+
+    public void setupClient() {
+        client.setup();
+    }
+
+    public void disconnectClient() {
+        client.disconnect();
+    }
+
+    public boolean canReconnect() {
+        return client.canReconnect();
     }
 
     public boolean connectToServer(String hostAddress) {
@@ -259,11 +266,11 @@ public class NetDriver extends EntitySystem {
     }
 
     public boolean isServerRunning() {
-        return mode == Mode.Server && server.isRunning();
+        return ((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server && server.isRunning();
     }
 
     public boolean isClientConnected() {
-        return mode == Mode.Client && client.isConnected();
+        return ((GameEngine) getEngine()).getMode() == GameEngine.Mode.Client && client.isConnected();
     }
 
     public ConnectionManager getConnectionManager() {
@@ -280,10 +287,6 @@ public class NetDriver extends EntitySystem {
             event = null;
             clientMask.clear();
         }
-    }
-
-    public enum Mode {
-        Client, Server
     }
 
     public static abstract class NetworkEvent implements GameEvent, NetSerializable {

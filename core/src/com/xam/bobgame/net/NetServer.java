@@ -1,6 +1,5 @@
 package com.xam.bobgame.net;
 
-import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Serialization;
@@ -35,8 +34,8 @@ public class NetServer extends Server {
     @Override
     public void start() {
         if (isRunning()) return;
-        netDriver.setMode(NetDriver.Mode.Server);
         super.start();
+        ((GameEngine) netDriver.getEngine()).setMode(GameEngine.Mode.Server);
         try {
             if (BoBGame.isNoUDP()) {
                 bind(NetDriver.PORT_TCP);
@@ -46,17 +45,20 @@ public class NetServer extends Server {
                 bind(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
                 Log.info("Server listening on " + NetDriver.PORT_TCP + "/" + NetDriver.PORT_UDP);
             }
+            ((GameEngine) netDriver.getEngine()).setupServer();
+            running = true;
+            return;
         } catch (IOException e) {
             stop();
             e.printStackTrace();
         }
-        running = true;
+        ((GameEngine) netDriver.getEngine()).setMode(GameEngine.Mode.None);
     }
 
     private Listener listener = new Listener() {
         @Override
         public void connected(Connection connection) {
-            netDriver.connectionManager.addConnection(connection);
+            netDriver.connectionManager.addConnection(connection, true);
         }
 
         @Override

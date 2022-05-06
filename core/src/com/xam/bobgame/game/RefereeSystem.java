@@ -38,18 +38,6 @@ public class RefereeSystem extends EntitySystem {
 
     public RefereeSystem(int priority) {
         super(priority);
-        listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
-            @Override
-            public void handleEvent(ClientConnectedEvent event) {
-                NetDriver netDriver = getEngine().getSystem(NetDriver.class);
-                if (netDriver.getMode() == NetDriver.Mode.Server) {
-                    netDriver.getServer().flagSnapshot(event.clientId);
-                }
-                else {
-                    ((GameEngine) getEngine()).resumeGame();
-                }
-            }
-        });
         listeners.put(ClientDisconnectedEvent.class, new EventListenerAdapter<ClientDisconnectedEvent>() {
             @Override
             public void handleEvent(ClientDisconnectedEvent event) {
@@ -185,7 +173,7 @@ public class RefereeSystem extends EntitySystem {
     }
 
     public void joinGame() {
-        if (((GameEngine) getEngine()).getMode() == NetDriver.Mode.Client) {
+        if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Client) {
             RequestJoinEvent requestJoinEvent = Pools.obtain(RequestJoinEvent.class);
             getEngine().getSystem(NetDriver.class).queueClientEvent(-1, requestJoinEvent, false);
         }

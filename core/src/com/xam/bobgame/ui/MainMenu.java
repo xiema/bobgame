@@ -64,7 +64,7 @@ public class MainMenu extends Table {
         leaveButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                netDriver.getClient().disconnect();
+                netDriver.disconnectClient();
                 refreshElementStates();
             }
         });
@@ -82,7 +82,7 @@ public class MainMenu extends Table {
         disconnectButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                netDriver.getClient().disconnect();
+                netDriver.disconnectClient();
                 refreshElementStates();
             }
         });
@@ -110,7 +110,7 @@ public class MainMenu extends Table {
         stopServerButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                netDriver.getServer().stop();
+                netDriver.stopServer();
                 refreshElementStates();
             }
         });
@@ -172,7 +172,7 @@ public class MainMenu extends Table {
             disabled(connectCell, connectButton);
         }
         else {
-            if (netDriver.getMode() != NetDriver.Mode.Client || !netDriver.getClient().canReconnect()) {
+            if (engine.getMode() != GameEngine.Mode.Client || !netDriver.canReconnect()) {
                 disabled(joinCell, joinButton);
                 enabled(addressCell, serverAddressField);
                 enabled(connectCell, connectButton);

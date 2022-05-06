@@ -31,6 +31,8 @@ public class GameEngine extends PooledEngine {
 
     private BoBGame game;
 
+    private Mode mode = Mode.None;
+
     private EventsSystem eventsSystem;
     private RefereeSystem refereeSystem;
     private NetDriver netDriver;
@@ -59,22 +61,11 @@ public class GameEngine extends PooledEngine {
                 restart();
             }
         });
-        listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
-            @Override
-            public void handleEvent(ClientConnectedEvent event) {
-                if (netDriver.getMode() == NetDriver.Mode.Client) {
-                    ConnectionManager.ConnectionSlot connectionSlot = netDriver.getConnectionManager().getConnectionSlot(netDriver.getClient().getHostId());
-                    GameProfile.lastConnectedServerAddress = connectionSlot.getHostAddress();
-                    GameProfile.clientSalt = connectionSlot.getSalt();
-                    GameProfile.save();
-                }
-            }
-        });
     }
 
     public void initialize() {
-        addSystem(netDriver = new NetDriver(0));
         addSystem(eventsSystem = new EventsSystem(1));
+        addSystem(netDriver = new NetDriver(0));
         addSystem(refereeSystem = new RefereeSystem(10));
         addSystem(new ControlSystem(20));
         addSystem(new AISystem(30));
@@ -92,14 +83,14 @@ public class GameEngine extends PooledEngine {
     public void update(float deltaTime) {
         if (restarting) {
             Array<EntitySystem> systems = new Array<>();
-            removeSystem(netDriver);
             removeSystem(eventsSystem);
+            removeSystem(netDriver);
             removeSystem(refereeSystem);
             for (EntitySystem system : getSystems()) systems.add(system);
 //            Log.info("All systems removed");
 
-            addSystem(netDriver);
             addSystem(eventsSystem);
+            addSystem(netDriver);
             addSystem(refereeSystem);
             for (EntitySystem system : systems) addSystem(system);
 
@@ -202,7 +193,7 @@ public class GameEngine extends PooledEngine {
             sortedEntityIds.insert(ins >= 0 ? ins : -(ins + 1), entityID);
         }
 
-        if (netDriver.getMode() == NetDriver.Mode.Server) {
+        if (mode == Mode.Server) {
             EntityCreatedEvent netEvent = Pools.obtain(EntityCreatedEvent.class);
             netEvent.entityId = entityID;
             netDriver.queueClientEvent(-1, netEvent, false);
@@ -224,7 +215,7 @@ public class GameEngine extends PooledEngine {
 
     @Override
     public void removeEntity(Entity entity) {
-        if (netDriver.getMode() == NetDriver.Mode.Server) {
+        if (mode == Mode.Server) {
             EntityDespawnedEvent event = Pools.obtain(EntityDespawnedEvent.class);
             event.entityId = EntityUtils.getId(entity);
             netDriver.queueClientEvent(-1, event, false);
@@ -232,7 +223,13 @@ public class GameEngine extends PooledEngine {
         super.removeEntity(entity);
     }
 
+    public void setMode(Mode mode) {
+        Log.debug("GameEngine mode set to " + mode);
+        this.mode = mode;
+    }
+
     public void setupServer() {
+        mode = Mode.Server;
         refereeSystem.setEnabled(true);
         getSystem(ControlSystem.class).setEnabled(true);
         getSystem(ControlSystem.class).setControlFacing(true);
@@ -244,6 +241,7 @@ public class GameEngine extends PooledEngine {
     }
 
     public void setupClient() {
+        mode = Mode.Client;
         refereeSystem.setEnabled(false);
         getSystem(ControlSystem.class).setEnabled(true);
         getSystem(ControlSystem.class).setControlFacing(false);
@@ -252,11 +250,12 @@ public class GameEngine extends PooledEngine {
         getSystem(PickupsSystem.class).setEnabled(false);
         getSystem(BuffSystem.class).setEnabled(false);
         getSystem(RefereeSystem.class).setEnabled(false);
+        netDriver.setupClient();
 //        getSystem(PhysicsSystem.class).setForceFactor(NetDriver.FORCE_FACTOR);
     }
 
-    public NetDriver.Mode getMode() {
-        return netDriver.getMode();
+    public Mode getMode() {
+        return mode;
     }
 
     public int getLastSnapshotFrame() {
@@ -292,6 +291,10 @@ public class GameEngine extends PooledEngine {
 
     public GameDefinitions getGameDefinitions() {
         return game.gameDefinitions;
+    }
+
+    public enum Mode {
+        Client, Server, None
     }
 
     //    public SharedMemoryChecker getMemCheck() {
