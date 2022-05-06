@@ -89,6 +89,7 @@ public class BoBGame extends ApplicationAdapter {
 			headlessCommandThread = new Thread(new HeadlessCommandRunnable(this));
 			headlessCommandThread.start();
 			netDriver.startServer();
+			engine.start();
 		}
 	}
 
