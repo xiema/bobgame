@@ -86,6 +86,10 @@ public class SequenceNumChecker {
         set(i, offset, 64);
     }
 
+    public void set(SequenceNumChecker src) {
+        System.arraycopy(src.bits, 0, bits, 0, src.bits.length);
+    }
+
     public void shiftDown(int n) {
         int i = 0, j = (n >>> 6);
         if (j < bits.length) {

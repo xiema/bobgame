@@ -18,8 +18,8 @@ public class PacketBuffer{
 
     private int frameDelay = 0;
     private int remoteFrameNum = 0;
-    private float simulationDelay = 0;
-    private float remoteSimulationTime = 0;
+//    private float simulationDelay = 0;
+//    private float remoteSimulationTime = 0;
 
     int frameOffset = 0;
 
@@ -71,7 +71,7 @@ public class PacketBuffer{
             }
         }
 
-        remoteSimulationTime = Math.max(remoteSimulationTime, packet.simulationTime);
+//        remoteSimulationTime = Math.max(remoteSimulationTime, packet.simulationTime);
 
         return packet.getMessage().getLength();
     }
@@ -126,13 +126,13 @@ public class PacketBuffer{
         return frameDelay;
     }
 
-    public void setSimulationDelay(float simulationDelay) {
-        this.simulationDelay = simulationDelay;
-    }
+//    public void setSimulationDelay(float simulationDelay) {
+//        this.simulationDelay = simulationDelay;
+//    }
 
-    public float getSimulationDelay() {
-        return simulationDelay;
-    }
+//    public float getSimulationDelay() {
+//        return simulationDelay;
+//    }
 
     public void debug(String tag) {
         Log.info(tag + ": putIndex=" + putIndex + " getIndex=" + getIndex + " oldestReceivedIndex" + oldestReceivedIndex);

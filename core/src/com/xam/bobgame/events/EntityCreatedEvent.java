@@ -42,6 +42,11 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
         GravitationalFieldComponent gravField;
 
         if (send) {
+            if (entity == null) {
+                Log.error("EntityCreatedEvent", "Entity with id " + entityId + " not found");
+                return;
+            }
+
             iden = ComponentMappers.identity.get(entity);
             pb = ComponentMappers.physicsBody.get(entity);
             graphics = ComponentMappers.graphics.get(entity);

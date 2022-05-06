@@ -58,7 +58,7 @@ public class RefereeSystem extends EntitySystem {
             @Override
             public void handleEvent(ClientDisconnectedEvent event) {
                 if (event.playerId != -1) {
-                    leavePlayer(event.playerId);
+                    removePlayer(event.playerId, !event.cleanDisconnect);
                 }
                 else {
                     Log.debug("Client " + event.clientId + " disconnected without joining");
@@ -183,7 +183,7 @@ public class RefereeSystem extends EntitySystem {
 
     public void setLocalPlayerId(int playerId) {
         localPlayerId = playerId;
-        Log.info("PlayerId set to " + playerId);
+        Log.debug("PlayerId set to " + playerId);
     }
 
     public void joinGame() {
@@ -213,7 +213,7 @@ public class RefereeSystem extends EntitySystem {
         playerExists[playerId] = true;
         playerCount++;
 
-        spawnPlayerBall(playerId);
+//        spawnPlayerBall(playerId);
 
         if (clientId == -1) {
             localPlayerId = playerId;
@@ -222,22 +222,23 @@ public class RefereeSystem extends EntitySystem {
             // remote client
             ConnectionManager connectionManager = netDriver.getConnectionManager();
             connectionManager.getConnectionSlot(clientId).setPlayerId(playerId);
-            connectionManager.acceptConnection(clientId);
-            Log.info("Client " + clientId + " joined as Player " + playerId);
-            PlayerAssignEvent assignEvent = Pools.obtain(PlayerAssignEvent.class);
-            assignEvent.playerId = playerId;
-            netDriver.queueClientEvent(clientId, assignEvent, false);
+            assignPlayer(clientId, playerId);
         }
 
         PlayerJoinedEvent joinedEvent = Pools.obtain(PlayerJoinedEvent.class);
         joinedEvent.playerId = playerId;
         netDriver.queueClientEvent(-1, joinedEvent);
         engine.getSystem(EventsSystem.class).triggerEvent(joinedEvent);
-
-        return;
     }
 
-    public void leavePlayer(int playerId) {
+    public void assignPlayer(int clientId, int playerId) {
+        Log.info("Client " + clientId + " joined as Player " + playerId);
+        PlayerAssignEvent assignEvent = Pools.obtain(PlayerAssignEvent.class);
+        assignEvent.playerId = playerId;
+        getEngine().getSystem(NetDriver.class).queueClientEvent(clientId, assignEvent, false);
+    }
+
+    public void removePlayer(int playerId, boolean kicked) {
         GameEngine engine = (GameEngine) getEngine();
         Entity entity = engine.getEntityById(playerControlMap[playerId]);
         if (entity != null) engine.removeEntity(entity);
@@ -246,10 +247,16 @@ public class RefereeSystem extends EntitySystem {
         playerRespawnTime[playerId] = 0;
         playerScores[playerId] = 0;
 
-        Log.info("Player " + playerId + " left the game.");
+        if (kicked) {
+            Log.info("Player " + playerId + " was kicked from the game.");
+        }
+        else {
+            Log.info("Player " + playerId + " left the game.");
+        }
 
         PlayerLeftEvent event = Pools.obtain(PlayerLeftEvent.class);
         event.playerId = playerId;
+        event.kicked = kicked;
         engine.getSystem(NetDriver.class).queueClientEvent(-1, event);
         engine.getSystem(EventsSystem.class).queueEvent(event);
 

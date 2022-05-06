@@ -8,7 +8,7 @@ import com.esotericsoftware.kryonet.Serialization;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.events.DisconnectEvent;
 import com.xam.bobgame.events.EventsSystem;
-import com.xam.bobgame.utils.GameProfile;
+import com.xam.bobgame.GameProfile;
 
 import java.io.IOException;
 
@@ -17,22 +17,29 @@ public class NetClient extends Client {
     private final NetDriver netDriver;
     int hostId = -1;
 
+    int reconnectSalt = 0;
+
     public NetClient(NetDriver netDriver, Serialization serialization) {
         super(8192, 2048, serialization);
         this.netDriver = netDriver;
         addListener(listener);
     }
 
+    public boolean canReconnect() {
+        return reconnectSalt != 0;
+    }
+
     public boolean connect(String host) {
+        netDriver.setMode(NetDriver.Mode.Client);
         if (isConnected()) return false;
         start();
         try {
             connect(5000, host, NetDriver.PORT_TCP, NetDriver.PORT_UDP);
             GameProfile.lastConnectedServerAddress = host;
-            netDriver.setMode(NetDriver.Mode.Client);
             return true;
         } catch (IOException e) {
             stop();
+            netDriver.setMode(null);
             e.printStackTrace();
         }
         return false;
@@ -43,12 +50,19 @@ public class NetClient extends Client {
     }
 
     public void disconnect() {
-        netDriver.connectionManager.sendDisconnect(hostId);
+        if (isConnected()) {
+            netDriver.connectionManager.sendDisconnect(hostId);
+        }
 
         DisconnectEvent event = Pools.obtain(DisconnectEvent.class);
         netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
 
+        reconnectSalt = 0;
+        GameProfile.clientSalt = 0;
+
         stop();
+
+        netDriver.setMode(null);
     }
 
     @Override
@@ -61,9 +75,13 @@ public class NetClient extends Client {
         @Override
         public void connected(Connection connection) {
             int clientId = netDriver.connectionManager.addConnection(connection);
-            netDriver.connectionManager.initiateHandshake(clientId);
-            netDriver.connectionManager.getConnectionSlot(clientId).packetBuffer.setFrameDelay(NetDriver.JITTER_BUFFER_SIZE);
-            netDriver.connectionManager.getConnectionSlot(clientId).packetBuffer.setSimulationDelay(NetDriver.BUFFER_TIME_LIMIT);
+            if (reconnectSalt != 0) {
+                netDriver.connectionManager.initiateReconnect(clientId, reconnectSalt);
+            }
+            else {
+                netDriver.connectionManager.initiateHandshake(clientId);
+            }
+//            netDriver.connectionManager.getConnectionSlot(clientId).packetBuffer.setSimulationDelay(NetDriver.BUFFER_TIME_LIMIT);
         }
 
         @Override

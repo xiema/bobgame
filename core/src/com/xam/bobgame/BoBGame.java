@@ -15,7 +15,6 @@ import com.xam.bobgame.dev.DevTools;
 import com.xam.bobgame.graphics.GraphicsRenderer;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.ui.UIStage;
-import com.xam.bobgame.utils.GameProfile;
 import com.xam.bobgame.utils.HeadlessCommandRunnable;
 
 import java.util.Map;
@@ -23,6 +22,7 @@ import java.util.Map;
 public class BoBGame extends ApplicationAdapter {
 	static boolean headless = false;
 	static boolean devMode = false;
+	static boolean noProfile = false;
 
 	GameEngine engine;
 	NetDriver netDriver;
@@ -50,6 +50,7 @@ public class BoBGame extends ApplicationAdapter {
 		if (runArgs != null) {
 			headless = runArgs.containsKey("headless");
 			devMode = runArgs.containsKey("devMode");
+			noProfile = runArgs.containsKey("noProfile");
 		}
 		if (devMode) {
 			Log.set(Log.LEVEL_DEBUG);
@@ -58,13 +59,13 @@ public class BoBGame extends ApplicationAdapter {
 	
 	@Override
 	public void create () {
+		GameProfile.load();
+
 		engine = new GameEngine(this);
 		gameDefinitions = new GameDefinitions();
 		gameDefinitions.createDefinitions(false);
 		engine.initialize();
 		netDriver = engine.getSystem(NetDriver.class);
-
-		GameProfile.load();
 
 		if (!headless) {
 			batch = new SpriteBatch();
@@ -79,6 +80,11 @@ public class BoBGame extends ApplicationAdapter {
 			uiViewport = new FitViewport(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT);
 			uiStage = new UIStage(this, uiViewport, batch, skin);
 			uiStage.initialize(engine);
+
+			// reconnection
+			if (GameProfile.clientSalt != 0) {
+				netDriver.setMode(NetDriver.Mode.Client);
+			}
 
 			if (devMode) {
 				devTools = new DevTools(this);

@@ -7,6 +7,7 @@ import com.xam.bobgame.utils.BitPacker;
 public class PlayerLeftEvent extends NetDriver.NetworkEvent {
 
     public int playerId = -1;
+    public boolean kicked = false;
 
     @Override
     public void reset() {
@@ -23,6 +24,7 @@ public class PlayerLeftEvent extends NetDriver.NetworkEvent {
     @Override
     public void read(BitPacker packer, Engine engine, boolean send) {
         playerId = readInt(packer, playerId, 0, NetDriver.MAX_CLIENTS - 1, send);
+        kicked = readBoolean(packer, kicked, send);
     }
 
     @Override

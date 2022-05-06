@@ -34,11 +34,11 @@ public class NetServer extends Server {
     @Override
     public void start() {
         if (isRunning()) return;
+        netDriver.setMode(NetDriver.Mode.Server);
         super.start();
         try {
             bind(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
             Log.info("Server listening on " + NetDriver.PORT_TCP + "/" + NetDriver.PORT_UDP);
-            netDriver.setMode(NetDriver.Mode.Server);
         } catch (IOException e) {
             stop();
             e.printStackTrace();

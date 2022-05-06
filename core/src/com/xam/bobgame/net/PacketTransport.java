@@ -70,6 +70,11 @@ public class PacketTransport {
         endPointInfos[clientId] = null;
     }
 
+    void reconnect(int oldClientId, int newClientId) {
+        endPointInfos[newClientId].copyTo(endPointInfos[oldClientId]);
+        removeTransportConnection(newClientId);
+    }
+
     private class EndPointInfo {
         SequenceNumChecker acks = new SequenceNumChecker(NetDriver.PACKET_SEQUENCE_LIMIT);
         int clientId;
@@ -97,7 +102,8 @@ public class PacketTransport {
                 }
                 // new packet, add to history
                 packet.localSeqNum = localSeqNum;
-                packet.simulationTime = ((GameEngine) netDriver.getEngine()).getSimulationTime();
+//                packet.simulationTime = ((GameEngine) netDriver.getEngine()).getSimulationTime();
+                packet.salt = netDriver.getConnectionManager().getConnectionSlot(clientId).salt;
                 packetInfos[localSeqNum].set(packet, clientId);
                 acks.unset(localSeqNum);
                 localSeqNum = (localSeqNum + 1) % NetDriver.PACKET_SEQUENCE_LIMIT;
@@ -117,6 +123,16 @@ public class PacketTransport {
 
         int getAck() {
             return (int) received.getBitMask((received.getHigh() + NetDriver.PACKET_SEQUENCE_LIMIT - 33) % NetDriver.PACKET_SEQUENCE_LIMIT, 32);
+        }
+
+        void copyTo(EndPointInfo other) {
+            other.acks.set(acks);
+            other.remoteSeqNum = remoteSeqNum;
+            other.received.set(received);
+            other.localSeqNum = localSeqNum;
+            for (int i = 0; i < packetInfos.length; ++i) {
+                packetInfos[i].copyTo(other.packetInfos[i]);
+            }
         }
     }
 

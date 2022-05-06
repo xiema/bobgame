@@ -222,6 +222,10 @@ public class MessageReader {
 
     private int readEvent(int clientId) {
         int type = builder.unpackInt(0, NetDriver.networkEventClasses.length - 1);
+        if (type >= NetDriver.networkEventClasses.length) {
+            Log.error("MessageReader", "Invalid network event id " + type + " from client " + clientId);
+            return -1;
+        }
         //noinspection unchecked
         NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
         event.read(builder, engine, false);
@@ -316,7 +320,14 @@ public class MessageReader {
     private int readPhysicsBody(PhysicsBodyComponent pb) {
         boolean zero;
 
-        Transform tfm = pb == null ? tempTfm : pb.body.getTransform();
+        Transform tfm;
+        if (pb == null || pb.body == null) {
+            Log.warn("MessageReader.readPhysicsBody", "Invalid PhysicsBodyComponent");
+            tfm = tempTfm;
+        }
+        else {
+            tfm = pb.body.getTransform();
+        }
 
         float t1 = readFloat(tfm.vals[0], -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
         float t2 = readFloat(tfm.vals[1], -3, GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION);

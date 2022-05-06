@@ -7,13 +7,11 @@ import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.ObjectMap;
-import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameEngine;
-import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.net.NetDriver;
-import com.xam.bobgame.utils.GameProfile;
+import com.xam.bobgame.GameProfile;
 
 public class MainMenu extends Table {
 
@@ -29,8 +27,10 @@ public class MainMenu extends Table {
     final TextField serverAddressField;
     final TextButton startGameButton;
     final TextButton joinButton;
+    final TextButton leaveButton;
     final TextButton connectButton;
     final TextButton disconnectButton;
+    final TextButton reconnectButton;
     final TextButton startServerButton;
     final TextButton stopServerButton;
 
@@ -60,6 +60,15 @@ public class MainMenu extends Table {
             }
         });
 
+        leaveButton = new TextButton("Leave", skin);
+        leaveButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                netDriver.getClient().disconnect();
+                refreshElementStates();
+            }
+        });
+
         connectButton = new TextButton("Connect", skin);
         connectButton.addListener(new ClickListener() {
             @Override
@@ -74,6 +83,16 @@ public class MainMenu extends Table {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 netDriver.getClient().disconnect();
+                refreshElementStates();
+            }
+        });
+
+        reconnectButton = new TextButton("Reconnect", skin);
+        reconnectButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                // TODO: check reconnecting to same address
+                netDriver.connectToServer(GameProfile.lastConnectedServerAddress);
                 refreshElementStates();
             }
         });
@@ -151,9 +170,16 @@ public class MainMenu extends Table {
             disabled(connectCell, connectButton);
         }
         else {
-            disabled(joinCell, joinButton);
-            enabled(addressCell, serverAddressField);
-            enabled(connectCell, connectButton);
+            if (netDriver.getMode() != NetDriver.Mode.Client || !netDriver.getClient().canReconnect()) {
+                disabled(joinCell, joinButton);
+                enabled(addressCell, serverAddressField);
+                enabled(connectCell, connectButton);
+            }
+            else {
+                enabled(joinCell, leaveButton);
+                disabled(addressCell, serverAddressField);
+                enabled(connectCell, reconnectButton);
+            }
             enabled(serverCell, startServerButton);
         }
     }

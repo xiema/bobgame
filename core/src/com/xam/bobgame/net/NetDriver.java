@@ -7,6 +7,7 @@ import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.KryoSerialization;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
+import com.xam.bobgame.GameProfile;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.utils.BitPacker;
@@ -26,6 +27,8 @@ public class NetDriver extends EntitySystem {
     public static final int PORT_UDP = 55196;
     public static final int PACKET_SEQUENCE_LIMIT = 128;
     public static final int JITTER_BUFFER_SIZE = 4;
+
+    public static final float INACTIVITY_DISCONNECT_TIMEOUT = 15;
 
     public static final float RES_POSITION = (float) Math.pow(2d, -12d);
 //    public static final float RES_POSITION = 1e-4f;
@@ -61,6 +64,10 @@ public class NetDriver extends EntitySystem {
     final MessageReader messageReader = new MessageReader();
     private final NetServer server = new NetServer(this, serialization);
     private final NetClient client = new NetClient(this, serialization);
+
+    /**
+     * Events pending to be sent to connected clients. Not guaranteed to be sent in order.
+     */
     final Array<ClientEvent> clientEvents = new Array<>(false, 4);
 
     private Mode mode = Mode.Client;
@@ -77,6 +84,7 @@ public class NetDriver extends EntitySystem {
     public static final Class<?>[] networkEventClasses = {
             PlayerAssignEvent.class,
             PlayerJoinedEvent.class,
+            PlayerLeftEvent.class,
             PlayerControlEvent.class,
             PlayerScoreEvent.class,
             ScoreBoardRefreshEvent.class,
@@ -101,6 +109,11 @@ public class NetDriver extends EntitySystem {
 
     public NetDriver(int priority) {
         super(priority);
+    }
+
+    @Override
+    public void addedToEngine(Engine engine) {
+        client.reconnectSalt = GameProfile.clientSalt;
     }
 
     @Override
@@ -217,8 +230,9 @@ public class NetDriver extends EntitySystem {
         if (mode == Mode.Server) {
             ((GameEngine) getEngine()).setupServer();
         }
-        else {
+        else if (mode == Mode.Client){
             ((GameEngine) getEngine()).setupClient();
+            client.reconnectSalt = GameProfile.clientSalt;
         }
     }
 

@@ -23,14 +23,11 @@ public class DesktopLauncher {
 				case "-h":
 					runArgs.put("headless", "");
 					break;
-				case "-s":
-					runArgs.put("server", "");
+				case "--noProfile":
+					runArgs.put("noProfile", "");
 					break;
-				case "-c":
-					runArgs.put("client", "");
-					break;
-				case "--devmode":
-					runArgs.put("devmode", "");
+				case "--devMode":
+					runArgs.put("devMode", "");
 					break;
 			}
 			i++;

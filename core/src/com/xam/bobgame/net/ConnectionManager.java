@@ -1,14 +1,17 @@
 package com.xam.bobgame.net;
 
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Pool;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
+import com.xam.bobgame.GameProfile;
 import com.xam.bobgame.events.ClientConnectedEvent;
 import com.xam.bobgame.events.ClientDisconnectedEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.events.PlayerControlEvent;
+import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.utils.Bits2;
 import com.xam.bobgame.utils.SequenceNumChecker;
 
@@ -94,6 +97,27 @@ public class ConnectionManager {
         }
     }
 
+    public void initiateReconnect(int clientId, int salt) {
+        ConnectionSlot connectionSlot = connectionSlots[clientId];
+        if (connectionSlot.state == ConnectionState.ClientEmpty) {
+            connectionSlot.state = ConnectionState.ClientPending2;
+            connectionSlot.salt = salt;
+            connectionSlot.sendPacket.type = Packet.PacketType.Reconnect;
+            connectionSlot.sendTransportPacket(connectionSlot.sendPacket);
+            connectionSlot.sendPacket.clear();
+        }
+    }
+
+    public ConnectionSlot findSalt(int salt) {
+        for (int i = 0; i < connectionSlots.length; ++i) {
+            ConnectionSlot connectionSlot = connectionSlots[i];
+            if (connectionSlot == null) continue;
+            if ((connectionSlot.state == ConnectionState.ServerConnected || connectionSlot.state == ConnectionState.ServerTimeoutPending) && connectionSlot.salt == salt)
+                return connectionSlot;
+        }
+        return null;
+    }
+
     public void sendDisconnect(int clientId) {
         ConnectionSlot slot = connectionSlots[clientId];
         slot.sendPacket.type = Packet.PacketType.Disconnect;
@@ -111,6 +135,16 @@ public class ConnectionManager {
         connectionSlots[clientId] = null;
         activeConnectionsMask.unset(clientId);
         netDriver.transport.removeTransportConnection(clientId);
+        synchronized (netDriver.clientEvents) {
+            for (int i = 0; i < netDriver.clientEvents.size; ++i) {
+                NetDriver.ClientEvent clientEvent = netDriver.clientEvents.get(i);
+                clientEvent.clientMask.unset(clientId);
+                if (!clientEvent.clientMask.anySet()) {
+                    netDriver.clientEvents.removeIndex(i);
+                    i--;
+                }
+            }
+        }
     }
 
     public void acceptConnection(int clientId) {
@@ -168,8 +202,7 @@ public class ConnectionManager {
 
         ConnectionState state = null;
         float t = 0;
-
-        int messageSeqCounter = 0;
+        int salt = 0;
 
         Packet sendPacket = new Packet(NetDriver.DATA_MAX_SIZE);
         Packet syncPacket = new Packet(NetDriver.DATA_MAX_SIZE);
@@ -216,6 +249,14 @@ public class ConnectionManager {
             connection.sendUDP(packet);
         }
 
+        int generateSalt() {
+            return salt = (salt << 15) | MathUtils.random(1, 1 << 15);
+        }
+
+        synchronized public boolean checkMessageNum(int messageId) {
+            return messageNumChecker.getAndSet(messageId);
+        }
+
         @Override
         public void reset() {
             netDriver = null;
@@ -224,24 +265,43 @@ public class ConnectionManager {
             playerId = -1;
             state = null;
             t = 0;
+            salt = 0;
             needsSnapshot = true;
-            messageSeqCounter = 0;
             packetBuffer.reset();
-            syncPacket.clear();
-            sendPacket.clear();
             messageNumChecker.clear();
         }
     }
 
     public enum ConnectionState {
-        ServerEmpty(-1) {
+        ServerEmpty(-1, false) {
             @Override
             int read(ConnectionSlot slot, Packet in) {
                 if (in.type == Packet.PacketType.ConnectionRequest) {
                     slot.transitionState(ServerPending);
                     slot.sendPacket.type = Packet.PacketType.ConnectionChallenge;
+                    slot.generateSalt();
                     slot.sendTransportPacket(slot.sendPacket);
                     slot.sendPacket.clear();
+                }
+                else if (in.type == Packet.PacketType.Reconnect) {
+                    ConnectionSlot oldSlot = slot.netDriver.getConnectionManager().findSalt(in.salt);
+                    if (oldSlot == null) {
+                        Log.debug("Invalid reconnect request was ignored");
+                        return 0;
+                    }
+                    else {
+                        oldSlot.connection = slot.connection;
+                        if (!oldSlot.hostAddress.equals(slot.hostAddress)) {
+                            Log.warn("Client " + slot.clientId + " reconnecting with a new host address");
+                        }
+                        oldSlot.messageNumChecker.set(slot.messageNumChecker);
+                        PacketBuffer pb = oldSlot.packetBuffer;
+                        oldSlot.packetBuffer = slot.packetBuffer;
+                        slot.packetBuffer = pb;
+                        slot.netDriver.transport.reconnect(oldSlot.clientId, slot.clientId);
+                        slot.netDriver.getConnectionManager().removeConnection(slot.clientId);
+                        oldSlot.state.read(oldSlot, in);
+                    }
                 }
                 return 0;
             }
@@ -251,16 +311,23 @@ public class ConnectionManager {
                 return -1;
             }
         },
-        ServerPending(5) {
+        ServerPending(5, false) {
             @Override
             int read(ConnectionSlot slot, Packet in) {
                 if (in.type == Packet.PacketType.ConnectionChallengeResponse) {
-                    Log.info("Host " + slot.hostAddress + " connected as Client " + slot.clientId);
-                    ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);
-                    event.clientId = slot.clientId;
-                    slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
-                    slot.needsSnapshot = true;
-                    slot.transitionState(ServerConnected);
+                    if (in.salt >> 15 == slot.salt) {
+                        slot.salt = in.salt;
+                        Log.info("Client " + slot.clientId  + " (" + slot.hostAddress + ") connected");
+                        ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);
+                        event.clientId = slot.clientId;
+                        slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
+                        slot.needsSnapshot = true;
+                        slot.transitionState(ServerConnected);
+                    }
+                    else {
+                        Log.debug("Client " + slot.clientId + " sent incorrect challenge response");
+                        slot.netDriver.getConnectionManager().removeConnection(slot.clientId);
+                    }
                 }
                 return 0;
             }
@@ -271,7 +338,7 @@ public class ConnectionManager {
                 return -1;
             }
         },
-        ServerConnected(5) {
+        ServerConnected(5, true) {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
                 slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine(), slot.clientId);
@@ -285,8 +352,14 @@ public class ConnectionManager {
                     ClientDisconnectedEvent event = Pools.obtain(ClientDisconnectedEvent.class);
                     event.clientId = slot.clientId;
                     event.playerId = slot.playerId;
+                    event.cleanDisconnect = true;
                     slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
                     slot.netDriver.connectionManager.removeConnection(slot.clientId);
+                }
+                else if (in.type == Packet.PacketType.Reconnect) {
+                    Log.info("Client " + slot.clientId + " (" + slot.hostAddress + ") reconnected");
+                    slot.needsSnapshot = true;
+                    slot.netDriver.getEngine().getSystem(RefereeSystem.class).assignPlayer(slot.clientId, slot.playerId);
                 }
 //                return readData(slot, in);
                 return -1;
@@ -294,7 +367,8 @@ public class ConnectionManager {
 
             @Override
             int timeout(ConnectionSlot slot) {
-                slot.transitionState(ServerEmpty);
+                Log.info("Client " + slot.clientId + " didn't respond for " + this.timeoutThreshold + " seconds");
+                slot.transitionState(ServerTimeoutPending);
                 return -1;
             }
 
@@ -304,7 +378,36 @@ public class ConnectionManager {
                 return 0;
             }
         },
-        ClientEmpty(-1) {
+        ServerTimeoutPending(NetDriver.INACTIVITY_DISCONNECT_TIMEOUT, true) {
+            @Override
+            int readMessage(ConnectionSlot slot, Message message) {
+                Log.info("Client " + slot.clientId + " is active");
+                slot.transitionState(ServerConnected);
+                ServerConnected.readMessage(slot, message);
+                return 0;
+            }
+
+            @Override
+            int read(ConnectionSlot slot, Packet in) {
+                Log.info("Client " + slot.clientId + " is active");
+                slot.transitionState(ServerConnected);
+                slot.state.read(slot, in);
+                return 0;
+            }
+
+            @Override
+            int timeout(ConnectionSlot slot) {
+                Log.info("Client " + slot.clientId + " disconnected due to inactivity");
+                ClientDisconnectedEvent event = Pools.obtain(ClientDisconnectedEvent.class);
+                event.clientId = slot.clientId;
+                event.playerId = slot.playerId;
+                event.cleanDisconnect = false;
+                slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
+                slot.netDriver.connectionManager.removeConnection(slot.clientId);
+                return -1;
+            }
+        },
+        ClientEmpty(-1, false) {
             @Override
             int start(ConnectionSlot slot) {
                 slot.transitionState(ClientPending1);
@@ -324,11 +427,13 @@ public class ConnectionManager {
                 return -1;
             }
         },
-        ClientPending1(5) {
+        ClientPending1(5, false) {
             @Override
             int read(ConnectionSlot slot, Packet in) {
                 if (in.type == Packet.PacketType.ConnectionChallenge) {
                     slot.transitionState(ClientPending2);
+                    slot.salt = in.salt;
+                    slot.generateSalt();
                     slot.sendPacket.type = Packet.PacketType.ConnectionChallengeResponse;
                     slot.sendTransportPacket(slot.sendPacket);
                     slot.sendPacket.clear();
@@ -342,11 +447,13 @@ public class ConnectionManager {
                 return -1;
             }
         },
-        ClientPending2(5) {
+        ClientPending2(5, false) {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
                 slot.transitionState(ClientConnected);
                 Log.info("Connected to " + slot.connection.getRemoteAddressUDP().getAddress().getHostAddress());
+                GameProfile.clientSalt = slot.salt;
+                slot.netDriver.getClient().reconnectSalt = slot.salt;
                 slot.netDriver.getClient().setHostId(slot.clientId);
                 ClientConnected.readMessage(slot, message);
                 slot.messageBuffer.syncFrameNum = message.frameNum - NetDriver.JITTER_BUFFER_SIZE;
@@ -368,7 +475,7 @@ public class ConnectionManager {
                 return -1;
             }
         },
-        ClientConnected(5) {
+        ClientConnected(5, true) {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
                 slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine(), slot.clientId);
@@ -419,9 +526,11 @@ public class ConnectionManager {
         ;
 
         public final float timeoutThreshold;
+        public final boolean checksSalt;
 
-        ConnectionState(float timeoutThreshold) {
+        ConnectionState(float timeoutThreshold, boolean checksSalt) {
             this.timeoutThreshold = timeoutThreshold;
+            this.checksSalt = checksSalt;
         }
 
         int readMessage(ConnectionSlot slot, Message message) {
@@ -436,19 +545,21 @@ public class ConnectionManager {
             slot.t += t;
             if (timeoutThreshold > 0 && slot.t > timeoutThreshold) return timeout(slot);
             while (slot.packetBuffer.get(slot.syncPacket)) {
-                if (slot.syncPacket.type == Packet.PacketType.Data) {
-                    synchronized (slot.messageNumChecker) {
-                        if (slot.messageNumChecker.getAndSet(slot.syncPacket.getMessage().messageId)) {
+                if (!slot.state.checksSalt || slot.syncPacket.salt == slot.salt) {
+                    if (slot.syncPacket.type == Packet.PacketType.Data) {
+                        if (slot.checkMessageNum(slot.syncPacket.getMessage().messageId)) {
                             // message already seen or old and assumed seen
                             Log.info("Discarded message num=" + slot.syncPacket.getMessage().messageId);
-                            return 0;
+                        }
+                        else {
+                            slot.messageBuffer.receive(slot.syncPacket.getMessage());
                         }
                     }
-                    slot.messageBuffer.receive(slot.syncPacket.getMessage());
+                    else {
+                        if (slot.state.read(slot, slot.syncPacket) == -1) return -1;
+                    }
                 }
-                else {
-                    if (slot.state.read(slot, slot.syncPacket) == -1) return -1;
-                }
+
 //                Log.info("Queued packet " + slot.syncPacket);
                 slot.syncPacket.clear();
                 slot.t = 0;
