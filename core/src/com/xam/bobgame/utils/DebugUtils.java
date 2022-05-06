@@ -32,6 +32,10 @@ public class DebugUtils {
             this.alpha = alpha;
         }
 
+        public boolean isInit() {
+            return init;
+        }
+
         public void reset() {
             ave = 0;
         }

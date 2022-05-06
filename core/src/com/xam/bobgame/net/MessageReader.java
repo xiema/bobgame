@@ -267,19 +267,7 @@ public class MessageReader {
     }
 
     private int readSystemUpdate() {
-        IntMap<Entity> entityMap = engine.getEntityMap();
-        IntArray sortedEntityIds = engine.getSortedEntityIds();
-
-        int cnt = readInt(sortedEntityIds.size, 0, NetDriver.MAX_ENTITY_ID);
-        for (int i = 0; i < cnt; ++i) {
-            int entityId = readInt(send ? sortedEntityIds.get(i) : -1, 0, NetDriver.MAX_ENTITY_ID);
-            Entity entity = entityMap.get(entityId, null);
-            if (entity == null) {
-                Log.debug("Unable to update state of entity " + entityId);
-            }
-            readPhysicsBody(entity == null ? null : ComponentMappers.physicsBody.get(entity));
-        }
-
+        readPhysicsBodies();
         readControlStates();
         readPlayerScores(false);
 
@@ -310,6 +298,22 @@ public class MessageReader {
 
         readPlayerScores(true);
 
+        return 0;
+    }
+
+    private int readPhysicsBodies() {
+        IntMap<Entity> entityMap = engine.getEntityMap();
+        IntArray sortedEntityIds = engine.getSortedEntityIds();
+
+        int cnt = readInt(sortedEntityIds.size, 0, NetDriver.MAX_ENTITY_ID);
+        for (int i = 0; i < cnt; ++i) {
+            int entityId = readInt(send ? sortedEntityIds.get(i) : -1, 0, NetDriver.MAX_ENTITY_ID);
+            Entity entity = entityMap.get(entityId, null);
+            if (entity == null) {
+                Log.debug("Unable to update state of entity " + entityId);
+            }
+            readPhysicsBody(entity == null ? null : ComponentMappers.physicsBody.get(entity));
+        }
         return 0;
     }
 
@@ -357,8 +361,14 @@ public class MessageReader {
                 Log.warn("MessageReader.readPhysicsBody", "Body has no UserData");
             }
             else {
-                physicsHistory.posXError.update(t1 - (tfm.vals[0] + physicsHistory.posXError.getAverage()));
-                physicsHistory.posYError.update(t2 - (tfm.vals[1] + physicsHistory.posYError.getAverage()));
+                if (physicsHistory.posXError.isInit()) {
+                    physicsHistory.posXError.update(t1 - (tfm.vals[0] + physicsHistory.posXError.getAverage()));
+                    physicsHistory.posYError.update(t2 - (tfm.vals[1] + physicsHistory.posYError.getAverage()));
+                }
+                else {
+                    physicsHistory.posXError.update(0);
+                    physicsHistory.posYError.update(0);
+                }
                 tempVec.set(t1 - tfm.vals[0], t2 - tfm.vals[1]);
                 pb.body.setTransform(t1, t2, t3);
                 pb.body.setLinearVelocity(v1, v2);

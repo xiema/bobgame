@@ -189,6 +189,7 @@ public class NetDriver extends EntitySystem {
         for (PacketTransport.PacketInfo packetInfo : transport.getDroppedPackets()) {
             if (packetInfo.messageId != -1) {
                 MessageReader.MessageInfo messageInfo = messageReader.getMessageInfo(packetInfo.messageId);
+                if (messageInfo == null) continue;
                 switch (messageInfo.type) {
                     case Snapshot:
                         connectionManager.getConnectionSlot(packetInfo.clientId).needsSnapshot = true;
