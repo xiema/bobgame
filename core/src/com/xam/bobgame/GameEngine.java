@@ -9,7 +9,9 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.ai.AISystem;
 import com.xam.bobgame.buffs.BuffSystem;
+import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.definitions.GameDefinitions;
+import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.*;
@@ -201,8 +203,10 @@ public class GameEngine extends PooledEngine {
     }
 
     @Override
-    public void removeEntityInternal(Entity entity) {
-        int entityID = EntityUtils.getId(entity);
+    public void removeEntity(Entity entity) {
+        IdentityComponent iden = ComponentMappers.identity.get(entity);
+        iden.despawning = true;
+        int entityID = iden.id;
         Entity old = entityMap.remove(entityID);
         if (old != null) {
             int rem = Arrays.binarySearch(sortedEntityIds.items, 0, sortedEntityIds.size, entityID);
@@ -210,11 +214,9 @@ public class GameEngine extends PooledEngine {
                 sortedEntityIds.removeIndex(rem);
             }
         }
-        super.removeEntityInternal(entity);
-    }
-
-    @Override
-    public void removeEntity(Entity entity) {
+        else {
+            Log.warn("Attempted to remove nonexistent entity " + entityID);
+        }
         if (mode == Mode.Server) {
             EntityDespawnedEvent event = Pools.obtain(EntityDespawnedEvent.class);
             event.entityId = EntityUtils.getId(entity);

@@ -38,11 +38,9 @@ public class PickupsSystem extends EntitySystem {
                     IdentityComponent pickupIden = ComponentMappers.identity.get(event.pickup);
                     if (pickupIden.despawning) return;
 
-                    PickupComponent pickupComponent = ComponentMappers.pickups.get(event.pickup);
                     IdentityComponent iden = ComponentMappers.identity.get(event.entity);
 
                     if (iden.type == EntityType.Player) {
-                        pickupIden.despawning = true;
                         getEngine().removeEntity(event.pickup);
 
                         int playerId = getEngine().getSystem(RefereeSystem.class).getEntityPlayerId(iden.id);
@@ -128,8 +126,6 @@ public class PickupsSystem extends EntitySystem {
                 PickupComponent pickup = ComponentMappers.pickups.get(entity);
                 pickup.timeAlive += deltaTime;
                 if (pickup.timeAlive > pickup.maxLifeTime) {
-                    IdentityComponent iden = ComponentMappers.identity.get(entity);
-                    iden.despawning = true;
                     getEngine().removeEntity(entity);
                 }
             }

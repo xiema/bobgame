@@ -272,9 +272,6 @@ public class RefereeSystem extends EntitySystem {
         EventsSystem eventsSystem = getEngine().getSystem(EventsSystem.class);
         Entity entity = getPlayerEntity(playerId);
 
-        IdentityComponent iden = ComponentMappers.identity.get(entity);
-        iden.despawning = true;
-
         PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
         pb.body.setTransform(pb.bodyDef.position.x, pb.bodyDef.position.y, 0);
         pb.body.setLinearVelocity(0, 0);

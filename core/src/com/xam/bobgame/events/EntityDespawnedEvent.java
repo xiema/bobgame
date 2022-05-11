@@ -34,7 +34,6 @@ public class EntityDespawnedEvent extends NetDriver.NetworkEvent {
                 Log.warn("EntityDespawnedEvent", "No entity found with id " + entityId);
                 return 0;
             }
-            ComponentMappers.identity.get(entity).despawning = true;
             engine.removeEntity(entity);
         }
 
