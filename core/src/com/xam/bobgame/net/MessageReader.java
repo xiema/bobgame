@@ -10,16 +10,13 @@ import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.utils.IntMap;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.*;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.*;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
-import com.xam.bobgame.events.EntityCreatedEvent;
-import com.xam.bobgame.events.EventsSystem;
-import com.xam.bobgame.events.PlayerControlEvent;
-import com.xam.bobgame.events.ScoreBoardRefreshEvent;
 import com.xam.bobgame.utils.BitPacker;
 
 @SuppressWarnings("UnusedReturnValue")
@@ -31,63 +28,13 @@ public class MessageReader {
     private MessageInfo[] messageInfos = new MessageInfo[NetDriver.MAX_MESSAGE_HISTORY];
     private int messageIdCounter = 0;
 
+    private IntArray notUpdated = new IntArray(false, 4);
+
     public MessageReader() {
         for (int i = 0; i < messageInfos.length; ++i) {
             messageInfos[i] = new MessageInfo();
         }
     }
-
-//    private boolean send = false;
-
-//    private int readInt(int i, int min, int max) {
-//        if (send) {
-//            packer.packInt(i, min, max);
-//            return i;
-//        }
-//        else {
-//            return packer.unpackInt(min, max);
-//        }
-//    }
-//
-//    private float readFloat(float f) {
-//        if (send) {
-//            packer.packFloat(f);
-//            return f;
-//        }
-//        else {
-//            return packer.unpackFloat();
-//        }
-//    }
-//
-//    private float readFloat(float f, float min, float max, float res) {
-//        if (send) {
-//            packer.packFloat(f, min, max, res);
-//            return f;
-//        }
-//        else {
-//            return packer.unpackFloat(min, max, res);
-//        }
-//    }
-//
-//    private byte readByte(byte b) {
-//        if (send) {
-//            packer.packByte(b);
-//            return b;
-//        }
-//        else {
-//            return packer.unpackByte();
-//        }
-//    }
-//
-//    private boolean readBoolean(boolean b) {
-//        if (send) {
-//            packer.packInt(b ? 1 : 0, 0, 1);
-//            return b;
-//        }
-//        else {
-//            return packer.unpackInt(0, 1) == 1;
-//        }
-//    }
 
     public void setMessageInfo(Message message) {
         message.messageId = messageIdCounter;
@@ -144,8 +91,16 @@ public class MessageReader {
         }
 
         if (message.getByteBuffer().hasRemaining()) {
-            Log.warn("Message has excess bytes");
+            Log.warn("Message has excess bytes: " + message);
         }
+
+        if (notUpdated.notEmpty()) {
+            for (int i = 0; i < notUpdated.size; ++i) {
+                int entityId = notUpdated.get(i);
+                Log.warn("Entity " + entityId + " was not updated");
+            }
+        }
+        notUpdated.clear();
 
         return 0;
     }
@@ -164,7 +119,6 @@ public class MessageReader {
                 break;
             case Snapshot:
                 if (readSystemSnapshot() == -1) return -1;
-//                if (readPlayerId(connectionSlot) == -1) return -1;
                 break;
             case Empty:
                 break;
@@ -228,21 +182,16 @@ public class MessageReader {
         NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
         event.read(packer, engine);
 
+        if (event instanceof EntityDespawnedEvent) {
+            EntityDespawnedEvent despawnedEvent = (EntityDespawnedEvent) event;
+            notUpdated.removeValue(despawnedEvent.entityId);
+        }
+
         if (packer.isReadMode()) {
             event.clientId = clientId;
             engine.getSystem(EventsSystem.class).queueEvent(event);
         }
 
-        return 0;
-    }
-
-    private int readPlayerId(ConnectionManager.ConnectionSlot connectionSlot) {
-        if (packer.isWriteMode()) {
-            packer.packInt(connectionSlot.playerId, 0, 32);
-        }
-        else {
-            engine.getSystem(RefereeSystem.class).setLocalPlayerId(packer.unpackInt(0, 32));
-        }
         return 0;
     }
 
@@ -266,7 +215,6 @@ public class MessageReader {
                 entityCreator.entityId = EntityUtils.getId(entity);
             }
             // TODO: include entity position
-            // TODO: use new NetSerializable interface
             entityCreator.read(packer, engine);
         }
 
@@ -279,14 +227,51 @@ public class MessageReader {
         IntMap<Entity> entityMap = engine.getEntityMap();
         IntArray sortedEntityIds = engine.getSortedEntityIds();
 
-        int cnt = packer.readInt(sortedEntityIds.size, 0, NetDriver.MAX_ENTITY_ID);
-        for (int i = 0; i < cnt; ++i) {
-            int entityId = packer.readInt(packer.isWriteMode() ? sortedEntityIds.get(i) : -1, 0, NetDriver.MAX_ENTITY_ID);
-            Entity entity = entityMap.get(entityId, null);
-            if (entity == null) {
-                Log.debug("Unable to update state of entity " + entityId);
+        if (packer.isWriteMode()) {
+            packer.packInt(sortedEntityIds.size, 0, NetDriver.MAX_ENTITY_ID);
+            for (int i = 0; i < sortedEntityIds.size; ++i) {
+                int entityId = sortedEntityIds.get(i);
+                Entity entity = entityMap.get(entityId, null);
+                if (entity != null) {
+                    packer.packInt(entityId, -1, NetDriver.MAX_ENTITY_ID);
+                    PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
+                    readPhysicsBody(pb);
+                }
+                else {
+                    Log.warn("No entity with id " + entityId + " exists");
+                    packer.packInt(-1, -1, NetDriver.MAX_ENTITY_ID);
+                }
             }
-            readPhysicsBody(entity == null ? null : ComponentMappers.physicsBody.get(entity));
+        }
+        else {
+            int cnt = packer.unpackInt(0, NetDriver.MAX_ENTITY_ID);
+            int j = 0;
+            for (int i = 0; i < cnt; ++i) {
+                int entityId = packer.unpackInt(-1, NetDriver.MAX_ENTITY_ID);
+                if (entityId == -1) continue;
+                while (j < sortedEntityIds.size && entityId < sortedEntityIds.get(j)) {
+                    Log.warn("Received update for nonexistent entity " + entityId);
+                    j++;
+                }
+                while (j < sortedEntityIds.size && entityId > sortedEntityIds.get(j)) {
+                    Log.debug("Entity " + sortedEntityIds.get(j) + " skipped during update");
+                    notUpdated.add(sortedEntityIds.get(j));
+                    j++;
+                }
+                if (j < sortedEntityIds.size && entityId == sortedEntityIds.get(j)) j++;
+                Entity entity = entityMap.get(entityId, null);
+                PhysicsBodyComponent pb = null;
+                if (entity != null) {
+                    pb = ComponentMappers.physicsBody.get(entity);
+                    if (pb == null) {
+                        Log.warn("Entity " + entityId + "has no PhysicsBody Component");
+                    }
+                }
+                int ret = readPhysicsBody(pb);
+                if (ret == -1) {
+                    Log.warn("Error encountered while updating entity " + entityId);
+                }
+            }
         }
         return 0;
     }
@@ -296,32 +281,36 @@ public class MessageReader {
     private final Transform tempTfm = new Transform();
 
     private int readPhysicsBody(PhysicsBodyComponent pb) {
+        int r = 0;
+
         boolean zero;
 
         Transform tfm;
+        Body body = null;
         if (pb == null || pb.body == null) {
-            Log.debug("MessageReader.readPhysicsBody", "Invalid PhysicsBodyComponent");
+//            Log.debug("MessageReader.readPhysicsBody", "Invalid PhysicsBodyComponent");
             tfm = tempTfm;
         }
         else {
             tfm = pb.body.getTransform();
+            body = pb.body;
         }
 
         float t1 = packer.readFloat(tfm.vals[0], -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
         float t2 = packer.readFloat(tfm.vals[1], -3, GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION);
         float t3 = packer.readFloat(tfm.getRotation(), NetDriver.MIN_ORIENTATION, NetDriver.MAX_ORIENTATION, NetDriver.RES_ORIENTATION);
 
-        Vector2 vel = pb == null ? tempVec : pb.body.getLinearVelocity();
+        Vector2 vel = body == null ? tempVec : body.getLinearVelocity();
         zero = packer.readInt(vel.x == 0 ? 0 : 1, 0, 1) == 0;
         float v1 = zero ? 0 : packer.readFloat(vel.x, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
         zero = packer.readInt(vel.y == 0 ? 0 : 1, 0, 1) == 0;
         float v2 = zero ? 0 : packer.readFloat(vel.y, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
 
-        float angularVel = pb == null ? 0 : pb.body.getAngularVelocity();
+        float angularVel = body == null ? 0 : body.getAngularVelocity();
         zero = packer.readInt(angularVel == 0 ? 0 : 1, 0, 1) == 0;
         float v3 = zero ? 0 : packer.readFloat(angularVel, -64, 64 - NetDriver.RES_VELOCITY, NetDriver.RES_VELOCITY);
 
-        MassData md = pb == null ? tempMassData : pb.body.getMassData();
+        MassData md = body == null ? tempMassData : body.getMassData();
         zero = packer.readInt(md.mass == 0 ? 0 : 1, 0, 1) == 0;
         float m = zero ? 0 : packer.readFloat(md.mass, 0, 10, NetDriver.RES_MASS);
         float c1 = packer.readFloat(md.center.x, -3, 13 - NetDriver.RES_POSITION, NetDriver.RES_POSITION);
@@ -329,10 +318,11 @@ public class MessageReader {
         zero = packer.readInt(md.I == 0 ? 0 : 1, 0, 1) == 0;
         float i = zero ? 0 : packer.readFloat(md.I, 0, 10, NetDriver.RES_MASS);
 
-        if (packer.isReadMode() && pb != null) {
-            PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) pb.body.getUserData();
+        if (packer.isReadMode() && body != null) {
+            PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) body.getUserData();
             if (physicsHistory == null) {
                 Log.warn("MessageReader.readPhysicsBody", "Body has no UserData");
+                r = -1;
             }
             else {
                 if (physicsHistory.posXError.isInit()) {
@@ -344,17 +334,17 @@ public class MessageReader {
                     physicsHistory.posYError.update(0);
                 }
                 tempVec.set(t1 - tfm.vals[0], t2 - tfm.vals[1]);
-                pb.body.setTransform(t1, t2, t3);
-                pb.body.setLinearVelocity(v1, v2);
-                pb.body.setAngularVelocity(v3);
+                body.setTransform(t1, t2, t3);
+                body.setLinearVelocity(v1, v2);
+                body.setAngularVelocity(v3);
                 tempMassData.mass = m;
                 tempMassData.center.set(c1, c2);
                 tempMassData.I = i;
-                pb.body.setMassData(tempMassData);
+                body.setMassData(tempMassData);
             }
         }
 
-        return 0;
+        return r;
     }
 
     private int readControlStates() {
