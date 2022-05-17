@@ -111,7 +111,7 @@ public class PacketTransport {
             else {
                 // debug
                 if (packet.type != Packet.PacketType.Disconnect && packet.getMessage().messageId != packetInfos[localSeqNum].messageId) {
-                    Log.warn("Client " + clientId + ": Packet " + localSeqNum + " doesn't match message (" + packet.getMessage().messageId + ", " + packetInfos[localSeqNum].messageId + ")");
+                    Log.warn("Client " + clientId + ": Packet " + localSeqNum + " doesn't match message (" + packet.getMessage().messageId + " " + packet.getMessage().getType() + ", " + packetInfos[localSeqNum].messageId + " " + packetInfos[localSeqNum].messageType + ")");
                 }
             }
             packet.remoteSeqNum = remoteSeqNum;
@@ -138,17 +138,20 @@ public class PacketTransport {
 
     public static class PacketInfo {
         int packetSeqNum = -1, messageId = -1, clientId = -1;
+        Message.MessageType messageType = null;
 
         void set(Packet packet, int clientId) {
             packetSeqNum = packet.localSeqNum;
             messageId = packet.getMessage().messageId;
             this.clientId = clientId;
+            messageType = packet.getMessage().getType();
         }
 
         void copyTo(PacketInfo other) {
             other.packetSeqNum = packetSeqNum;
             other.messageId = messageId;
             other.clientId = clientId;
+            other.messageType = messageType;
         }
     }
 }

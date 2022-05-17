@@ -215,6 +215,7 @@ public class MessageReader {
                 entityCreator.entityId = EntityUtils.getId(entity);
             }
             // TODO: include entity position
+            entityCreator.snapshot = true;
             entityCreator.read(packer, engine);
         }
 
@@ -254,7 +255,7 @@ public class MessageReader {
                     j++;
                 }
                 while (j < sortedEntityIds.size && entityId > sortedEntityIds.get(j)) {
-                    Log.debug("Entity " + sortedEntityIds.get(j) + " skipped during update");
+//                    Log.debug("Entity " + sortedEntityIds.get(j) + " skipped during update");
                     notUpdated.add(sortedEntityIds.get(j));
                     j++;
                 }

@@ -15,11 +15,13 @@ import com.xam.bobgame.utils.BitPacker;
 
 public class EntityCreatedEvent extends NetDriver.NetworkEvent {
     public int entityId = -1;
+    public boolean snapshot = false;
 
     @Override
     public void reset() {
         super.reset();
         entityId = -1;
+        snapshot = false;
     }
 
     @Override
@@ -66,8 +68,10 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
                 gravField = packer.readBoolean(true) ? engine.createComponent(GravitationalFieldComponent.class) : null;
             }
             else {
-                // duplicate entity
-                Log.warn("Entity already exists " + entityId);
+                if (!snapshot) {
+                    // duplicate entity
+                    Log.warn("Entity already exists " + entityId);
+                }
                 // TODO: remove extra components
                 iden = ComponentMappers.identity.get(entity);
                 pb = packer.readBoolean(true) ? ComponentMappers.physicsBody.get(entity) : null;

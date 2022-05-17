@@ -485,7 +485,7 @@ public class ConnectionManager {
                 return -1;
             }
         },
-        ClientConnected(5, true) {
+        ClientConnected(0.5f, true) {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
                 slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine(), slot.clientId);
@@ -499,7 +499,9 @@ public class ConnectionManager {
 
             @Override
             int timeout(ConnectionSlot slot) {
-                slot.transitionState(ClientEmpty);
+                GameEngine engine = (GameEngine) slot.netDriver.getEngine();
+                engine.pauseGame();
+                slot.transitionState(ClientTimeoutPending);
                 return -1;
             }
 
@@ -530,6 +532,45 @@ public class ConnectionManager {
                     slot.sendDataPacket(slot.sendPacket);
                     slot.sendPacket.clear();
                 }
+                return 0;
+            }
+        },
+        ClientTimeoutPending(30, true) {
+            @Override
+            int readMessage(ConnectionSlot slot, Message message) {
+                if (message.getType() == Message.MessageType.Snapshot) {
+                    GameEngine engine = (GameEngine) slot.netDriver.getEngine();
+                    engine.resumeGame();
+                    slot.transitionState(ClientConnected);
+                    ClientConnected.readMessage(slot, message);
+                }
+                else {
+                    Log.debug("Waiting for snapshot");
+                    slot.sendPacket.type = Packet.PacketType.Reconnect;
+                    slot.sendTransportPacket(slot.sendPacket);
+                    slot.sendPacket.clear();
+                }
+                return 0;
+            }
+
+            @Override
+            int read(ConnectionSlot slot, Packet in) {
+                ClientConnected.read(slot, in);
+                slot.sendPacket.type = Packet.PacketType.Reconnect;
+                slot.sendTransportPacket(slot.sendPacket);
+                slot.sendPacket.clear();
+                return 0;
+            }
+
+            @Override
+            int timeout(ConnectionSlot slot) {
+                slot.transitionState(ClientEmpty);
+                return -1;
+            }
+
+            @Override
+            int update(ConnectionSlot slot, float t) {
+                if (super.update(slot, t) == -1) return -1;
                 return 0;
             }
         },
