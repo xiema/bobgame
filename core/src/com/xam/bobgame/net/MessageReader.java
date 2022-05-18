@@ -28,6 +28,7 @@ public class MessageReader {
     private MessageInfo[] messageInfos = new MessageInfo[NetDriver.MAX_MESSAGE_HISTORY];
     private int messageIdCounter = 0;
 
+    private IntArray nonExistent = new IntArray(false, 4);
     private IntArray notUpdated = new IntArray(false, 4);
 
     public MessageReader() {
@@ -94,14 +95,23 @@ public class MessageReader {
             Log.warn("Message has excess bytes: " + message);
         }
 
+        if (nonExistent.notEmpty()) {
+            for (int i = 0; i < nonExistent.size; ++i) {
+                int entityId = nonExistent.get(i);
+                Log.warn("Received update for nonexistent entity " + entityId);
+            }
+            nonExistent.clear();
+            engine.getSystem(NetDriver.class).client.requestSnapshot();
+        }
+
         if (notUpdated.notEmpty()) {
             for (int i = 0; i < notUpdated.size; ++i) {
                 int entityId = notUpdated.get(i);
                 Log.warn("Entity " + entityId + " was not updated");
                 engine.removeEntity(((GameEngine) engine).getEntityById(entityId));
             }
+            notUpdated.clear();
         }
-        notUpdated.clear();
 
         return 0;
     }
@@ -252,7 +262,8 @@ public class MessageReader {
                 int entityId = packer.unpackInt(-1, NetDriver.MAX_ENTITY_ID);
                 if (entityId == -1) continue;
                 while (j < sortedEntityIds.size && entityId < sortedEntityIds.get(j)) {
-                    Log.warn("Received update for nonexistent entity " + entityId);
+//                    Log.warn("Received update for nonexistent entity " + entityId);
+                    nonExistent.add(entityId);
                     j++;
                 }
                 while (j < sortedEntityIds.size && entityId > sortedEntityIds.get(j)) {

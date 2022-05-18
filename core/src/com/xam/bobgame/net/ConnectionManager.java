@@ -58,7 +58,7 @@ public class ConnectionManager {
         for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
             ConnectionSlot slot = connectionSlots[i];
             if (slot != null) {
-                slot.reset();
+//                slot.reset();
                 connectionSlots[i] = null;
             }
         }
@@ -68,7 +68,8 @@ public class ConnectionManager {
         synchronized (connectionSlots) {
             for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
                 if (connectionSlots[i] == null) {
-                    ConnectionManager.ConnectionSlot connectionSlot = Pools.obtain(ConnectionManager.ConnectionSlot.class);
+//                    ConnectionManager.ConnectionSlot connectionSlot = Pools.obtain(ConnectionManager.ConnectionSlot.class);
+                    ConnectionManager.ConnectionSlot connectionSlot = new ConnectionSlot();
                     connectionSlot.initialize(netDriver);
                     connectionSlot.clientId = i;
                     connectionSlot.connection = connection;
@@ -135,7 +136,7 @@ public class ConnectionManager {
     }
 
     public void removeConnection(int clientId) {
-        Pools.free(connectionSlots[clientId]);
+//        Pools.free(connectionSlots[clientId]);
         connectionSlots[clientId] = null;
         activeConnectionsMask.unset(clientId);
         netDriver.transport.removeTransportConnection(clientId);
@@ -183,7 +184,7 @@ public class ConnectionManager {
         return activeConnectionsMask;
     }
 
-    public static class ConnectionSlot implements Pool.Poolable {
+    public static class ConnectionSlot {
         NetDriver netDriver = null;
         Connection connection = null;
         String hostAddress = null;
@@ -273,23 +274,23 @@ public class ConnectionManager {
             return messageNumChecker.getAndSet(messageId);
         }
 
-        @Override
-        public void reset() {
-            netDriver = null;
-            connection = null;
-            hasUDP = false;
-            clientId = -1;
-            playerId = -1;
-            state = null;
-            t = 0;
-            salt = 0;
-            needsSnapshot = true;
-            timeSinceLastSnapshot = NetDriver.SNAPSHOT_INTERVAL;
-            packetBuffer.reset();
-            messageNumChecker.clear();
-            hostAddress = null;
-            originalHostAddress = null;
-        }
+//        @Override
+//        public void reset() {
+//            netDriver = null;
+//            connection = null;
+//            hasUDP = false;
+//            clientId = -1;
+//            playerId = -1;
+//            state = null;
+//            t = 0;
+//            salt = 0;
+//            needsSnapshot = true;
+//            timeSinceLastSnapshot = NetDriver.SNAPSHOT_INTERVAL;
+//            packetBuffer.reset();
+//            messageNumChecker.clear();
+//            hostAddress = null;
+//            originalHostAddress = null;
+//        }
     }
 
     public enum ConnectionState {
@@ -367,19 +368,22 @@ public class ConnectionManager {
 
             @Override
             int read(ConnectionSlot slot, Packet in) {
-                if (in.type == Packet.PacketType.Disconnect) {
-                    Log.info("Client " + slot.clientId + " (" + slot.getAddress() + ") disconnected");
-                    ClientDisconnectedEvent event = Pools.obtain(ClientDisconnectedEvent.class);
-                    event.clientId = slot.clientId;
-                    event.playerId = slot.playerId;
-                    event.cleanDisconnect = true;
-                    slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
-                    slot.netDriver.connectionManager.removeConnection(slot.clientId);
-                }
-                else if (in.type == Packet.PacketType.Reconnect) {
-                    Log.info("Client " + slot.clientId + " (" + slot.getAddress() + ") reconnected");
-                    slot.needsSnapshot = true;
-                    slot.netDriver.getEngine().getSystem(RefereeSystem.class).assignPlayer(slot.clientId, slot.playerId);
+                switch (in.type) {
+                    case Disconnect:
+                        Log.info("Client " + slot.clientId + " (" + slot.getAddress() + ") disconnected");
+                        ClientDisconnectedEvent event = Pools.obtain(ClientDisconnectedEvent.class);
+                        event.clientId = slot.clientId;
+                        event.playerId = slot.playerId;
+                        event.cleanDisconnect = true;
+                        slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
+                        slot.netDriver.connectionManager.removeConnection(slot.clientId);
+                        return 0;
+                    case Reconnect:
+                        Log.info("Client " + slot.clientId + " (" + slot.getAddress() + ") reconnected");
+                        slot.netDriver.getEngine().getSystem(RefereeSystem.class).assignPlayer(slot.clientId, slot.playerId);
+                    case SnapshotRequest:
+                        slot.needsSnapshot = true;
+                        return 0;
                 }
                 return -1;
             }
@@ -523,8 +527,19 @@ public class ConnectionManager {
                 slot.messageBuffer.syncFrameNum++;
                 if (super.update(slot, t) == -1) return -1;
 
-                // send events
                 boolean sent = false;
+
+                // TODO: incorporate snapshot request in normal messages
+                if (slot.needsSnapshot) {
+                    Log.debug("Requesting for snapshot");
+                    slot.sendPacket.type = Packet.PacketType.SnapshotRequest;
+                    slot.sendTransportPacket(slot.sendPacket);
+                    slot.sendPacket.clear();
+                    slot.needsSnapshot = false;
+                    sent = true;
+                }
+
+                // send events
                 for (NetDriver.ClientEvent clientEvent : slot.netDriver.clientEvents) {
                     if (clientEvent.event instanceof PlayerControlEvent) {
                         slot.netDriver.messageReader.serializeInput(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), (PlayerControlEvent) clientEvent.event);
@@ -559,7 +574,7 @@ public class ConnectionManager {
                 }
                 else {
                     Log.debug("Waiting for snapshot");
-                    slot.sendPacket.type = Packet.PacketType.Reconnect;
+                    slot.sendPacket.type = Packet.PacketType.SnapshotRequest;
                     slot.sendTransportPacket(slot.sendPacket);
                     slot.sendPacket.clear();
                 }

@@ -94,6 +94,11 @@ public class NetClient extends Client {
         super.stop();
     }
 
+    public void requestSnapshot() {
+        ConnectionManager.ConnectionSlot slot = netDriver.connectionManager.getConnectionSlot(hostId);
+        slot.needsSnapshot = true;
+    }
+
     private Listener listener = new Listener() {
         @Override
         public void connected(Connection connection) {
