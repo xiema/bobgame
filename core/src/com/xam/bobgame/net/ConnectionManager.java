@@ -130,7 +130,7 @@ public class ConnectionManager {
             slot.sendTransportPacket(slot.sendPacket);
         }
         slot.sendPacket.clear();
-        Log.info("Disconnecting from " + connectionSlots[clientId].hostAddress + " (slot " + clientId + ")");
+        Log.info("Disconnecting from " + connectionSlots[clientId].getAddress() + " (slot " + clientId + ")");
         removeConnection(clientId);
     }
 
@@ -187,6 +187,7 @@ public class ConnectionManager {
         NetDriver netDriver = null;
         Connection connection = null;
         String hostAddress = null;
+        String originalHostAddress = null;
         int clientId = -1;
         int playerId = -1;
 
@@ -224,6 +225,10 @@ public class ConnectionManager {
 
         public void setPlayerId(int playerId) {
             this.playerId = playerId;
+        }
+
+        public String getAddress() {
+            return originalHostAddress != null ? originalHostAddress : hostAddress;
         }
 
         public String getHostAddress() {
@@ -282,6 +287,8 @@ public class ConnectionManager {
             timeSinceLastSnapshot = NetDriver.SNAPSHOT_INTERVAL;
             packetBuffer.reset();
             messageNumChecker.clear();
+            hostAddress = null;
+            originalHostAddress = null;
         }
     }
 
@@ -330,7 +337,7 @@ public class ConnectionManager {
                 if (in.type == Packet.PacketType.ConnectionChallengeResponse) {
                     if (in.salt >> 15 == slot.salt) {
                         slot.salt = in.salt;
-                        Log.info("Client " + slot.clientId  + " (" + slot.hostAddress + ") connected");
+                        Log.info("Client " + slot.clientId  + " (" + slot.getAddress() + ") connected");
                         ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);
                         event.clientId = slot.clientId;
                         slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
@@ -361,7 +368,7 @@ public class ConnectionManager {
             @Override
             int read(ConnectionSlot slot, Packet in) {
                 if (in.type == Packet.PacketType.Disconnect) {
-                    Log.info("Client " + slot.clientId + " (" + slot.hostAddress + ") disconnected");
+                    Log.info("Client " + slot.clientId + " (" + slot.getAddress() + ") disconnected");
                     ClientDisconnectedEvent event = Pools.obtain(ClientDisconnectedEvent.class);
                     event.clientId = slot.clientId;
                     event.playerId = slot.playerId;
@@ -370,7 +377,7 @@ public class ConnectionManager {
                     slot.netDriver.connectionManager.removeConnection(slot.clientId);
                 }
                 else if (in.type == Packet.PacketType.Reconnect) {
-                    Log.info("Client " + slot.clientId + " (" + slot.hostAddress + ") reconnected");
+                    Log.info("Client " + slot.clientId + " (" + slot.getAddress() + ") reconnected");
                     slot.needsSnapshot = true;
                     slot.netDriver.getEngine().getSystem(RefereeSystem.class).assignPlayer(slot.clientId, slot.playerId);
                 }
@@ -469,9 +476,8 @@ public class ConnectionManager {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
                 slot.transitionState(ClientConnected);
-                Log.info("Connected to " + slot.hostAddress);
+                Log.info("Connected to " + slot.getAddress());
                 slot.netDriver.client.reconnectSalt = slot.salt;
-                slot.netDriver.client.setHostId(slot.clientId);
                 ClientConnected.readMessage(slot, message);
                 slot.messageBuffer.syncFrameNum = message.frameNum - NetDriver.JITTER_BUFFER_SIZE;
                 ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);

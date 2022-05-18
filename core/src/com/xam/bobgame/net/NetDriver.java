@@ -114,7 +114,7 @@ public class NetDriver extends EntitySystem {
                 GameEngine engine = (GameEngine) getEngine();
                 if (engine.getMode() == GameEngine.Mode.Client) {
                     ConnectionManager.ConnectionSlot connectionSlot = connectionManager.getConnectionSlot(client.getHostId());
-                    GameProfile.lastConnectedServerAddress = connectionSlot.getHostAddress();
+                    GameProfile.lastConnectedServerAddress = connectionSlot.getAddress();
                     GameProfile.clientSalt = connectionSlot.getSalt();
                     GameProfile.save();
                     engine.resumeGame();

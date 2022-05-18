@@ -19,7 +19,10 @@ public class NetClient extends Client {
     private final NetDriver netDriver;
     int hostId = -1;
 
+    String connectHost = null;
     int reconnectSalt = 0;
+
+    private boolean connecting = false;
 
     public NetClient(NetDriver netDriver, Serialization serialization) {
         super(8192, 2048, serialization);
@@ -40,6 +43,8 @@ public class NetClient extends Client {
         ((GameEngine) netDriver.getEngine()).setMode(GameEngine.Mode.Client);
         start();
         String[] add = host.split(":");
+        connecting = true;
+        connectHost = host;
         try {
             if (add.length > 1) {
                 connect(5000, add[0], Integer.parseInt(add[1]));
@@ -56,12 +61,13 @@ public class NetClient extends Client {
             e.printStackTrace();
         }
         ((GameEngine) netDriver.getEngine()).setMode(GameEngine.Mode.None);
+        connecting = false;
         return false;
     }
 
-    void setHostId(int hostId) {
-        this.hostId = hostId;
-    }
+//    void setHostId(int hostId) {
+//        this.hostId = hostId;
+//    }
 
     public int getHostId() {
         return hostId;
@@ -77,6 +83,7 @@ public class NetClient extends Client {
 
         reconnectSalt = 0;
         GameProfile.clientSalt = 0;
+        hostId = -1;
 
         stop();
     }
@@ -90,12 +97,14 @@ public class NetClient extends Client {
     private Listener listener = new Listener() {
         @Override
         public void connected(Connection connection) {
-            int clientId = netDriver.connectionManager.addConnection(connection, false);
+            hostId = netDriver.connectionManager.addConnection(connection, false);
+            connecting = false;
+            netDriver.connectionManager.getConnectionSlot(hostId).originalHostAddress = connectHost;
             if (reconnectSalt != 0) {
-                netDriver.connectionManager.initiateReconnect(clientId, reconnectSalt);
+                netDriver.connectionManager.initiateReconnect(hostId, reconnectSalt);
             }
             else {
-                netDriver.connectionManager.initiateHandshake(clientId);
+                netDriver.connectionManager.initiateHandshake(hostId);
             }
 //            netDriver.connectionManager.getConnectionSlot(clientId).packetBuffer.setSimulationDelay(NetDriver.BUFFER_TIME_LIMIT);
         }
