@@ -36,10 +36,10 @@ public class GameEngine extends PooledEngine {
 
     private Mode mode = Mode.None;
 
-    private EventsSystem eventsSystem;
-    private RefereeSystem refereeSystem;
-    private NetDriver netDriver;
-    private ControlSystem controlSystem;
+    EventsSystem eventsSystem;
+    RefereeSystem refereeSystem;
+    NetDriver netDriver;
+    ControlSystem controlSystem;
 
     private int lastSnapshot = -1;
 

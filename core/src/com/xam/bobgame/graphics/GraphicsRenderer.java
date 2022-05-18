@@ -17,6 +17,7 @@ import com.badlogic.gdx.physics.box2d.Transform;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.badlogic.gdx.utils.viewport.Viewport;
 import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.game.RefereeSystem;
@@ -33,7 +34,8 @@ public class GraphicsRenderer {
     private GameEngine engine;
     private ImmutableArray<Entity> entities;
     private ImmutableArray<Entity> aiEntities;
-    private Stage stage;
+
+    private Viewport viewport;
 
     @SuppressWarnings("unchecked")
     private final Array<Entity>[] zSortedEntities = new Array[4];
@@ -42,9 +44,9 @@ public class GraphicsRenderer {
 
     private ObjectMap<Family, EntityListener> entityListeners = new ObjectMap<>();
 
-    public GraphicsRenderer(GameEngine engine, final Stage stage) {
+    public GraphicsRenderer(GameEngine engine, Viewport viewport) {
         this.engine = engine;
-        this.stage = stage;
+        this.viewport = viewport;
 
         for (int i = 0; i < 4; ++i) zSortedEntities[i] = new Array<>();
 
@@ -78,7 +80,7 @@ public class GraphicsRenderer {
     private Vector2 tempVec = new Vector2();
 
     public void draw(Batch batch) {
-        Camera camera = stage.getViewport().getCamera();
+        Camera camera = viewport.getCamera();
         camera.update();
 
         shapeRenderer.setProjectionMatrix(camera.combined);
@@ -110,7 +112,6 @@ public class GraphicsRenderer {
         batch.end();
         shapeRenderer.begin();
         drawGuideLine();
-        drawTargets();
         shapeRenderer.end();
         batch.begin();
         drawEntities(batch, 0);
@@ -140,7 +141,7 @@ public class GraphicsRenderer {
         PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
         Transform tfm = pb.body.getTransform();
         tempVec.set(tfm.getOrientation()).scl(400).add(tfm.getPosition());
-        shapeRenderer.setProjectionMatrix(stage.getCamera().combined);
+        shapeRenderer.setProjectionMatrix(viewport.getCamera().combined);
         shapeRenderer.setColor(Color.GREEN);
         shapeRenderer.set(ShapeRenderer.ShapeType.Line);
         shapeRenderer.line(tfm.getPosition(), tempVec);

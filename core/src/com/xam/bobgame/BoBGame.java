@@ -4,7 +4,6 @@ import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
@@ -13,7 +12,6 @@ import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.definitions.GameDefinitions;
 import com.xam.bobgame.dev.DevTools;
 import com.xam.bobgame.graphics.GraphicsRenderer;
-import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.ui.UIStage;
 import com.xam.bobgame.utils.HeadlessCommandRunnable;
 
@@ -26,17 +24,13 @@ public class BoBGame extends ApplicationAdapter {
 	static boolean noUDP = false;
 
 	GameEngine engine;
-	NetDriver netDriver;
 	GameDefinitions gameDefinitions;
 
 	SpriteBatch batch;
 	GraphicsRenderer renderer;
 	Viewport viewport;
-	Stage stage;
 
 	UIStage uiStage;
-	Viewport uiViewport;
-
 	Skin skin;
 
 	DevTools devTools;
@@ -68,20 +62,17 @@ public class BoBGame extends ApplicationAdapter {
 		gameDefinitions = new GameDefinitions();
 		gameDefinitions.createDefinitions(false);
 		engine.initialize();
-		netDriver = engine.getSystem(NetDriver.class);
 
 		if (!headless) {
 			batch = new SpriteBatch();
 			viewport = new FitViewport(GameProperties.MAP_WIDTH, GameProperties.MAP_HEIGHT);
-			stage = new Stage(viewport, batch);
-			renderer = new GraphicsRenderer(engine, stage);
+			renderer = new GraphicsRenderer(engine, viewport);
 			InputMultiplexer input = new InputMultiplexer();
 			engine.addInputProcessor(input, viewport);
 			Gdx.input.setInputProcessor(input);
 
 			skin = new Skin(Gdx.files.internal("skin/uiskin.json"));
-			uiViewport = new FitViewport(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT);
-			uiStage = new UIStage(this, uiViewport, batch, skin);
+			uiStage = new UIStage(this, new FitViewport(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT), batch, skin);
 
 			// reconnection
 			if (GameProfile.clientSalt != 0) {
@@ -98,7 +89,7 @@ public class BoBGame extends ApplicationAdapter {
 		else {
 			headlessCommandThread = new Thread(new HeadlessCommandRunnable(this));
 			headlessCommandThread.start();
-			netDriver.startServer();
+			engine.netDriver.startServer();
 			engine.start();
 		}
 	}
@@ -108,13 +99,12 @@ public class BoBGame extends ApplicationAdapter {
 		engine.update(GameProperties.SIMULATION_UPDATE_INTERVAL);
 
 		if (!headless) {
-			stage.act(GameProperties.SIMULATION_UPDATE_INTERVAL);
 			ScreenUtils.clear(0, 0, 0, 1);
 			viewport.apply(true);
 			renderer.draw(batch);
 
 			uiStage.act(GameProperties.SIMULATION_UPDATE_INTERVAL);
-			uiViewport.apply(true);
+			uiStage.getViewport().apply(true);
 			uiStage.draw();
 
 			if (devMode) devTools.render(GameProperties.SIMULATION_UPDATE_INTERVAL);
@@ -123,6 +113,8 @@ public class BoBGame extends ApplicationAdapter {
 
 	@Override
 	public void resize(int width, int height) {
+		Viewport uiViewport = uiStage.getViewport();
+
 		uiViewport.update(width, height);
 		int w = uiViewport.getScreenWidth(), h = uiViewport.getScreenHeight();
 		viewport.update(w, h);
@@ -135,20 +127,17 @@ public class BoBGame extends ApplicationAdapter {
 		GameProfile.save();
 		if (devMode) devTools.saveSettings();
 		batch.dispose();
-		netDriver.stop();
+		uiStage.dispose();
+		engine.netDriver.stop();
 		if (headlessCommandThread != null) headlessCommandThread.interrupt();
 	}
 
-	public void onEngineStarted() {
+	void onEngineStarted() {
 		uiStage.initialize(engine);
 	}
 
 	public GameEngine getEngine() {
 		return engine;
-	}
-
-	public Skin getSkin() {
-		return skin;
 	}
 
 	public Viewport getWorldViewport() {
