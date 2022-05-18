@@ -25,6 +25,7 @@ public class BoBGame extends ApplicationAdapter {
 
 	GameEngine engine;
 	GameDefinitions gameDefinitions;
+	InputMultiplexer inputMultiplexer;
 
 	SpriteBatch batch;
 	GraphicsRenderer renderer;
@@ -58,6 +59,9 @@ public class BoBGame extends ApplicationAdapter {
 	public void create () {
 		GameProfile.load();
 
+		inputMultiplexer = new InputMultiplexer();
+		Gdx.input.setInputProcessor(inputMultiplexer);
+
 		engine = new GameEngine(this);
 		gameDefinitions = new GameDefinitions();
 		gameDefinitions.createDefinitions(false);
@@ -67,9 +71,6 @@ public class BoBGame extends ApplicationAdapter {
 			batch = new SpriteBatch();
 			viewport = new FitViewport(GameProperties.MAP_WIDTH, GameProperties.MAP_HEIGHT);
 			renderer = new GraphicsRenderer(engine, viewport);
-			InputMultiplexer input = new InputMultiplexer();
-			engine.addInputProcessor(input, viewport);
-			Gdx.input.setInputProcessor(input);
 
 			skin = new Skin(Gdx.files.internal("skin/uiskin.json"));
 			uiStage = new UIStage(this, new FitViewport(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT), batch, skin);

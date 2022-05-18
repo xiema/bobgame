@@ -505,6 +505,11 @@ public class ConnectionManager {
         ClientConnected(0.5f, true) {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
+                GameEngine engine = (GameEngine) slot.netDriver.getEngine();
+                if (message.getType() == Message.MessageType.Update && engine.getLastSnapshotFrame() == -1) {
+                    Log.info("Can't update while still waiting for snapshot");
+                    return -1;
+                }
                 slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine(), slot.clientId);
                 return 0;
             }

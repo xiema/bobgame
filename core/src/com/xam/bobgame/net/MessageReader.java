@@ -57,10 +57,6 @@ public class MessageReader {
 
         switch (message.getType()) {
             case Update:
-                if (this.engine.getMode() == GameEngine.Mode.Client && this.engine.getLastSnapshotFrame() == -1) {
-                    Log.info("Got " + message + " Waiting for snapshot");
-                    return -1;
-                }
                 // TODO: Server should only receive Event types
                 while (entryCount-- > 0) {
                     Message.UpdateType updateType = Message.UpdateType.values()[packer.readInt(-1, 0, Message.UpdateType.values().length - 1)];
@@ -200,6 +196,7 @@ public class MessageReader {
 
         if (packer.isReadMode()) {
             event.clientId = clientId;
+//            Log.debug("MessageReader", "Read event " + event);
             engine.getSystem(EventsSystem.class).queueEvent(event);
         }
 

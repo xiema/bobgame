@@ -238,10 +238,6 @@ public class NetDriver extends EntitySystem {
         return curTimeDelta;
     }
 
-    public int getCurrentFrame() {
-        return ((GameEngine) getEngine()).getCurrentFrame();
-    }
-
     public boolean startServer() {
         server.start();
         return server.isRunning();
