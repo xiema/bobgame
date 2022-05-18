@@ -87,12 +87,13 @@ public class NetServer extends Server {
             hasSnapshotPacket = false;
         }
 
-        if (connectionSlot.needsSnapshot) {
+        if (connectionSlot.needsSnapshot && connectionSlot.timeSinceLastSnapshot >= NetDriver.SNAPSHOT_INTERVAL) {
             if (!hasSnapshotPacket) {
                 netDriver.messageReader.serialize(snapshotPacket.getMessage(), netDriver.getEngine(), Message.MessageType.Snapshot, connectionSlot);
                 hasSnapshotPacket = true;
             }
             connectionSlot.needsSnapshot = false;
+            connectionSlot.timeSinceLastSnapshot = 0;
             snapshotPacket.copyTo(sendPacket);
 //            Log.info("Send snapshot " + snapshotPacket.getMessage());
         }
@@ -128,18 +129,6 @@ public class NetServer extends Server {
         }
 
         sendPacket.clear();
-    }
-
-    public void sendEvents() {
-//        for (NetDriver.ClientEvent clientEvent : netDriver.clientEvents) {
-//            ConnectionManager.ConnectionSlot connectionSlot = netDriver.connectionManager.getConnectionSlot(clientEvent.clientId);
-//            netDriver.messageReader.serializeEvent(eventPacket.getMessage(), clientEvent.event);
-//            Log.info("Send event " + sendPacket.getMessage());
-//            connectionSlot.sendDataPacket(eventPacket);
-//            eventPacket.clear();
-//            Pools.free(clientEvent);
-//        }
-        netDriver.clientEvents.clear();
     }
 
     public void flagSnapshot(int clientId) {

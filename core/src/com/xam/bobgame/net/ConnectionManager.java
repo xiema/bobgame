@@ -203,9 +203,10 @@ public class ConnectionManager {
         MessageBuffer messageBuffer;
 
         public boolean needsSnapshot = true;
+        public float timeSinceLastSnapshot = NetDriver.SNAPSHOT_INTERVAL;
         Message message = new Message(NetDriver.DATA_MAX_SIZE);
 
-        final SequenceNumChecker messageNumChecker = new SequenceNumChecker(128);
+        final SequenceNumChecker messageNumChecker = new SequenceNumChecker(256);
 
         public void initialize(NetDriver netDriver) {
             this.netDriver = netDriver;
@@ -278,6 +279,7 @@ public class ConnectionManager {
             t = 0;
             salt = 0;
             needsSnapshot = true;
+            timeSinceLastSnapshot = NetDriver.SNAPSHOT_INTERVAL;
             packetBuffer.reset();
             messageNumChecker.clear();
         }
@@ -372,7 +374,6 @@ public class ConnectionManager {
                     slot.needsSnapshot = true;
                     slot.netDriver.getEngine().getSystem(RefereeSystem.class).assignPlayer(slot.clientId, slot.playerId);
                 }
-//                return readData(slot, in);
                 return -1;
             }
 
@@ -381,6 +382,12 @@ public class ConnectionManager {
                 Log.info("Client " + slot.clientId + " didn't respond for " + this.timeoutThreshold + " seconds");
                 slot.transitionState(ServerTimeoutPending);
                 return -1;
+            }
+
+            @Override
+            int update(ConnectionSlot slot, float t) {
+                slot.timeSinceLastSnapshot += t;
+                return super.update(slot, t);
             }
 
             @Override
