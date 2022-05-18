@@ -18,6 +18,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.xam.bobgame.BoBGame;
+import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
@@ -134,7 +135,7 @@ public class GraphicsRenderer {
 
     private void drawGuideLine() {
         Entity entity = engine.getSystem(RefereeSystem.class).getLocalPlayerEntity();
-        if (entity == null || ComponentMappers.identity.get(entity).despawning) return;
+        if (entity == null || !EntityUtils.isAdded(entity)) return;
 
         PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
         Transform tfm = pb.body.getTransform();

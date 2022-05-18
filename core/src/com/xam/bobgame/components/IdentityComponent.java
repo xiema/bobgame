@@ -8,12 +8,14 @@ import com.xam.bobgame.utils.BitPacker;
 public class IdentityComponent implements Component2, Poolable {
     public int id = -1;
     public EntityType type = EntityType.Neutral;
+    public boolean spawning = true;
     public boolean despawning = false;
 
     @Override
     public void reset() {
         id = -1;
         type = EntityType.Neutral;
+        spawning = true;
         despawning = false;
     }
 

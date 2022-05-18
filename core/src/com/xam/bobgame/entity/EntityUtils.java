@@ -13,6 +13,11 @@ public class EntityUtils {
         return iden.id;
     }
 
+    public static boolean isAdded(Entity entity) {
+        IdentityComponent iden = ComponentMappers.identity.get(entity);
+        return iden == null || (!iden.spawning && !iden.despawning);
+    }
+
     public static void addEntityListeners(Engine engine, ObjectMap<Family, EntityListener> listeners) {
         for (ObjectMap.Entry<Family, EntityListener> entry : listeners.entries()) {
             engine.addEntityListener(entry.key, entry.value);

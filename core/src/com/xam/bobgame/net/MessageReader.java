@@ -98,6 +98,7 @@ public class MessageReader {
             for (int i = 0; i < notUpdated.size; ++i) {
                 int entityId = notUpdated.get(i);
                 Log.warn("Entity " + entityId + " was not updated");
+                engine.removeEntity(((GameEngine) engine).getEntityById(entityId));
             }
         }
         notUpdated.clear();
@@ -269,8 +270,10 @@ public class MessageReader {
                     }
                 }
                 int ret = readPhysicsBody(pb);
-                if (ret == -1) {
-                    Log.warn("Error encountered while updating entity " + entityId);
+                if (ret != 0) {
+                    if ((ret & 1) != 0 && EntityUtils.isAdded(entity)) {
+                        Log.warn("MessageReader.readPhysicsBody", "Body for Entity " + entityId + " has no UserData");
+                    }
                 }
             }
         }
@@ -322,8 +325,7 @@ public class MessageReader {
         if (packer.isReadMode() && body != null) {
             PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) body.getUserData();
             if (physicsHistory == null) {
-                Log.warn("MessageReader.readPhysicsBody", "Body has no UserData");
-                r = -1;
+                r = 1;
             }
             else {
                 if (physicsHistory.posXError.isInit()) {
