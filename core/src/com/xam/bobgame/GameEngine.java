@@ -32,12 +32,14 @@ public class GameEngine extends PooledEngine {
 
 
     private BoBGame game;
+    private Viewport viewport;
 
     private Mode mode = Mode.None;
 
     private EventsSystem eventsSystem;
     private RefereeSystem refereeSystem;
     private NetDriver netDriver;
+    private ControlSystem controlSystem;
 
     private int lastSnapshot = -1;
 
@@ -52,6 +54,8 @@ public class GameEngine extends PooledEngine {
 
 //    SharedMemoryChecker memCheck = new SharedMemoryChecker("check.txt");
 
+    private final PlayerControlEvent inputEvent = Pools.obtain(PlayerControlEvent.class);
+
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
     public GameEngine(BoBGame game) {
@@ -63,13 +67,25 @@ public class GameEngine extends PooledEngine {
                 restart();
             }
         });
+
+        addEntityListener(Family.all().get(), 255, new EntityListener() {
+            @Override
+            public void entityAdded(Entity entity) {
+                ComponentMappers.identity.get(entity).spawning = false;
+            }
+
+            @Override
+            public void entityRemoved(Entity entity) {
+
+            }
+        });
     }
 
     public void initialize() {
         addSystem(eventsSystem = new EventsSystem(1));
         addSystem(netDriver = new NetDriver(0));
         addSystem(refereeSystem = new RefereeSystem(10));
-        addSystem(new ControlSystem(20));
+        addSystem(controlSystem = new ControlSystem(20));
         addSystem(new AISystem(30));
         addSystem(new PickupsSystem(40));
         addSystem(new BuffSystem(50));
@@ -141,45 +157,29 @@ public class GameEngine extends PooledEngine {
     }
 
     public void addInputProcessor(InputMultiplexer inputMultiplexer, final Viewport viewport) {
+        this.viewport = viewport;
         inputMultiplexer.addProcessor(new InputAdapter() {
-            public void userInput(int x, int y, int button, boolean state) {
-                if (refereeSystem.getLocalPlayerEntityId() == -1) return;
-
-                PlayerControlEvent event = Pools.obtain(PlayerControlEvent.class);
-                tempVec.set(x, y);
-                viewport.unproject(tempVec);
-                event.x = tempVec.x;
-                event.y = tempVec.y;
-                event.buttonId = button;
-                event.buttonState = state;
-                event.controlId = refereeSystem.getLocalPlayerId();
-                event.entityId = refereeSystem.getLocalPlayerEntityId();
-
-                netDriver.queueClientEvent(-1, event);
-                eventsSystem.queueEvent(event);
-            }
-
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-                userInput(screenX, screenY, button, true);
+                controlSystem.userInput(screenX, screenY, button, true);
                 return false;
             }
 
             @Override
             public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-                userInput(screenX, screenY, button, false);
+                controlSystem.userInput(screenX, screenY, button, false);
                 return false;
             }
 
             @Override
             public boolean touchDragged(int screenX, int screenY, int pointer) {
-                userInput(screenX, screenY, 0, true);
+                controlSystem.userInput(screenX, screenY, 0, true);
                 return false;
             }
 
             @Override
             public boolean mouseMoved(int screenX, int screenY) {
-                userInput(screenX, screenY, 0, false);
+                controlSystem.userInput(screenX, screenY, 0, false);
                 return false;
             }
         });
@@ -223,6 +223,13 @@ public class GameEngine extends PooledEngine {
             netDriver.queueClientEvent(-1, event, false);
         }
         super.removeEntity(entity);
+    }
+
+    @Override
+    public void removeAllEntities() {
+        super.removeAllEntities();
+        entityMap.clear();
+        sortedEntityIds.clear();
     }
 
     public void setMode(Mode mode) {
@@ -293,6 +300,10 @@ public class GameEngine extends PooledEngine {
 
     public GameDefinitions getGameDefinitions() {
         return game.gameDefinitions;
+    }
+
+    public Viewport getViewport() {
+        return viewport;
     }
 
     public enum Mode {

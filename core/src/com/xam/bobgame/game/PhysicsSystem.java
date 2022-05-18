@@ -62,6 +62,7 @@ public class PhysicsSystem extends EntitySystem {
             @Override
             public void handleEvent(ButtonReleaseEvent event) {
                 if (enabled) {
+                    Log.debug("Player " + event.playerId + " ButtonRelease " + event.holdDuration);
                     RefereeSystem refereeSystem = getEngine().getSystem(RefereeSystem.class);
                     Entity entity = refereeSystem.getPlayerEntity(event.playerId);
                     if (entity == null) return;

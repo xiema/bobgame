@@ -11,7 +11,7 @@ public class PlayerControlInfo implements NetSerializable {
 
     public Vector2 cursorPosition = new Vector2(Vector2.Zero);
     public boolean buttonState = false;
-    public float holdDuration = -1;
+    public float holdDuration = 0;
 
     public void reset() {
         cursorPosition.setZero();
@@ -22,7 +22,7 @@ public class PlayerControlInfo implements NetSerializable {
     @Override
     public int read(BitPacker packer, Engine engine) {
         buttonState = packer.readBoolean(buttonState);
-        holdDuration = packer.readFloat(holdDuration, -NetDriver.RES_HOLD_DURATION, GameProperties.CHARGE_DURATION_2, NetDriver.RES_HOLD_DURATION);
+        holdDuration = packer.readFloat(holdDuration, 0, GameProperties.CHARGE_DURATION_2, NetDriver.RES_HOLD_DURATION);
         return 0;
     }
 }

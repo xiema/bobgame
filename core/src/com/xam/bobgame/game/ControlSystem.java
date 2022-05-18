@@ -14,8 +14,6 @@ import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.net.NetDriver;
 
-import java.util.Arrays;
-
 public class ControlSystem extends EntitySystem {
     private IntSet idSet = new IntSet();
 
@@ -25,6 +23,10 @@ public class ControlSystem extends EntitySystem {
 
     private boolean enabled = false;
     private boolean controlFacing = false;
+
+    private Vector2 localMouseVec = new Vector2();
+    private boolean localButtonState = false;
+    private int localButton = 0;
 
     public ControlSystem(int priority) {
         super(priority);
@@ -62,6 +64,26 @@ public class ControlSystem extends EntitySystem {
 
     @Override
     public void update(float deltaTime) {
+        RefereeSystem refereeSystem = getEngine().getSystem(RefereeSystem.class);
+        if (refereeSystem.getLocalPlayerEntityId() != -1) {
+            PlayerControlEvent playerControlEvent = Pools.obtain(PlayerControlEvent.class);
+            tempVec.set(localMouseVec);
+            ((GameEngine) getEngine()).getViewport().unproject(tempVec);
+            playerControlEvent.x = tempVec.x;
+            playerControlEvent.y = tempVec.y;
+            playerControlEvent.buttonId = localButton;
+            playerControlEvent.buttonState = localButtonState;
+            playerControlEvent.controlId = refereeSystem.getLocalPlayerId();
+            playerControlEvent.entityId = refereeSystem.getLocalPlayerEntityId();
+
+            NetDriver netDriver = getEngine().getSystem(NetDriver.class);
+            EventsSystem eventsSystem = getEngine().getSystem(EventsSystem.class);
+
+            if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Client) {
+                netDriver.queueClientEvent(-1, playerControlEvent);
+            }
+            eventsSystem.triggerEvent(playerControlEvent);
+        }
         if (controlFacing) {
             for (int i = 0; i < playerControlInfos.length; ++i) updatePlayer(i);
         }
@@ -70,15 +92,18 @@ public class ControlSystem extends EntitySystem {
         }
     }
 
+    public void userInput(float x, float y, int button, boolean state) {
+        localMouseVec.set(x, y);
+        localButton = button;
+        localButtonState = state;
+    }
+
     private void updatePlayer(int playerId) {
         if (playerId == -1) return;
         Entity entity = getEngine().getSystem(RefereeSystem.class).getPlayerEntity(playerId);
         if (entity == null) return;
 
         PlayerControlInfo playerControlInfo = playerControlInfos[playerId];
-        if (playerControlInfo.buttonState) {
-            playerControlInfo.holdDuration = ((playerControlInfo.holdDuration < 0 ? 0 : playerControlInfo.holdDuration) + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
-        }
         PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
         Transform tfm = pb.body.getTransform();
         tfm.setOrientation(tempVec.set(playerControlInfo.cursorPosition.x - tfm.vals[0], playerControlInfo.cursorPosition.y - tfm.vals[1]));
@@ -94,24 +119,31 @@ public class ControlSystem extends EntitySystem {
         }
         Entity entity = ((GameEngine) getEngine()).getEntityById(entityId);
         if (entity == null) {
-            Log.debug("ControlSystem", "Invalid entityId: " + entityId);
+//            Log.debug("ControlSystem", "Invalid entityId: " + entityId);
             return;
         }
 
         PlayerInfo playerInfo = getEngine().getSystem(RefereeSystem.class).getPlayerInfo(playerId);
-        playerControlInfos[playerId].cursorPosition.set(x, y);
+        PlayerControlInfo playerControlInfo = playerControlInfos[playerId];
+        playerControlInfo.cursorPosition.set(x, y);
 
         if (buttonId != 0) return;
-        if (playerControlInfos[playerId].buttonState && !buttonState) {
+        if (buttonState) {
+//            if (!playerControlInfo.buttonState) {
+//                Log.debug("ControlSystem", "Player " + playerId + " button down");
+//            }
+            playerControlInfo.holdDuration = (playerControlInfo.holdDuration + GameProperties.SIMULATION_UPDATE_INTERVAL) % GameProperties.CHARGE_DURATION_2;
+        }
+        else if (playerControlInfo.buttonState) {
             ButtonReleaseEvent event = Pools.obtain(ButtonReleaseEvent.class);
             event.playerId = playerId;
-            event.holdDuration = playerControlInfos[playerId].holdDuration;
+            event.holdDuration = Math.max(NetDriver.RES_HOLD_DURATION, playerControlInfo.holdDuration);
             event.x = x;
             event.y = y;
             getEngine().getSystem(EventsSystem.class).triggerEvent(event);
-            playerControlInfos[playerId].holdDuration = -NetDriver.RES_HOLD_DURATION;
+            playerControlInfo.holdDuration = 0;
         }
-        playerControlInfos[playerId].buttonState = buttonState;
+        playerControlInfo.buttonState = buttonState;
     }
 
     public void setEnabled(boolean enabled) {
