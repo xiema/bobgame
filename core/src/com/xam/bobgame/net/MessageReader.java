@@ -18,6 +18,7 @@ import com.xam.bobgame.components.*;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.utils.BitPacker;
+import com.xam.bobgame.utils.OrderedIntMap;
 
 @SuppressWarnings("UnusedReturnValue")
 public class MessageReader {
@@ -233,13 +234,12 @@ public class MessageReader {
     }
 
     private int readPhysicsBodies() {
-        IntMap<Entity> entityMap = engine.getEntityMap();
-        IntArray sortedEntityIds = engine.getSortedEntityIds();
+        OrderedIntMap<Entity> entityMap = engine.getEntityMap();
 
         if (packer.isWriteMode()) {
-            packer.packInt(sortedEntityIds.size, 0, NetDriver.MAX_ENTITY_ID);
-            for (int i = 0; i < sortedEntityIds.size; ++i) {
-                int entityId = sortedEntityIds.get(i);
+            packer.packInt(entityMap.size, 0, NetDriver.MAX_ENTITY_ID);
+            for (int i = 0; i < entityMap.size; ++i) {
+                int entityId = entityMap.getKey(i);
                 Entity entity = entityMap.get(entityId, null);
                 if (entity != null) {
                     packer.packInt(entityId, -1, NetDriver.MAX_ENTITY_ID);
@@ -258,17 +258,17 @@ public class MessageReader {
             for (int i = 0; i < cnt; ++i) {
                 int entityId = packer.unpackInt(-1, NetDriver.MAX_ENTITY_ID);
                 if (entityId == -1) continue;
-                while (j < sortedEntityIds.size && entityId < sortedEntityIds.get(j)) {
+                while (j < entityMap.size && entityId < entityMap.getKey(j)) {
 //                    Log.warn("Received update for nonexistent entity " + entityId);
                     nonExistent.add(entityId);
                     j++;
                 }
-                while (j < sortedEntityIds.size && entityId > sortedEntityIds.get(j)) {
+                while (j < entityMap.size && entityId > entityMap.getKey(j)) {
 //                    Log.debug("Entity " + sortedEntityIds.get(j) + " skipped during update");
-                    notUpdated.add(sortedEntityIds.get(j));
+                    notUpdated.add(entityMap.getKey(j));
                     j++;
                 }
-                if (j < sortedEntityIds.size && entityId == sortedEntityIds.get(j)) j++;
+                if (j < entityMap.size && entityId == entityMap.getKey(j)) j++;
                 Entity entity = entityMap.get(entityId, null);
                 PhysicsBodyComponent pb = null;
                 if (entity != null) {

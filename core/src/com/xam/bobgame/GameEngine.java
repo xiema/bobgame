@@ -14,8 +14,7 @@ import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.*;
 import com.xam.bobgame.net.NetDriver;
-
-import java.util.Arrays;
+import com.xam.bobgame.utils.OrderedIntMap;
 
 public class GameEngine extends PooledEngine {
     private static final Class<?>[] PAUSABLE_SYSTEMS = {
@@ -43,8 +42,7 @@ public class GameEngine extends PooledEngine {
 
     private boolean restarting = false;
 
-    private final IntMap<Entity> entityMap = new IntMap<>();
-    private final IntArray sortedEntityIds = new IntArray(true, 4);
+    private final OrderedIntMap<Entity> entityMap = new OrderedIntMap<>();
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
@@ -178,11 +176,6 @@ public class GameEngine extends PooledEngine {
         super.addEntity(entity);
         int entityID = EntityUtils.getId(entity);
         Entity old = entityMap.put(entityID, entity);
-        if (old == null) {
-            int ins = Arrays.binarySearch(sortedEntityIds.items, 0, sortedEntityIds.size, entityID);
-            sortedEntityIds.insert(ins >= 0 ? ins : -(ins + 1), entityID);
-        }
-
         if (mode == Mode.Server) {
             EntityCreatedEvent netEvent = Pools.obtain(EntityCreatedEvent.class);
             netEvent.entityId = entityID;
@@ -195,16 +188,7 @@ public class GameEngine extends PooledEngine {
         IdentityComponent iden = ComponentMappers.identity.get(entity);
         iden.despawning = true;
         int entityID = iden.id;
-        Entity old = entityMap.remove(entityID);
-        if (old != null) {
-            int rem = Arrays.binarySearch(sortedEntityIds.items, 0, sortedEntityIds.size, entityID);
-            if (sortedEntityIds.get(rem) == entityID) {
-                sortedEntityIds.removeIndex(rem);
-            }
-        }
-        else {
-            Log.warn("Attempted to remove nonexistent entity " + entityID);
-        }
+        entityMap.remove(entityID);
         if (mode == Mode.Server) {
             EntityDespawnedEvent event = Pools.obtain(EntityDespawnedEvent.class);
             event.entityId = EntityUtils.getId(entity);
@@ -217,7 +201,6 @@ public class GameEngine extends PooledEngine {
     public void removeAllEntities() {
         super.removeAllEntities();
         entityMap.clear();
-        sortedEntityIds.clear();
     }
 
     public void setMode(Mode mode) {
@@ -274,12 +257,8 @@ public class GameEngine extends PooledEngine {
         return entity;
     }
 
-    public IntMap<Entity> getEntityMap() {
+    public OrderedIntMap<Entity> getEntityMap() {
         return entityMap;
-    }
-
-    public IntArray getSortedEntityIds() {
-        return sortedEntityIds;
     }
 
     public GameDefinitions getGameDefinitions() {
