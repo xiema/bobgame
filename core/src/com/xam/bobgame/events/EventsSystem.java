@@ -4,10 +4,21 @@ import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.badlogic.gdx.utils.ObjectSet;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.events.classes.*;
 
 public class EventsSystem extends EntitySystem {
+
+    private static final ObjectSet<Class<?>> registeredEvents = new ObjectSet<>();
+    static {
+//        registeredEvents.add(HazardContactEvent.class);
+//        registeredEvents.add(PlayerAssignEvent.class);
+//        registeredEvents.add(PlayerControlEvent.class);
+//        registeredEvents.add(PlayerJoinedEvent.class);
+//        registeredEvents.add(RequestJoinEvent.class);
+    }
 
     private final Array<GameEvent> eventQueue = new Array<>();
     private ObjectMap<Class<? extends GameEvent>, Array<GameEventListener>> listenerMap = new ObjectMap<>();
@@ -59,7 +70,9 @@ public class EventsSystem extends EntitySystem {
 
     private void handleEvent(GameEvent event, Array<GameEventListener> eventListeners) {
         for (GameEventListener listener : eventListeners) {
-//            Log.info("EventsSystem", event.getClass().getSimpleName() + ": handled by " + listener);
+//            if (registeredEvents.contains(event.getClass())) {
+//                Log.debug("EventsSystem", event + " : handled by " + listener);
+//            }
             listener.handle(event);
         }
     }

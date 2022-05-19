@@ -8,7 +8,7 @@ import com.esotericsoftware.kryonet.Serialization;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameEngine;
-import com.xam.bobgame.events.DisconnectEvent;
+import com.xam.bobgame.events.classes.DisconnectEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.GameProfile;
 

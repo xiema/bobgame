@@ -5,6 +5,8 @@ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.events.classes.PlayerControlEvent;
+import com.xam.bobgame.events.classes.PlayerDeathEvent;
 import com.xam.bobgame.game.PlayerInfo;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.GameEngine;

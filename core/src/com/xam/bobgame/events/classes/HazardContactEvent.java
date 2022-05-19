@@ -1,6 +1,7 @@
-package com.xam.bobgame.events;
+package com.xam.bobgame.events.classes;
 
 import com.badlogic.ashley.core.Entity;
+import com.xam.bobgame.events.GameEvent;
 
 public class HazardContactEvent implements GameEvent {
     public Entity entity = null;

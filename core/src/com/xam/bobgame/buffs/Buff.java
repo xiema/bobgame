@@ -6,8 +6,8 @@ import com.badlogic.gdx.utils.Null;
 import com.badlogic.gdx.utils.Pool.Poolable;
 import com.badlogic.gdx.utils.Pools;
 import com.xam.bobgame.entity.ComponentMappers;
-import com.xam.bobgame.events.BuffEndedEvent;
-import com.xam.bobgame.events.BuffStartedEvent;
+import com.xam.bobgame.events.classes.BuffEndedEvent;
+import com.xam.bobgame.events.classes.BuffStartedEvent;
 import com.xam.bobgame.events.EventsSystem;
 
 /**

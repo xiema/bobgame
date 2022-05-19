@@ -1,4 +1,4 @@
-package com.xam.bobgame.events;
+package com.xam.bobgame.events.classes;
 
 import com.badlogic.ashley.core.Engine;
 import com.xam.bobgame.game.PlayerInfo;

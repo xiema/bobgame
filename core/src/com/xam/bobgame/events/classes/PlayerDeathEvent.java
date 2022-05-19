@@ -1,10 +1,10 @@
-package com.xam.bobgame.events;
+package com.xam.bobgame.events.classes;
 
 import com.badlogic.ashley.core.Engine;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.BitPacker;
 
-public class PlayerBallSpawnedEvent extends NetDriver.NetworkEvent {
+public class PlayerDeathEvent extends NetDriver.NetworkEvent {
 
     public int playerId = -1;
     public int entityId = -1;

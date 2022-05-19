@@ -8,6 +8,7 @@ import com.xam.bobgame.buffs.BuffDefs;
 import com.xam.bobgame.buffs.BuffSystem;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.events.classes.HazardContactEvent;
 
 public class HazardsSystem extends EntitySystem {
 

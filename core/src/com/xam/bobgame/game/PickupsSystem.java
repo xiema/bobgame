@@ -5,7 +5,6 @@ import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
-import com.badlogic.gdx.utils.IntSet;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
@@ -16,6 +15,8 @@ import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.components.PickupComponent;
 import com.xam.bobgame.entity.*;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.events.classes.PickupContactEvent;
+import com.xam.bobgame.events.classes.PlayerScoreEvent;
 
 public class PickupsSystem extends EntitySystem {
 

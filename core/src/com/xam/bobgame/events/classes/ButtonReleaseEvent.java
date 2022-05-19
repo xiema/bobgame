@@ -1,4 +1,6 @@
-package com.xam.bobgame.events;
+package com.xam.bobgame.events.classes;
+
+import com.xam.bobgame.events.GameEvent;
 
 public class ButtonReleaseEvent implements GameEvent {
     public float x = 0;

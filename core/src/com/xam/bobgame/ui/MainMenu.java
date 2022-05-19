@@ -9,6 +9,7 @@ import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.events.classes.PlayerAssignEvent;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.GameProfile;

@@ -3,10 +3,9 @@ package com.xam.bobgame.net;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
-import com.xam.bobgame.events.ClientConnectedEvent;
-import com.xam.bobgame.events.ClientDisconnectedEvent;
+import com.xam.bobgame.events.classes.ClientConnectedEvent;
+import com.xam.bobgame.events.classes.ClientDisconnectedEvent;
 import com.xam.bobgame.events.EventsSystem;
-import com.xam.bobgame.events.PlayerControlEvent;
 import com.xam.bobgame.game.RefereeSystem;
 
 public enum ConnectionState {

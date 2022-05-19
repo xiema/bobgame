@@ -9,12 +9,12 @@ import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.buffs.BuffDefs;
 import com.xam.bobgame.buffs.BuffSystem;
-import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityFactory;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.events.classes.*;
 import com.xam.bobgame.net.ConnectionManager;
 import com.xam.bobgame.net.NetDriver;
 

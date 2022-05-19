@@ -1,9 +1,10 @@
-package com.xam.bobgame.events;
+package com.xam.bobgame.events.classes;
 
 import com.badlogic.ashley.core.Entity;
 import com.xam.bobgame.buffs.Buff;
+import com.xam.bobgame.events.GameEvent;
 
-public class BuffEndedEvent implements GameEvent {
+public class BuffStartedEvent implements GameEvent {
 
     public Entity entity;
     public int entityId = -1;
@@ -18,6 +19,6 @@ public class BuffEndedEvent implements GameEvent {
 
     @Override
     public String toString() {
-        return "BuffEnded " + entityId + " " + buff;
+        return "BuffStarted " + entityId + " " + buff;
     }
 }

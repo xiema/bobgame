@@ -1,10 +1,9 @@
-package com.xam.bobgame.events;
+package com.xam.bobgame.events.classes;
 
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
-import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.BitPacker;
 

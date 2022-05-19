@@ -9,7 +9,7 @@ import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProfile;
 import com.xam.bobgame.events.*;
-import com.xam.bobgame.game.PhysicsSystem;
+import com.xam.bobgame.events.classes.*;
 import com.xam.bobgame.utils.Bits2;
 import com.xam.bobgame.utils.ExpoMovingAverage;
 

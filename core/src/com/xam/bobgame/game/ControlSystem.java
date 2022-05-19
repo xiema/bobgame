@@ -12,6 +12,9 @@ import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.events.classes.ButtonReleaseEvent;
+import com.xam.bobgame.events.classes.PlayerControlEvent;
+import com.xam.bobgame.events.classes.PlayerDeathEvent;
 import com.xam.bobgame.net.NetDriver;
 
 public class ControlSystem extends EntitySystem {
