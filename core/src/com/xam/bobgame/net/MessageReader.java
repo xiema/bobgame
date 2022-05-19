@@ -258,17 +258,17 @@ public class MessageReader {
             for (int i = 0; i < cnt; ++i) {
                 int entityId = packer.unpackInt(-1, NetDriver.MAX_ENTITY_ID);
                 if (entityId == -1) continue;
-                while (j < entityMap.size && entityId < entityMap.getKey(j)) {
-//                    Log.warn("Received update for nonexistent entity " + entityId);
-                    nonExistent.add(entityId);
-                    j++;
-                }
                 while (j < entityMap.size && entityId > entityMap.getKey(j)) {
 //                    Log.debug("Entity " + sortedEntityIds.get(j) + " skipped during update");
                     notUpdated.add(entityMap.getKey(j));
                     j++;
                 }
-                if (j < entityMap.size && entityId == entityMap.getKey(j)) j++;
+                if (j < entityMap.size && entityId == entityMap.getKey(j)) {
+                    j++;
+                }
+                else {
+                    nonExistent.add(entityId);
+                }
                 Entity entity = entityMap.get(entityId, null);
                 PhysicsBodyComponent pb = null;
                 if (entity != null) {
