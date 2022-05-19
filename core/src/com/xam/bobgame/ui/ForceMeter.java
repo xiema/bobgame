@@ -30,6 +30,7 @@ public class ForceMeter extends ProgressBar {
         listeners.put(PlayerControlEvent.class, new EventListenerAdapter<PlayerControlEvent>() {
             @Override
             public void handleEvent(PlayerControlEvent event) {
+                if (event.buttonId > 0) return;
                 if (event.controlId != engine.getSystem(RefereeSystem.class).getLocalPlayerId()) return;
                 if (buttonState && !event.buttonState) {
                     Log.debug("Local Player (" + event.controlId + ") ButtonRelease " + holdDuration);

@@ -25,7 +25,7 @@ public class PlayerControlEvent extends NetDriver.NetworkEvent {
         entityId = packer.readInt(entityId, 0, NetDriver.MAX_ENTITY_ID);
         x = packer.readFloat(x, -3, GameProperties.MAP_WIDTH + 3, NetDriver.RES_POSITION);
         y = packer.readFloat(y, -3,  GameProperties.MAP_HEIGHT + 3, NetDriver.RES_POSITION);
-        buttonId = packer.readInt(buttonId, 0, 1);
+        buttonId = packer.readInt(buttonId, -1, 1);
         buttonState = packer.readInt(buttonState ? 1 : 0, 0, 1) > 0;
         return 0;
     }
@@ -44,6 +44,6 @@ public class PlayerControlEvent extends NetDriver.NetworkEvent {
 
     @Override
     public String toString() {
-        return "PlayerControlEvent controlId=" + controlId + " entityId=" + entityId;
+        return "PlayerControlEvent controlId=" + controlId + " entityId=" + entityId + " x=" + x + " y=" + y + " buttonId=" + buttonId + " buttonState=" + buttonState;
     }
 }

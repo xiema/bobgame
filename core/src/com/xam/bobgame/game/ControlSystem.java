@@ -83,6 +83,9 @@ public class ControlSystem extends EntitySystem {
                 netDriver.queueClientEvent(-1, playerControlEvent);
             }
             eventsSystem.triggerEvent(playerControlEvent);
+
+            // button released
+            if (!localButtonState) localButton = -1;
         }
         if (controlFacing) {
             for (int i = 0; i < playerControlInfos.length; ++i) updatePlayer(i);
@@ -123,11 +126,10 @@ public class ControlSystem extends EntitySystem {
             return;
         }
 
-        PlayerInfo playerInfo = getEngine().getSystem(RefereeSystem.class).getPlayerInfo(playerId);
         PlayerControlInfo playerControlInfo = playerControlInfos[playerId];
         playerControlInfo.cursorPosition.set(x, y);
 
-        if (buttonId != 0) return;
+        if (buttonId > 0) return;
         if (buttonState) {
 //            if (!playerControlInfo.buttonState) {
 //                Log.debug("ControlSystem", "Player " + playerId + " button down");

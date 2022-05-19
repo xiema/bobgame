@@ -55,27 +55,32 @@ public class GameEngine extends PooledEngine {
         });
 
         game.inputMultiplexer.addProcessor(new InputAdapter() {
+            private int activeButton = -1;
+
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
                 controlSystem.userInput(screenX, screenY, button, true);
+                activeButton = button;
                 return false;
             }
 
             @Override
             public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-                controlSystem.userInput(screenX, screenY, button, false);
+                controlSystem.userInput(screenX, screenY, activeButton, false);
+                activeButton = -1;
                 return false;
             }
 
             @Override
             public boolean touchDragged(int screenX, int screenY, int pointer) {
-                controlSystem.userInput(screenX, screenY, 0, true);
+                controlSystem.userInput(screenX, screenY, activeButton, true);
                 return false;
             }
 
             @Override
             public boolean mouseMoved(int screenX, int screenY) {
-                controlSystem.userInput(screenX, screenY, 0, false);
+                controlSystem.userInput(screenX, screenY, activeButton, false);
+                activeButton = -1;
                 return false;
             }
         });
