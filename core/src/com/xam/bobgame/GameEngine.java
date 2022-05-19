@@ -36,8 +36,6 @@ public class GameEngine extends PooledEngine {
     NetDriver netDriver;
     ControlSystem controlSystem;
 
-    private int lastSnapshot = -1;
-
     private int currentFrame = 0;
 
     private boolean restarting = false;
@@ -236,14 +234,6 @@ public class GameEngine extends PooledEngine {
 
     public Mode getMode() {
         return mode;
-    }
-
-    public int getLastSnapshotFrame() {
-        return lastSnapshot;
-    }
-
-    public int setLastSnapshotFrame() {
-        return lastSnapshot++;
     }
 
     public int getCurrentFrame() {

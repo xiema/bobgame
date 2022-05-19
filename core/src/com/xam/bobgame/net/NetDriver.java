@@ -27,7 +27,7 @@ public class NetDriver extends EntitySystem {
     public static final int PACKET_SEQUENCE_LIMIT = 128;
     public static final int JITTER_BUFFER_SIZE = 4;
 
-    public static final float SNAPSHOT_INTERVAL = 1;
+    public static final int SNAPSHOT_FRAME_INTERVAL = 60;
 
     public static final float INACTIVITY_DISCONNECT_TIMEOUT = 15;
 

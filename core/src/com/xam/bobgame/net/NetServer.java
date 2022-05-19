@@ -87,13 +87,13 @@ public class NetServer extends Server {
             hasSnapshotPacket = false;
         }
 
-        if (connectionSlot.needsSnapshot && connectionSlot.timeSinceLastSnapshot >= NetDriver.SNAPSHOT_INTERVAL) {
+        if (connectionSlot.needsSnapshot && (connectionSlot.lastSnapshotFrame == -1 || ((GameEngine) netDriver.getEngine()).getCurrentFrame() - connectionSlot.lastSnapshotFrame >= NetDriver.SNAPSHOT_FRAME_INTERVAL)) {
             if (!hasSnapshotPacket) {
                 netDriver.messageReader.serialize(snapshotPacket.getMessage(), netDriver.getEngine(), Message.MessageType.Snapshot);
                 hasSnapshotPacket = true;
             }
             connectionSlot.needsSnapshot = false;
-            connectionSlot.timeSinceLastSnapshot = 0;
+            connectionSlot.lastSnapshotFrame = ((GameEngine) netDriver.getEngine()).getCurrentFrame();
             snapshotPacket.copyTo(sendPacket);
 //            Log.info("Send snapshot " + snapshotPacket.getMessage());
         }

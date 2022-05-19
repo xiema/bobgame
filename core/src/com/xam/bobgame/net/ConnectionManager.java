@@ -1,7 +1,6 @@
 package com.xam.bobgame.net;
 
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.utils.Pool;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.minlog.Log;
@@ -152,10 +151,6 @@ public class ConnectionManager {
         }
     }
 
-    public void acceptConnection(int clientId) {
-        connectionSlots[clientId].state = ConnectionState.ServerConnected;
-    }
-
     public ConnectionManager.ConnectionSlot getConnectionSlot(int clientId) {
         return connectionSlots[clientId];
     }
@@ -195,7 +190,7 @@ public class ConnectionManager {
         boolean hasUDP = false;
 
         ConnectionState state = null;
-        float t = 0;
+        float accumulator = 0;
         int salt = 0;
 
         Packet sendPacket = new Packet(NetDriver.DATA_MAX_SIZE);
@@ -205,7 +200,7 @@ public class ConnectionManager {
         MessageBuffer messageBuffer;
 
         public boolean needsSnapshot = true;
-        public float timeSinceLastSnapshot = NetDriver.SNAPSHOT_INTERVAL;
+        int lastSnapshotFrame = -1;
         Message message = new Message(NetDriver.DATA_MAX_SIZE);
 
         final SequenceNumChecker messageNumChecker = new SequenceNumChecker(256);
@@ -243,7 +238,7 @@ public class ConnectionManager {
         public void transitionState(ConnectionState newState) {
             Log.debug("Connection " + clientId + " transition from " + state + " to " + newState);
             this.state = newState;
-            t = 0;
+            accumulator = 0;
         }
 
         public void sendDataPacket(Packet packet) {
@@ -399,12 +394,6 @@ public class ConnectionManager {
             }
 
             @Override
-            int update(ConnectionSlot slot, float t) {
-                slot.timeSinceLastSnapshot += t;
-                return super.update(slot, t);
-            }
-
-            @Override
             int update2(ConnectionSlot slot) {
                 slot.netDriver.server.syncClient(slot);
                 return 0;
@@ -508,10 +497,12 @@ public class ConnectionManager {
         ClientConnected(0.5f, true) {
             @Override
             int readMessage(ConnectionSlot slot, Message message) {
-                GameEngine engine = (GameEngine) slot.netDriver.getEngine();
-                if (message.getType() == Message.MessageType.Update && engine.getLastSnapshotFrame() == -1) {
+                if (message.getType() == Message.MessageType.Update && slot.lastSnapshotFrame == -1) {
                     Log.info("Can't update while still waiting for snapshot");
                     return -1;
+                }
+                else if (message.getType() == Message.MessageType.Snapshot) {
+                    slot.lastSnapshotFrame = message.frameNum;
                 }
                 slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine(), slot.clientId);
                 return 0;
@@ -637,8 +628,8 @@ public class ConnectionManager {
             return 0;
         }
         int update(ConnectionSlot slot, float t) {
-            slot.t += t;
-            if (timeoutThreshold > 0 && slot.t > timeoutThreshold) return timeout(slot);
+            slot.accumulator += t;
+            if (timeoutThreshold > 0 && slot.accumulator > timeoutThreshold) return timeout(slot);
             while (slot.packetBuffer.get(slot.syncPacket)) {
                 if (!slot.state.checksSalt || slot.syncPacket.salt == slot.salt) {
                     if (slot.syncPacket.type == Packet.PacketType.Data) {
@@ -657,7 +648,7 @@ public class ConnectionManager {
 
 //                Log.info("Queued packet " + slot.syncPacket);
                 slot.syncPacket.clear();
-                slot.t = 0;
+                slot.accumulator = 0;
             }
 
             while (slot.messageBuffer.get(slot.message)) {

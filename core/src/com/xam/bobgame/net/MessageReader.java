@@ -76,7 +76,6 @@ public class MessageReader {
                 break;
             case Snapshot:
                 readSystemSnapshot();
-                ((GameEngine) engine).setLastSnapshotFrame();
                 break;
             case Input:
                 readEvent(clientId);
