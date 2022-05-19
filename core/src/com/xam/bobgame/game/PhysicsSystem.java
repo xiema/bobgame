@@ -24,10 +24,8 @@ import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.graphics.TextureDef;
 import com.xam.bobgame.net.NetDriver;
-import com.xam.bobgame.utils.DebugUtils;
+import com.xam.bobgame.utils.ExpoMovingAverage;
 import com.xam.bobgame.utils.MathUtils2;
-
-import java.util.Arrays;
 
 public class PhysicsSystem extends EntitySystem {
     public static final float SIM_UPDATE_STEP = 1f / 60f;
@@ -415,8 +413,8 @@ public class PhysicsSystem extends EntitySystem {
     }
 
     public static class PhysicsHistory {
-        public final DebugUtils.ExpoMovingAverage posXError = new DebugUtils.ExpoMovingAverage(0.1f);
-        public final DebugUtils.ExpoMovingAverage posYError = new DebugUtils.ExpoMovingAverage(0.1f);
+        public final ExpoMovingAverage posXError = new ExpoMovingAverage(0.1f);
+        public final ExpoMovingAverage posYError = new ExpoMovingAverage(0.1f);
 
         public final Entity entity;
 

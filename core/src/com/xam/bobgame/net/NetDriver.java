@@ -11,7 +11,7 @@ import com.xam.bobgame.GameProfile;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.game.PhysicsSystem;
 import com.xam.bobgame.utils.Bits2;
-import com.xam.bobgame.utils.DebugUtils;
+import com.xam.bobgame.utils.ExpoMovingAverage;
 
 import java.nio.ByteBuffer;
 
@@ -57,7 +57,7 @@ public class NetDriver extends EntitySystem {
     public static final float DAMPING_FACTOR = 10f;
     public static final float FORCE_FACTOR = 0.8f;
 
-    private final DebugUtils.ExpoMovingAverage simUpdateStepError = new DebugUtils.ExpoMovingAverage(0.1f);
+    private final ExpoMovingAverage simUpdateStepError = new ExpoMovingAverage(0.1f);
 
     final ConnectionManager connectionManager = new ConnectionManager(this);
     final PacketTransport transport = new PacketTransport(this);
@@ -74,7 +74,7 @@ public class NetDriver extends EntitySystem {
     private float curTime = 0;
     private float curTimeDelta = 0;
 
-    private DebugUtils.ExpoMovingAverage movingAverage = new DebugUtils.ExpoMovingAverage(0.1f);
+    private ExpoMovingAverage movingAverage = new ExpoMovingAverage(0.1f);
     private float bitrate = 0;
     private int sentBytes = 0;
     private int receivedBytes = 0;

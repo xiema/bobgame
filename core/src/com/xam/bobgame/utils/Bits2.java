@@ -4,6 +4,9 @@ import com.esotericsoftware.minlog.Log;
 
 import java.util.Arrays;
 
+/**
+ * A bitset similar to {@link com.badlogic.gdx.utils.Bits}, but with operations operating on ranges of bits.
+ */
 public class Bits2 {
 
     long[] bits;
@@ -60,6 +63,12 @@ public class Bits2 {
         Arrays.fill(bits, -1);
     }
 
+    /**
+     * Sets a range of bits by bitwise OR
+     * @param i A long value representing the bits to be set
+     * @param offset Starting offset in the bitset
+     * @param length Number of bits to be set
+     */
     public void set(long i, int offset, int length) {
         if (!checkCapacity(offset + length - 1)) {
             Log.warn("Bits2", "Attempted set " + length + " bits from " + offset + " but size is only " + size);
@@ -71,10 +80,19 @@ public class Bits2 {
         if ((offset & 0x3F) != 0) bits[(word + 1) % bits.length] |= (i >>> (-offset & 0x3F)) & (mask >>> (-offset & 0x3F));
     }
 
+    /**
+     * Sets a range of 64 bits by bitwise OR
+     * @param i A long value representing the bits to be set
+     * @param offset Starting offset in the bitset
+     */
     public void set(long i, int offset) {
         set(i, offset, 64);
     }
 
+    /**
+     * Shifts bits in the bitset down by the specified number, replacing the topmost bits by zeros.
+     * @param n Number of bits to shift
+     */
     public void shiftDown(int n) {
         int i = 0, j = (n >>> 6);
         if (j < bits.length) {
@@ -89,6 +107,12 @@ public class Bits2 {
         }
     }
 
+    /**
+     * Creates a long value representing bits in the bitset in a specified range.
+     * @param offset Starting offset in the bitset
+     * @param length Number of bits
+     * @return Long value representing the bits
+     */
     public long getBitMask(int offset, int length) {
         if (!checkCapacity(offset + length - 1)) {
             Log.warn("Bits2", "Attempted set " + length + " bits from " + offset + " but size is only " + size);
@@ -105,6 +129,9 @@ public class Bits2 {
         other.halfSize = halfSize;
     }
 
+    /**
+     * Returns true if any bits are set.
+     */
     public boolean anySet() {
         for (int i = 0; i < bits.length; ++i) {
             if (bits[i] > 0) return true;
@@ -112,6 +139,9 @@ public class Bits2 {
         return false;
     }
 
+    /**
+     * Performs bitwise OR on this bitset with another bitset.
+     */
     public void or(Bits2 other) {
         for (int i = 0; i < bits.length; ++i) {
             bits[i] |= other.bits[i];

@@ -1,15 +1,17 @@
 package com.xam.bobgame.utils;
 
-import com.badlogic.gdx.utils.Bits;
 import com.esotericsoftware.minlog.Log;
 
 import java.util.Arrays;
 
+/**
+ * A sequence number checker with a fixed window size. The window moves up when it encounters a number higher
+ * than the highest number within its range. Positions below the range are always assumed to be in the 'set' state.
+ */
 public class SequenceNumChecker {
 
     long[] bits;
 
-//    final Bits bits;
     final int size;
     final int halfSize;
 
@@ -19,7 +21,6 @@ public class SequenceNumChecker {
         this.size = size;
         this.halfSize = size / 2;
         bits = new long[(size + 63 >>> 6)];
-//        high = halfSize;
     }
 
     public boolean get(int i) {
@@ -105,28 +106,19 @@ public class SequenceNumChecker {
     }
 
     private void zeroBits(int i, int j) {
-//        Log.info("zero i=" + i + " j=" + j);
         int w1 = i >>> 6;
         int w2 = j >>> 6;
 
-//        Log.info("A1 bits[" + w1 + "]=" + DebugUtils.bitString(bits[w1], 64));
-//        Log.info("B1 bits[" + w2 + "]=" + DebugUtils.bitString(bits[w2], 64));
         if (w1 == w2) {
             bits[w1] &= (-1L >>> (~i & 0x3F)) | (-1L << (j & 0x3F));
-//            Log.info("A2 bits[" + w1 + "]=" + DebugUtils.bitString(bits[w1], 64));
         }
         else {
-//            Log.info("A1 " + DebugUtils.bitString((-1L >>> (63 - (i & 0x3F))), 64));
             bits[w1] &= -1L >>> (~i & 0x3F);
             bits[w2] &= (-1L << (j & 0x3F));
         }
-//        Log.info("A1 bits[" + w1 + "]=" + DebugUtils.bitString(bits[w1], 64));
-//        Log.info("B1 bits[" + w2 + "]=" + DebugUtils.bitString(bits[w2], 64));
         if (j - i > 64 || i - j > 64) {
             for (w1 = (w1 + 1) % bits.length; w1 != w2; w1 = (w1 + 1) % bits.length) {
-//                Log.info("C1 bits[" + w1 + "]=" + DebugUtils.bitString(bits[w1], 64));
                 bits[w1] = 0;
-//                Log.info("C2 bits[" + w1 + "]=" + DebugUtils.bitString(bits[w1], 64));
             }
         }
     }
