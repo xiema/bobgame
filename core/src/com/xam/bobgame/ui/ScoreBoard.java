@@ -57,26 +57,12 @@ public class ScoreBoard extends Table {
                 removePlayer(event.playerId);
             }
         });
-//        listeners.put(PlayerScoreEvent.class, new EventListenerAdapter<PlayerScoreEvent>() {
-//            @Override
-//            public void handleEvent(PlayerScoreEvent event) {
-//                Log.info("PlayerScoreEvent");
-//                refreshPlayerScore(event.playerId);
-//            }
-//        });
         listeners.put(ScoreBoardRefreshEvent.class, new EventListenerAdapter<ScoreBoardRefreshEvent>() {
             @Override
             public void handleEvent(ScoreBoardRefreshEvent event) {
                 refreshScoreBoard();
             }
         });
-//        listeners.put(ScoreBoardUpdateEvent.class, new EventListenerAdapter<ScoreBoardUpdateEvent>() {
-//            @Override
-//            public void handleEvent(ScoreBoardUpdateEvent event) {
-//                Log.info("ScoreBoardUpdateEvent");
-//                refreshPlayerScore(event.playerId);
-//            }
-//        });
     }
 
     public void initialize(GameEngine engine) {
@@ -91,7 +77,6 @@ public class ScoreBoard extends Table {
     }
 
     private void refreshScoreBoard() {
-//        Log.info("refreshScoreBoard");
         RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
         rowCount = 0;
         for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
@@ -110,14 +95,7 @@ public class ScoreBoard extends Table {
         reposition();
     }
 
-    private void refreshPlayerScore(int playerId) {
-        RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
-        if (playerScoreLabels[playerId] == null) return;
-        playerScoreLabels[playerId].setText(refereeSystem.getPlayerInfo(playerId).score);
-    }
-
     public void addPlayer(int playerId) {
-//        Log.info("addPlayer " + playerId);
         Label playerNameLabel = playerNameLabels[playerId];
         Label playerScoreLabel = playerScoreLabels[playerId];
         Label playerRespawnTimeLabel = playerRespawnTimeLabels[playerId];
@@ -131,7 +109,6 @@ public class ScoreBoard extends Table {
     }
 
     public void removePlayer(int playerId) {
-//        Log.info("addPlayer " + playerId);
         Label playerNameLabel = playerNameLabels[playerId];
         Label playerScoreLabel = playerScoreLabels[playerId];
         Label playerRespawnTimeLabel = playerRespawnTimeLabels[playerId];
@@ -143,7 +120,6 @@ public class ScoreBoard extends Table {
     }
 
     public void setPlayerScore(int playerId, int score, float respawnTime) {
-//        Log.info("setPlayerScore " + playerId + " " + score);
         playerScoreLabels[playerId].setText(String.valueOf(score));
         playerRespawnTimeLabels[playerId].setText(String.valueOf((int) respawnTime));
     }

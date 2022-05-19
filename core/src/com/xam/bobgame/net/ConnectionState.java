@@ -264,15 +264,6 @@ public enum ConnectionState {
 
             boolean sent = false;
 
-//                if (slot.needsSnapshot) {
-//                    Log.debug("Requesting for snapshot");
-//                    slot.sendPacket.type = Packet.PacketType.SnapshotRequest;
-//                    slot.sendTransportPacket(slot.sendPacket);
-//                    slot.sendPacket.clear();
-//                    slot.needsSnapshot = false;
-//                    sent = true;
-//                }
-
             // send events
             for (NetDriver.ClientEvent clientEvent : slot.netDriver.clientEvents) {
                 if (clientEvent.event instanceof PlayerControlEvent) {
@@ -396,13 +387,13 @@ public enum ConnectionState {
                 }
             }
 
-//                Log.info("Queued packet " + slot.syncPacket);
+//            Log.info("Queued packet " + slot.syncPacket);
             slot.syncPacket.clear();
             slot.accumulator = 0;
         }
 
         while (slot.messageBuffer.get(slot.message)) {
-//                Log.info("Reading message " + slot.message);
+//            Log.info("Reading message " + slot.message);
             slot.state.readMessage(slot, slot.message);
             slot.message.clear();
         }

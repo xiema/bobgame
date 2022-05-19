@@ -8,11 +8,9 @@ import com.xam.bobgame.utils.SequenceNumChecker;
 
 public class ConnectionManager {
 
-    private NetDriver netDriver;
-
+    private final NetDriver netDriver;
     private final ConnectionSlot[] connectionSlots = new ConnectionSlot[NetDriver.MAX_CLIENTS];
-
-    private Bits2 activeConnectionsMask = new Bits2(NetDriver.MAX_CLIENTS);
+    private final Bits2 activeConnectionsMask = new Bits2(NetDriver.MAX_CLIENTS);
 
     public ConnectionManager(NetDriver netDriver) {
         this.netDriver = netDriver;
@@ -106,8 +104,7 @@ public class ConnectionManager {
     }
 
     public ConnectionSlot findSalt(int salt) {
-        for (int i = 0; i < connectionSlots.length; ++i) {
-            ConnectionSlot connectionSlot = connectionSlots[i];
+        for (ConnectionSlot connectionSlot : connectionSlots) {
             if (connectionSlot == null) continue;
             if ((connectionSlot.state == ConnectionState.ServerConnected || connectionSlot.state == ConnectionState.ServerTimeoutPending) && connectionSlot.salt == salt)
                 return connectionSlot;
