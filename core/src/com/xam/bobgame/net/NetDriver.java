@@ -10,7 +10,9 @@ import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProfile;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.events.classes.*;
+import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.utils.Bits2;
+import com.xam.bobgame.utils.DebugUtils;
 import com.xam.bobgame.utils.ExpoMovingAverage;
 
 import java.nio.ByteBuffer;
@@ -290,10 +292,14 @@ public class NetDriver extends EntitySystem {
 
     private class NetSerialization extends KryoSerialization {
         Packet returnPacket = new Packet(DATA_MAX_SIZE);
+        BitPacker writeBitPacker = new BitPacker();
+        BitPacker readBitPacker = new BitPacker();
 
         @Override
         public void write(Connection connection, ByteBuffer byteBuffer, Object o) {
             int i = byteBuffer.position();
+            writeBitPacker.setBuffer(byteBuffer);
+
             if (o instanceof Packet) {
                 Packet packet = (Packet) o;
                 if (packet.type == Packet.PacketType.Data && packet.getMessage().messageId == -1) {
@@ -302,7 +308,7 @@ public class NetDriver extends EntitySystem {
                 else {
                     byteBuffer.put((byte) 1);
                     PacketTransport.PacketInfo dropped = transport.setHeaders(packet, connection);
-                    packet.encode(byteBuffer);
+                    packet.encode(writeBitPacker);
 //                    Log.info("Sending Packet " + packet);
 //                    if (dropped != null) {
 //                        Log.info("Packet dropped: " + dropped.packetSeqNum + " (" + dropped.messageSeqNum + ")");
@@ -320,16 +326,21 @@ public class NetDriver extends EntitySystem {
         public Object read(Connection connection, ByteBuffer byteBuffer) {
             Object r = null;
             int i = byteBuffer.position();
+            readBitPacker.setBuffer(byteBuffer);
+
             if (byteBuffer.get() > 0) {
                 int clientId = connectionManager.getClientId(connection);
                 if (clientId != -1) {
-                    if (returnPacket.decode(byteBuffer) != -1) {
+                    if (returnPacket.decode(readBitPacker) != -1) {
 //                        Log.info("Received Packet " + returnPacket);
                         synchronized (transport) {
                             if (!transport.updateReceived(returnPacket, clientId)) {
                                 r = returnPacket;
                             }
                         }
+                    }
+                    else {
+                        Log.debug("Packet: " + DebugUtils.bytesHex(byteBuffer, i, returnPacket.getMessage().getLength() + 13));
                     }
                 }
             }

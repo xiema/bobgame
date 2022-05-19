@@ -4,7 +4,6 @@ import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.utils.DebugUtils;
 
-import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
 
 public class Packet {
@@ -26,8 +25,6 @@ public class Packet {
     int frameNum = -1;
 
     boolean requestSnapshot = false;
-
-    private final BitPacker bitPacker = new BitPacker();
 
     public Packet(int size) {
         message = new Message(size);
@@ -59,9 +56,7 @@ public class Packet {
         return crc;
     }
 
-    public void encode(ByteBuffer out) {
-        bitPacker.setBuffer(out);
-
+    public void encode(BitPacker bitPacker) {
         bitPacker.packInt((int) getCrc());
         bitPacker.packInt(localSeqNum, 0, NetDriver.PACKET_SEQUENCE_LIMIT);
         bitPacker.packInt(remoteSeqNum, 0, NetDriver.PACKET_SEQUENCE_LIMIT);
@@ -81,12 +76,9 @@ public class Packet {
         bitPacker.flush(false);
     }
 
-    public int decode(ByteBuffer in) {
-        int i, length;
+    public int decode(BitPacker bitPacker) {
         clear();
-        bitPacker.setBuffer(in);
 
-        i = in.position();
         float packetCRC = bitPacker.unpackInt();
         localSeqNum = bitPacker.unpackInt(0, NetDriver.PACKET_SEQUENCE_LIMIT);
         remoteSeqNum = bitPacker.unpackInt(0, NetDriver.PACKET_SEQUENCE_LIMIT);
@@ -100,7 +92,7 @@ public class Packet {
         message.frameNum = bitPacker.unpackInt();
         message.setType(Message.MessageType.values()[bitPacker.unpackInt(0, Message.MessageType.values().length-1)]);
         message.entryCount = bitPacker.unpackInt(0, 15);
-        length = bitPacker.unpackInt(0, NetDriver.DATA_MAX_SIZE);
+        int length = bitPacker.unpackInt(0, NetDriver.DATA_MAX_SIZE);
         bitPacker.skipToLong();
         message.set(bitPacker, length);
 
@@ -111,7 +103,7 @@ public class Packet {
         }
 
         if (packetCRC != ((int) getCrc())) {
-            Log.error("Packet", "Bad CRC [" + length + "]: " + DebugUtils.bytesHex(in, i, length + 13));
+            Log.error("Packet", "Bad CRC [" + length + "]");
             return -1;
         }
         return 0;
