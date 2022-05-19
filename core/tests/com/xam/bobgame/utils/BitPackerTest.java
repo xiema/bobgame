@@ -220,23 +220,41 @@ public class BitPackerTest {
 
     @Test
     public void testFloat2() {
-        int count = 29;
+        int count = 1000000;
+        float minFloat = 0;
+        float maxFloat = 10;
         float[] testFloats = new float[count];
+        float[] res = new float[count];
+        float[] lowerLimits = new float[count];
+        float[] upperLimits = new float[count];
 
         Message message = new Message(count * 4);
         BitPacker bitPacker = new BitPacker(message.getByteBuffer());
         for (int i = 0; i < count; ++i) {
-            testFloats[i] = MathUtils.random(Float.MIN_VALUE, Float.MAX_VALUE);
-            bitPacker.packFloat(testFloats[i]);
+            res[i] = (float) Math.pow(2, -MathUtils.random(24));
+            lowerLimits[i] = MathUtils2.quantize(MathUtils.random(minFloat, maxFloat - res[i]), res[i]);
+            upperLimits[i] = MathUtils2.quantize(MathUtils.random(lowerLimits[i] + res[i], maxFloat), res[i]);
+            testFloats[i] = MathUtils2.quantize(MathUtils.random(lowerLimits[i], upperLimits[i]), res[i]);
+            bitPacker.packFloat(testFloats[i], lowerLimits[i], upperLimits[i], res[i]);
         }
 
         bitPacker.flush(true);
         bitPacker.rewind();
 
+        float error = 0, weightedError = 0;
+        int errCount = 0;
         for (int i = 0; i < count; ++i) {
-            float a = bitPacker.unpackFloat();
-            Assertions.assertEquals(testFloats[i], a, "Testing index " + i);
+            float a = bitPacker.unpackFloat(lowerLimits[i], upperLimits[i], res[i]);
+            float err = Math.abs(a - testFloats[i]);
+            if (err > res[i]) {
+                error += err;
+                weightedError += err / res[i];
+                errCount++;
+            }
+//            Assertions.assertTrue(, "(" + i + ") Compare " + testFloats[i] + " ? " + a + " (range " + lowerLimits[i] + " to " + upperLimits[i] + ", res " + res[i] + ")");
         }
+
+        Log.info("Error count: " + errCount + " (" + ((float) errCount / count * 100) + "%) Abs error: " + (error / errCount) + " Weighted: " + (weightedError / errCount));
     }
 
     public void testFloats(int count, float min, float max, float res) {
@@ -261,7 +279,7 @@ public class BitPackerTest {
 
     @Test
     public void testSpecifiedFloats() {
-        testFloats(30, -500f, 500f, 1e-6f);
+        testFloats(30, -500f, 500f, (float) Math.pow(2, -16));
     }
 
     @Test
