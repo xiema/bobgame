@@ -85,7 +85,7 @@ public enum ConnectionState {
 
         @Override
         int readMessage(ConnectionManager.ConnectionSlot slot, Message message) {
-            slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine(), slot.clientId);
+            slot.netDriver.messageReader.deserialize(message, slot.clientId);
             return 0;
         }
 
@@ -245,7 +245,7 @@ public enum ConnectionState {
             } else if (message.getType() == Message.MessageType.Snapshot) {
                 slot.lastSnapshotFrame = message.frameNum;
             }
-            slot.netDriver.messageReader.deserialize(message, slot.netDriver.getEngine(), slot.clientId);
+            slot.netDriver.messageReader.deserialize(message, slot.clientId);
             return 0;
         }
 
@@ -262,7 +262,7 @@ public enum ConnectionState {
 
         @Override
         int update(ConnectionManager.ConnectionSlot slot, float t) {
-            slot.messageBuffer.syncFrameNum++;
+            slot.messageBuffer.incrementSyncFrameNum();
             if (super.update(slot, t) == -1) return -1;
 
             boolean sent = false;
@@ -270,11 +270,7 @@ public enum ConnectionState {
             // send events
             for (NetDriver.ClientEvent clientEvent : slot.netDriver.clientEvents) {
 //                Log.info("Send event " + clientEvent.event);
-                if (clientEvent.event instanceof PlayerControlEvent) {
-                    slot.netDriver.messageReader.serializeInput(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), (PlayerControlEvent) clientEvent.event);
-                } else {
-                    slot.netDriver.messageReader.serializeEvent(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), clientEvent.event);
-                }
+                slot.netDriver.messageReader.serializeEvent(slot.sendPacket.getMessage(), clientEvent.event);
                 slot.sendPacket.requestSnapshot = slot.needsSnapshot;
                 slot.needsSnapshot = false;
                 slot.sendDataPacket(slot.sendPacket);

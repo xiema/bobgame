@@ -32,9 +32,7 @@ public class NetDriver extends EntitySystem {
     public static final float INACTIVITY_DISCONNECT_TIMEOUT = 15;
 
     public static final float RES_POSITION = (float) Math.pow(2d, -12d);
-//    public static final float RES_POSITION = 1e-4f;
     public static final float RES_ORIENTATION = 1e-4f;
-//    public static final float RES_VELOCITY = 1e-4f;
     public static final float RES_VELOCITY = (float) Math.pow(2d, -12d);
     public static final float RES_HOLD_DURATION = (float) Math.pow(2d, -8d);
     public static final float RES_MASS = 1e-4f;
@@ -62,7 +60,7 @@ public class NetDriver extends EntitySystem {
     final ConnectionManager connectionManager = new ConnectionManager(this);
     final PacketTransport transport = new PacketTransport(this);
     final NetSerialization serialization = new NetSerialization();
-    final MessageReader messageReader = new MessageReader();
+    final MessageReader messageReader = new MessageReader(this);
     final NetServer server = new NetServer(this, serialization);
     final NetClient client = new NetClient(this, serialization);
 
@@ -144,6 +142,9 @@ public class NetDriver extends EntitySystem {
         getEngine().getSystem(PhysicsSystem.class).setSimUpdateStep(PhysicsSystem.SIM_UPDATE_STEP - simUpdateStepError.getAverage());
     }
 
+    /**
+     * Called in {@link Engine} update cycle after all other systems have finished updating.
+     */
     public void update2(float deltaTime) {
         updateDropped();
         connectionManager.update2();
@@ -343,11 +344,4 @@ public class NetDriver extends EntitySystem {
             receivedBytes = 0;
         }
     }
-
-//    public static final int HEADER_WORDS = 2;
-//    public static final int SNAPSHOT_MAX_WORDS = 128;
-//    public static final int PACKET_MAX_WORDS = DATA_MAX_WORDS + HEADER_WORDS;
-//    public static final int SNAPSHOT_MAX_SIZE = SNAPSHOT_MAX_WORDS * 4;
-//    public static final int HEADER_SIZE = HEADER_WORDS * 4;
-//    public static final int PACKET_MAX_SIZE = PACKET_MAX_WORDS * 4;
 }

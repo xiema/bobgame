@@ -10,12 +10,13 @@ import com.xam.bobgame.utils.SequenceNumChecker;
 
 import java.util.Arrays;
 
+/**
+ * Manages Packet headers and Packet history.
+ */
 public class PacketTransport {
 
-    private NetDriver netDriver;
-
-    private EndPointInfo[] endPointInfos = new EndPointInfo[NetDriver.MAX_CLIENTS];
-
+    private final NetDriver netDriver;
+    private final EndPointInfo[] endPointInfos = new EndPointInfo[NetDriver.MAX_CLIENTS];
     private final Array<PacketInfo> droppedPackets = new Array<>();
 
     public PacketTransport(NetDriver netDriver) {
@@ -23,6 +24,7 @@ public class PacketTransport {
     }
 
     public PacketInfo setHeaders(Packet packet, Connection connection) {
+        // TODO: Avoid search for clientId every time
         int clientId = netDriver.connectionManager.getClientId(connection);
         if (clientId == -1) {
             Log.error("PacketTransport", "No connection with " + connection.getRemoteAddressTCP().getAddress().getHostAddress() + " (" + connection.getID() + ")");
@@ -40,8 +42,6 @@ public class PacketTransport {
     public boolean updateReceived(Packet packet, int clientId) {
         EndPointInfo endPointInfo = endPointInfos[clientId];
         endPointInfo.acks.set(packet.ack | 0x100000000L, (packet.remoteSeqNum + NetDriver.PACKET_SEQUENCE_LIMIT - 32) % NetDriver.PACKET_SEQUENCE_LIMIT, 33);
-//        Log.info("Rcv Ack: " + packet.remoteSeqNum + " : " + DebugUtils.bitString(packet.ack, 32));
-//        Log.info("New Ack: " + endPointInfo.acks);
         boolean b = endPointInfo.received.getAndSet(packet.localSeqNum);
         endPointInfo.remoteSeqNum = endPointInfo.received.gtWrapped(packet.localSeqNum, endPointInfo.remoteSeqNum) ? packet.localSeqNum : endPointInfo.remoteSeqNum;
         return b;

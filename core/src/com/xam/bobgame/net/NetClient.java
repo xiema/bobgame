@@ -52,6 +52,7 @@ public class NetClient extends Client {
             else if (BoBGame.isNoUDP()) {
                 connect(5000, host, NetDriver.PORT_TCP);
             }
+
             else {
                 connect(5000, host, NetDriver.PORT_TCP, NetDriver.PORT_UDP);
             }
@@ -65,9 +66,9 @@ public class NetClient extends Client {
         return false;
     }
 
-//    void setHostId(int hostId) {
-//        this.hostId = hostId;
-//    }
+    public boolean isConnecting() {
+        return connecting;
+    }
 
     public int getHostId() {
         return hostId;
@@ -113,6 +114,8 @@ public class NetClient extends Client {
             }
 //            netDriver.connectionManager.getConnectionSlot(clientId).packetBuffer.setSimulationDelay(NetDriver.BUFFER_TIME_LIMIT);
         }
+
+        // TODO: Handle unsuccessful connection
 
         @Override
         public void received(Connection connection, Object o) {

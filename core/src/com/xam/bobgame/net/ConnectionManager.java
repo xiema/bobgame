@@ -198,7 +198,7 @@ public class ConnectionManager {
 
         public void initialize(NetDriver netDriver) {
             this.netDriver = netDriver;
-            packetBuffer = new PacketBuffer(netDriver, 16);
+            packetBuffer = new PacketBuffer(netDriver, 16, NetDriver.BUFFER_TIME_LIMIT);
             messageBuffer = new MessageBuffer(16);
         }
 

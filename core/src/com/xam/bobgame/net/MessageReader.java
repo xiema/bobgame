@@ -20,11 +20,14 @@ import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.utils.OrderedIntMap;
 
+/**
+ * Message Serializer/Deserializer. Also keeps {@link MessageInfo} of sent messages.
+ */
 @SuppressWarnings("UnusedReturnValue")
 public class MessageReader {
 
-    private BitPacker packer = new BitPacker();
-    private GameEngine engine;
+    private final NetDriver netDriver;
+    private final BitPacker packer = new BitPacker();
 
     private final MessageInfo[] messageInfos = new MessageInfo[NetDriver.MAX_MESSAGE_HISTORY];
     private int messageIdCounter = 0;
@@ -32,7 +35,8 @@ public class MessageReader {
     private final IntArray nonExistent = new IntArray(false, 4);
     private final IntArray notUpdated = new IntArray(false, 4);
 
-    public MessageReader() {
+    public MessageReader(NetDriver netDriver) {
+        this.netDriver = netDriver;
         for (int i = 0; i < messageInfos.length; ++i) {
             messageInfos[i] = new MessageInfo();
         }
@@ -40,7 +44,7 @@ public class MessageReader {
 
     public void setMessageInfo(Message message) {
         message.messageId = messageIdCounter;
-        message.frameNum = engine.getCurrentFrame();
+        message.frameNum = ((GameEngine) netDriver.getEngine()).getCurrentFrame();
         messageInfos[messageIdCounter % messageInfos.length].set(message);
         messageIdCounter++;
     }
@@ -49,8 +53,7 @@ public class MessageReader {
         return messageInfos[messageId % messageInfos.length];
     }
 
-    public int deserialize(Message message, Engine engine, int clientId) {
-        this.engine = (GameEngine) engine;
+    public int deserialize(Message message, int clientId) {
         packer.setBuffer(message.getByteBuffer());
         packer.setReadMode();
 
@@ -97,14 +100,14 @@ public class MessageReader {
                 Log.warn("Received update for nonexistent entity " + entityId);
             }
             nonExistent.clear();
-            engine.getSystem(NetDriver.class).client.requestSnapshot();
+            netDriver.client.requestSnapshot();
         }
 
         if (notUpdated.notEmpty()) {
             for (int i = 0; i < notUpdated.size; ++i) {
                 int entityId = notUpdated.get(i);
                 Log.warn("Entity " + entityId + " was not updated");
-                engine.removeEntity(((GameEngine) engine).getEntityById(entityId));
+                netDriver.getEngine().removeEntity(((GameEngine) netDriver.getEngine()).getEntityById(entityId));
             }
             notUpdated.clear();
         }
@@ -112,8 +115,7 @@ public class MessageReader {
         return 0;
     }
 
-    public int serialize(Message message, Engine engine, Message.MessageType type) {
-        this.engine = (GameEngine) engine;
+    public int serialize(Message message, Message.MessageType type) {
         packer.setBuffer(message.getByteBuffer());
         packer.setWriteMode();
 
@@ -138,43 +140,37 @@ public class MessageReader {
         return 0;
     }
 
-    public int serializeInput(Message message, Engine engine, PlayerControlEvent event) {
-        this.engine = (GameEngine) engine;
+    public int serializeEvent(Message message, NetDriver.NetworkEvent event) {
         packer.setBuffer(message.getByteBuffer());
         packer.setWriteMode();
 
-        message.setType(Message.MessageType.Input);
-        setMessageInfo(message);
-        packer.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
-        event.read(packer, engine);
-        packer.padToNextByte();
-        packer.flush(true);
-        message.setLength(packer.getTotalBytes());
-        message.entryCount = 1;
-
-        return 0;
-    }
-
-    public int serializeEvent(Message message, Engine engine, NetDriver.NetworkEvent event) {
-        this.engine = (GameEngine) engine;
-        packer.setBuffer(message.getByteBuffer());
-        packer.setWriteMode();
-
-        message.setType(Message.MessageType.Update);
-        setMessageInfo(message);
-        packer.packInt(Message.UpdateType.Event.getValue(), 0, Message.UpdateType.values().length - 1);
-        message.eventTypes.add(event.getClass());
-        int typeIndex = NetDriver.getNetworkEventIndex(event.getClass());
-        if (typeIndex == -1) {
-            Log.error("Unknown typeIndex for " + event.getClass());
-            return -1;
+        if (event instanceof PlayerControlEvent) {
+            message.setType(Message.MessageType.Input);
+            setMessageInfo(message);
+            packer.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
+            event.read(packer, netDriver.getEngine());
+            packer.padToNextByte();
+            packer.flush(true);
+            message.setLength(packer.getTotalBytes());
+            message.entryCount = 1;
         }
-        packer.packInt(typeIndex, 0, NetDriver.networkEventClasses.length - 1);
-        event.read(packer, engine);
-        packer.padToNextByte();
-        packer.flush(true);
-        message.setLength(packer.getTotalBytes());
-        message.entryCount = 1;
+        else {
+            message.setType(Message.MessageType.Update);
+            setMessageInfo(message);
+            packer.packInt(Message.UpdateType.Event.getValue(), 0, Message.UpdateType.values().length - 1);
+            message.eventTypes.add(event.getClass());
+            int typeIndex = NetDriver.getNetworkEventIndex(event.getClass());
+            if (typeIndex == -1) {
+                Log.error("Unknown typeIndex for " + event.getClass());
+                return -1;
+            }
+            packer.packInt(typeIndex, 0, NetDriver.networkEventClasses.length - 1);
+            event.read(packer, netDriver.getEngine());
+            packer.padToNextByte();
+            packer.flush(true);
+            message.setLength(packer.getTotalBytes());
+            message.entryCount = 1;
+        }
 
         return 0;
     }
@@ -187,7 +183,7 @@ public class MessageReader {
         }
         //noinspection unchecked
         NetDriver.NetworkEvent event = Pools.obtain((Class<? extends NetDriver.NetworkEvent>) NetDriver.networkEventClasses[type]);
-        event.read(packer, engine);
+        event.read(packer, netDriver.getEngine());
 
         if (event instanceof EntityDespawnedEvent) {
             EntityDespawnedEvent despawnedEvent = (EntityDespawnedEvent) event;
@@ -201,7 +197,7 @@ public class MessageReader {
         if (packer.isReadMode()) {
             event.clientId = clientId;
 //            Log.debug("MessageReader", "Read event " + event);
-            engine.getSystem(EventsSystem.class).queueEvent(event);
+            netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
         }
 
         return 0;
@@ -218,7 +214,7 @@ public class MessageReader {
     private final EntityCreatedEvent entityCreator = Pools.obtain(EntityCreatedEvent.class);
 
     private int readSystemSnapshot() {
-        ImmutableArray<Entity> entities = engine.getEntities();
+        ImmutableArray<Entity> entities = netDriver.getEngine().getEntities();
         int cnt = packer.readInt(entities.size(), 0, NetDriver.MAX_ENTITY_ID);
         int i = 0;
         while (cnt-- > 0) {
@@ -228,7 +224,7 @@ public class MessageReader {
             }
             // TODO: include entity position
             entityCreator.snapshot = true;
-            entityCreator.read(packer, engine);
+            entityCreator.read(packer, netDriver.getEngine());
         }
 
         readPlayerInfos(true);
@@ -237,7 +233,7 @@ public class MessageReader {
     }
 
     private int readPhysicsBodies() {
-        OrderedIntMap<Entity> entityMap = engine.getEntityMap();
+        OrderedIntMap<Entity> entityMap = ((GameEngine) netDriver.getEngine()).getEntityMap();
 
         if (packer.isWriteMode()) {
             packer.packInt(entityMap.size, 0, NetDriver.MAX_ENTITY_ID);
@@ -362,26 +358,26 @@ public class MessageReader {
     }
 
     private int readControlStates() {
-        ControlSystem controlSystem = engine.getSystem(ControlSystem.class);
+        ControlSystem controlSystem = netDriver.getEngine().getSystem(ControlSystem.class);
         for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
             PlayerControlInfo playerControlInfo = controlSystem.getPlayerControlInfo(i);
-            playerControlInfo.read(packer, engine);
+            playerControlInfo.read(packer, netDriver.getEngine());
         }
 
         return 0;
     }
 
     private int readPlayerInfos(boolean refresh) {
-        RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
+        RefereeSystem refereeSystem = netDriver.getEngine().getSystem(RefereeSystem.class);
 
         for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
             PlayerInfo playerInfo = refereeSystem.getPlayerInfo(i);
-            playerInfo.read(packer, engine);
+            playerInfo.read(packer, netDriver.getEngine());
         }
 
         if (packer.isReadMode() && refresh) {
             ScoreBoardRefreshEvent event = Pools.obtain(ScoreBoardRefreshEvent.class);
-            engine.getSystem(EventsSystem.class).queueEvent(event);
+            netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
         }
 
         return 0;

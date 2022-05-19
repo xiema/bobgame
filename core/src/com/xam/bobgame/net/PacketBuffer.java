@@ -3,6 +3,10 @@ package com.xam.bobgame.net;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
 
+/**
+ * A buffer for Packets. Packets are kept for a time period before they can be retrieved. Retrieved packets are
+ * guaranteed to be in order, but some packets may be skipped.
+ */
 public class PacketBuffer{
     private final NetDriver netDriver;
 
@@ -16,11 +20,13 @@ public class PacketBuffer{
     private final float[] receiveTime;
     private final int bufferLength, halfBufferLength;
 
-    int frameOffset = 0;
+    private float timeLimit;
 
-    public PacketBuffer(NetDriver netDriver, int bufferLength) {
+    public PacketBuffer(NetDriver netDriver, int bufferLength, float timeLimit) {
         this.netDriver = netDriver;
         this.bufferLength = bufferLength;
+        this.timeLimit = timeLimit;
+
         buffer = new Packet[bufferLength];
         for (int i = 0; i < bufferLength; ++i) {
             buffer[i] = new Packet(NetDriver.DATA_MAX_SIZE);
@@ -34,7 +40,10 @@ public class PacketBuffer{
         return (i < j && j - i > halfBufferLength ) || (i > j && i - j < halfBufferLength);
     }
 
-    public int receive(Packet packet) {
+    /**
+     * Adds a packet to the buffer.
+     */
+    public void receive(Packet packet) {
         synchronized (buffer) {
             int i = packet.localSeqNum % bufferLength;
 //            Log.info("Receive: [" + packet.getMessage().getLength() + "] " + packet.getMessage());
@@ -63,12 +72,13 @@ public class PacketBuffer{
                 }
             }
         }
-
-        return packet.getMessage().getLength();
     }
 
+    /**
+     * Attempts to retrieve a Packet from the buffer, returning true if successful.
+     */
     public boolean get(Packet out) {
-        boolean b = false;
+        boolean retrieved = false;
 
         synchronized (buffer) {
             if (getIndex == putIndex) return false;
@@ -76,27 +86,26 @@ public class PacketBuffer{
                 buffer[getIndex].copyTo(out);
                 bufferFlag[getIndex] = false;
                 getIndex = (getIndex + 1) % bufferLength;
-                b = true;
+                retrieved = true;
             }
-            else if (bufferFlag[oldestReceivedIndex] && ((GameEngine) netDriver.getEngine()).getCurrentTime() - receiveTime[oldestReceivedIndex] > NetDriver.BUFFER_TIME_LIMIT) {
+            else if (bufferFlag[oldestReceivedIndex] && ((GameEngine) netDriver.getEngine()).getCurrentTime() - receiveTime[oldestReceivedIndex] > timeLimit) {
                 buffer[oldestReceivedIndex].copyTo(out);
                 bufferFlag[oldestReceivedIndex] = false;
                 Log.info("get: Skipping packets " + getIndex + "-" + oldestReceivedIndex);
                 getIndex = oldestReceivedIndex = (oldestReceivedIndex + 1) % bufferLength;
-                b = true;
+                retrieved = true;
             }
             while (!bufferFlag[oldestReceivedIndex] && oldestReceivedIndex != putIndex) {
                 oldestReceivedIndex = (oldestReceivedIndex + 1) % bufferLength;
             }
         }
 
-        return b;
+        return retrieved;
     }
 
     public void reset() {
         putIndex = 0;
         getIndex = 0;
-        frameOffset = 0;
     }
 
     public void debug(String tag) {
