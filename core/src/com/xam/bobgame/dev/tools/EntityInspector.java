@@ -8,12 +8,11 @@ import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.reflect.ClassReflection;
 import com.badlogic.gdx.utils.reflect.Field;
-import com.badlogic.gdx.utils.reflect.ReflectionException;
+import com.xam.bobgame.buffs.Buff;
+import com.xam.bobgame.components.BuffableComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.dev.DevTools;
 import com.xam.bobgame.dev.utils.DevToolWindow;
@@ -31,6 +30,10 @@ public class EntityInspector extends DevToolWindow {
     public Label posYLabel;
     public Label velXLabel;
     public Label velYLabel;
+    public Label filterCategoryLabel;
+    public Label filterMaskLabel;
+    public Label buffDurationLabel;
+    public Label buffAccumulatorLabel;
 
     public DevTools devTools;
     public Entity focusedEntity;
@@ -71,6 +74,18 @@ public class EntityInspector extends DevToolWindow {
         row();
         addLabelCell("VelY", "small");
         velYLabel = addLabelCell("", "small");
+        row();
+        addLabelCell("Category", "small");
+        filterCategoryLabel = addLabelCell("", "small");
+        row();
+        addLabelCell("Mask", "small");
+        filterMaskLabel = addLabelCell("", "small");
+        row();
+        addLabelCell("Dur", "small");
+        buffDurationLabel = addLabelCell("", "small");
+        row();
+        addLabelCell("Acc", "small");
+        buffAccumulatorLabel = addLabelCell("", "small");
 
         // load saved window settings, or use specified defaults
         loadWindowSettings(devTools.getWindowSettingsXML(), 0f, 0f, getMinWidth(), getMinHeight(), true);
@@ -108,6 +123,20 @@ public class EntityInspector extends DevToolWindow {
         posYLabel.setText(String.valueOf(pos.y));
         velXLabel.setText(String.valueOf(vel.x));
         velYLabel.setText(String.valueOf(vel.y));
+
+        filterCategoryLabel.setText(pb.fixtureDef.filter.categoryBits);
+        filterMaskLabel.setText(pb.fixtureDef.filter.maskBits);
+
+        BuffableComponent b = ComponentMappers.buffables.get(focusedEntity);
+        if (b != null && b.buffs.size > 0) {
+            Buff buff = b.buffs.get(0);
+            buffDurationLabel.setText(String.valueOf(buff.duration));
+            buffAccumulatorLabel.setText(String.valueOf(buff.accumulator));
+        }
+        else {
+            buffDurationLabel.setText("");
+            buffAccumulatorLabel.setText("");
+        }
     }
 
     public Field[] getDeclaredFields (Class<? extends Component> c) {
