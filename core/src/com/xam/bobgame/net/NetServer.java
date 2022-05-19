@@ -89,7 +89,7 @@ public class NetServer extends Server {
 
         if (connectionSlot.needsSnapshot && connectionSlot.timeSinceLastSnapshot >= NetDriver.SNAPSHOT_INTERVAL) {
             if (!hasSnapshotPacket) {
-                netDriver.messageReader.serialize(snapshotPacket.getMessage(), netDriver.getEngine(), Message.MessageType.Snapshot, connectionSlot);
+                netDriver.messageReader.serialize(snapshotPacket.getMessage(), netDriver.getEngine(), Message.MessageType.Snapshot);
                 hasSnapshotPacket = true;
             }
             connectionSlot.needsSnapshot = false;
@@ -100,7 +100,7 @@ public class NetServer extends Server {
         else {
             if (netDriver.counter % NetDriver.SERVER_UPDATE_FREQUENCY == 0) {
                 if (!hasUpdatePacket) {
-                    netDriver.messageReader.serialize(updatePacket.getMessage(), netDriver.getEngine(), Message.MessageType.Update, null);
+                    netDriver.messageReader.serialize(updatePacket.getMessage(), netDriver.getEngine(), Message.MessageType.Update);
                     hasUpdatePacket = true;
                 }
                 updatePacket.copyTo(sendPacket);

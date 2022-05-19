@@ -113,7 +113,7 @@ public class MessageReader {
         return 0;
     }
 
-    public int serialize(Message message, Engine engine, Message.MessageType type, ConnectionManager.ConnectionSlot connectionSlot) {
+    public int serialize(Message message, Engine engine, Message.MessageType type) {
         this.engine = (GameEngine) engine;
         packer.setBuffer(message.getByteBuffer());
         packer.setWriteMode();

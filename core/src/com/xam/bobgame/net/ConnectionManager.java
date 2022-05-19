@@ -367,6 +367,12 @@ public class ConnectionManager {
             }
 
             @Override
+            int receiveData(ConnectionSlot slot, Packet in) {
+                if (in.requestSnapshot) slot.needsSnapshot = true;
+                return super.receiveData(slot, in);
+            }
+
+            @Override
             int read(ConnectionSlot slot, Packet in) {
                 switch (in.type) {
                     case Disconnect:
@@ -381,9 +387,6 @@ public class ConnectionManager {
                     case Reconnect:
                         Log.info("Client " + slot.clientId + " (" + slot.getAddress() + ") reconnected");
                         slot.netDriver.getEngine().getSystem(RefereeSystem.class).assignPlayer(slot.clientId, slot.playerId);
-                    case SnapshotRequest:
-                        slot.needsSnapshot = true;
-                        return 0;
                 }
                 return -1;
             }
@@ -534,15 +537,14 @@ public class ConnectionManager {
 
                 boolean sent = false;
 
-                // TODO: incorporate snapshot request in normal messages
-                if (slot.needsSnapshot) {
-                    Log.debug("Requesting for snapshot");
-                    slot.sendPacket.type = Packet.PacketType.SnapshotRequest;
-                    slot.sendTransportPacket(slot.sendPacket);
-                    slot.sendPacket.clear();
-                    slot.needsSnapshot = false;
-                    sent = true;
-                }
+//                if (slot.needsSnapshot) {
+//                    Log.debug("Requesting for snapshot");
+//                    slot.sendPacket.type = Packet.PacketType.SnapshotRequest;
+//                    slot.sendTransportPacket(slot.sendPacket);
+//                    slot.sendPacket.clear();
+//                    slot.needsSnapshot = false;
+//                    sent = true;
+//                }
 
                 // send events
                 for (NetDriver.ClientEvent clientEvent : slot.netDriver.clientEvents) {
@@ -553,6 +555,8 @@ public class ConnectionManager {
                         slot.netDriver.messageReader.serializeEvent(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), clientEvent.event);
                     }
 //                Log.info("Send event " + sendPacket.getMessage());
+                    slot.sendPacket.requestSnapshot = slot.needsSnapshot;
+                    slot.needsSnapshot = false;
                     slot.sendDataPacket(slot.sendPacket);
                     slot.sendPacket.clear();
                     sent = true;
@@ -561,7 +565,9 @@ public class ConnectionManager {
 
                 // send heartbeat if needed
                 if (!sent) {
-                    slot.netDriver.messageReader.serialize(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), Message.MessageType.Empty, slot);
+                    slot.netDriver.messageReader.serialize(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), Message.MessageType.Empty);
+                    slot.sendPacket.requestSnapshot = slot.needsSnapshot;
+                    slot.needsSnapshot = false;
                     slot.sendDataPacket(slot.sendPacket);
                     slot.sendPacket.clear();
                 }
@@ -579,9 +585,10 @@ public class ConnectionManager {
                 }
                 else {
                     Log.debug("Waiting for snapshot");
-                    slot.sendPacket.type = Packet.PacketType.SnapshotRequest;
-                    slot.sendTransportPacket(slot.sendPacket);
-                    slot.sendPacket.clear();
+//                    slot.sendPacket.type = Packet.PacketType.SnapshotRequest;
+//                    slot.sendTransportPacket(slot.sendPacket);
+//                    slot.sendPacket.clear();
+                    slot.needsSnapshot = true;
                 }
                 return 0;
             }
@@ -620,6 +627,10 @@ public class ConnectionManager {
         int readMessage(ConnectionSlot slot, Message message) {
             return 0;
         }
+        int receiveData(ConnectionSlot slot, Packet in) {
+            slot.messageBuffer.receive(in.getMessage());
+            return 0;
+        }
         abstract int read(ConnectionSlot slot, Packet in);
         abstract int timeout(ConnectionSlot slot);
         int start(ConnectionSlot slot) {
@@ -636,7 +647,7 @@ public class ConnectionManager {
                             Log.info("Discarded message num=" + slot.syncPacket.getMessage().messageId);
                         }
                         else {
-                            slot.messageBuffer.receive(slot.syncPacket.getMessage());
+                            receiveData(slot, slot.syncPacket);
                         }
                     }
                     else {
