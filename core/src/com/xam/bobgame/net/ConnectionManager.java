@@ -61,6 +61,7 @@ public class ConnectionManager {
 //                    ConnectionManager.ConnectionSlot connectionSlot = Pools.obtain(ConnectionManager.ConnectionSlot.class);
                     ConnectionManager.ConnectionSlot connectionSlot = new ConnectionSlot();
                     connectionSlot.initialize(netDriver);
+                    connectionSlot.messageBuffer.setFrameDelay(isServer ? 0 : NetDriver.JITTER_BUFFER_SIZE);
                     connectionSlot.clientId = i;
                     connectionSlot.connection = connection;
                     try {

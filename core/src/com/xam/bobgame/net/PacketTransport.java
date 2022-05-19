@@ -102,7 +102,6 @@ public class PacketTransport {
                 }
                 // new packet, add to history
                 packet.localSeqNum = localSeqNum;
-//                packet.simulationTime = ((GameEngine) netDriver.getEngine()).getSimulationTime();
                 packet.salt = netDriver.getConnectionManager().getConnectionSlot(clientId).salt;
                 packetInfos[localSeqNum].set(packet, clientId);
                 acks.unset(localSeqNum);
@@ -116,6 +115,7 @@ public class PacketTransport {
             }
             packet.remoteSeqNum = remoteSeqNum;
             packet.ack = getAck();
+            packet.frameNum = ((GameEngine) netDriver.getEngine()).getCurrentFrame();
 //            Log.info("Send Ack: " + DebugUtils.bitString(packet.ack, 32));
 
             return r;

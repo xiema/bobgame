@@ -26,11 +26,11 @@ public class MessageReader {
     private BitPacker packer = new BitPacker();
     private GameEngine engine;
 
-    private MessageInfo[] messageInfos = new MessageInfo[NetDriver.MAX_MESSAGE_HISTORY];
+    private final MessageInfo[] messageInfos = new MessageInfo[NetDriver.MAX_MESSAGE_HISTORY];
     private int messageIdCounter = 0;
 
-    private IntArray nonExistent = new IntArray(false, 4);
-    private IntArray notUpdated = new IntArray(false, 4);
+    private final IntArray nonExistent = new IntArray(false, 4);
+    private final IntArray notUpdated = new IntArray(false, 4);
 
     public MessageReader() {
         for (int i = 0; i < messageInfos.length; ++i) {

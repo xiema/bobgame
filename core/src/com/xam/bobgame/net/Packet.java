@@ -20,6 +20,11 @@ public class Packet {
     int ack = 0;
     int salt = 0;
 
+    /**
+     * Frame number of game engine when this packet was sent.
+     */
+    int frameNum = -1;
+
     boolean requestSnapshot = false;
 
     private final BitPacker bitPacker = new BitPacker();
@@ -64,6 +69,7 @@ public class Packet {
         bitPacker.packInt(type.getValue(), 0, PacketType.values().length-1);
         bitPacker.packInt(salt);
         bitPacker.packInt(requestSnapshot ? 1 : 0, 0, 1);
+        bitPacker.packInt(frameNum);
         bitPacker.packInt(message.messageId);
         bitPacker.packInt(message.frameNum);
         bitPacker.packInt(message.getType().getValue(), 0, Message.MessageType.values().length-1);
@@ -88,6 +94,7 @@ public class Packet {
         type = PacketType.values()[bitPacker.unpackInt(0, PacketType.values().length-1)];
         salt = bitPacker.unpackInt();
         requestSnapshot = bitPacker.unpackInt(0, 1) == 1;
+        frameNum = bitPacker.unpackInt();
 
         message.messageId = bitPacker.unpackInt();
         message.frameNum = bitPacker.unpackInt();
@@ -119,6 +126,7 @@ public class Packet {
         packet.salt = salt;
         packet.crc = crc;
         packet.requestSnapshot = requestSnapshot;
+        packet.frameNum = frameNum;
     }
 
     public boolean equals(Packet other) {
@@ -134,6 +142,7 @@ public class Packet {
         salt = 0;
         crc = -1;
         requestSnapshot = false;
+        frameNum = -1;
     }
 
     @Override

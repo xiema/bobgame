@@ -111,6 +111,9 @@ public enum ConnectionState {
                 case Reconnect:
                     Log.info("Client " + slot.clientId + " (" + slot.getAddress() + ") reconnected");
                     slot.netDriver.getEngine().getSystem(RefereeSystem.class).assignPlayer(slot.clientId, slot.playerId);
+                    return 0;
+                case Empty:
+                    return 0;
             }
             return -1;
         }
@@ -266,12 +269,12 @@ public enum ConnectionState {
 
             // send events
             for (NetDriver.ClientEvent clientEvent : slot.netDriver.clientEvents) {
+//                Log.info("Send event " + clientEvent.event);
                 if (clientEvent.event instanceof PlayerControlEvent) {
                     slot.netDriver.messageReader.serializeInput(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), (PlayerControlEvent) clientEvent.event);
                 } else {
                     slot.netDriver.messageReader.serializeEvent(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), clientEvent.event);
                 }
-//                Log.info("Send event " + sendPacket.getMessage());
                 slot.sendPacket.requestSnapshot = slot.needsSnapshot;
                 slot.needsSnapshot = false;
                 slot.sendDataPacket(slot.sendPacket);
@@ -282,10 +285,10 @@ public enum ConnectionState {
 
             // send heartbeat if needed
             if (!sent) {
-                slot.netDriver.messageReader.serialize(slot.sendPacket.getMessage(), slot.netDriver.getEngine(), Message.MessageType.Empty);
+                slot.sendPacket.type = Packet.PacketType.Empty;
                 slot.sendPacket.requestSnapshot = slot.needsSnapshot;
                 slot.needsSnapshot = false;
-                slot.sendDataPacket(slot.sendPacket);
+                slot.sendTransportPacket(slot.sendPacket);
                 slot.sendPacket.clear();
             }
             return 0;
@@ -352,7 +355,8 @@ public enum ConnectionState {
     }
 
     int receiveData(ConnectionManager.ConnectionSlot slot, Packet in) {
-        slot.messageBuffer.receive(in.getMessage());
+        slot.messageBuffer.receive(in.getMessage(), in.frameNum);
+//        Log.debug("Queued packet " + in);
         return 0;
     }
 
@@ -387,7 +391,6 @@ public enum ConnectionState {
                 }
             }
 
-//            Log.info("Queued packet " + slot.syncPacket);
             slot.syncPacket.clear();
             slot.accumulator = 0;
         }

@@ -12,18 +12,24 @@ public class MessageBuffer {
     private int remoteFrameNum = 0;
     int syncFrameNum = 0;
 
+    private int frameDelay = 0;
+
     public MessageBuffer(int length) {
         messages = new Message[length];
         for (int i = 0; i < messages.length; ++i) messages[i] = new Message(NetDriver.DATA_MAX_SIZE);
     }
 
-    public void receive(Message message) {
+    public void setFrameDelay(int frameDelay) {
+        this.frameDelay = frameDelay;
+    }
+
+    public void receive(Message message, int packetFrameNum) {
         synchronized (messages) {
             message.copyTo(messages[putIndex]);
             putIndex = (putIndex + 1) % messages.length;
         }
-        remoteFrameNum = Math.max(remoteFrameNum, message.frameNum);
-        syncFrameNum = Math.max(syncFrameNum, remoteFrameNum - NetDriver.JITTER_BUFFER_SIZE);
+        remoteFrameNum = Math.max(remoteFrameNum, packetFrameNum);
+        syncFrameNum = Math.max(syncFrameNum, remoteFrameNum - frameDelay);
     }
 
     public boolean get(Message out) {
