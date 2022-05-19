@@ -55,7 +55,7 @@ public class NetDriver extends EntitySystem {
     public static final float DAMPING_FACTOR = 10f;
     public static final float FORCE_FACTOR = 0.8f;
 
-    private final ExpoMovingAverage simUpdateStepError = new ExpoMovingAverage(0.1f);
+//    private final ExpoMovingAverage simUpdateStepError = new ExpoMovingAverage(0.1f);
 
     final ConnectionManager connectionManager = new ConnectionManager(this);
     final PacketTransport transport = new PacketTransport(this);
@@ -139,7 +139,7 @@ public class NetDriver extends EntitySystem {
         serialization.clearBits();
         connectionManager.update(deltaTime);
 
-        getEngine().getSystem(PhysicsSystem.class).setSimUpdateStep(PhysicsSystem.SIM_UPDATE_STEP - simUpdateStepError.getAverage());
+//        getEngine().getSystem(PhysicsSystem.class).setSimUpdateStep(PhysicsSystem.SIM_UPDATE_STEP - simUpdateStepError.getAverage());
     }
 
     /**

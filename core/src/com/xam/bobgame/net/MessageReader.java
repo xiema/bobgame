@@ -335,14 +335,7 @@ public class MessageReader {
                 r = 1;
             }
             else {
-                if (physicsHistory.posXError.isInit()) {
-                    physicsHistory.posXError.update(t1 - (tfm.vals[0] + physicsHistory.posXError.getAverage()));
-                    physicsHistory.posYError.update(t2 - (tfm.vals[1] + physicsHistory.posYError.getAverage()));
-                }
-                else {
-                    physicsHistory.posXError.update(0);
-                    physicsHistory.posYError.update(0);
-                }
+                physicsHistory.updatePosition(t1, t2, tfm.vals[0], tfm.vals[1]);
                 tempVec.set(t1 - tfm.vals[0], t2 - tfm.vals[1]);
                 body.setTransform(t1, t2, t3);
                 body.setLinearVelocity(v1, v2);

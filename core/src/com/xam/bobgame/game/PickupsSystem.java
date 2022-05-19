@@ -24,8 +24,6 @@ public class PickupsSystem extends EntitySystem {
 
     private ImmutableArray<Entity> pickupEntities;
 
-    private IntSet pickupIds = new IntSet();
-
     public PickupsSystem(int priority) {
         super(priority);
 
@@ -62,30 +60,6 @@ public class PickupsSystem extends EntitySystem {
                 }
             }
         });
-
-        entityListeners.put(Family.all(PickupComponent.class).get(), new EntityListener() {
-            @Override
-            public void entityAdded(Entity entity) {
-                int entityId = EntityUtils.getId(entity);
-                if (entityId == -1) {
-                    Log.warn("PickupsSystem", "Added pickup entity with invalid entityId");
-                }
-                else {
-                    pickupIds.add(entityId);
-                }
-            }
-
-            @Override
-            public void entityRemoved(Entity entity) {
-                int entityId = EntityUtils.getId(entity);
-                if (entityId == -1) {
-                    Log.warn("PickupsSystem", "Removed pickup entity with invalid entityId");
-                }
-                else {
-                    pickupIds.remove(entityId);
-                }
-            }
-        });
     }
 
     @Override
@@ -105,7 +79,6 @@ public class PickupsSystem extends EntitySystem {
             engine.removeEntityListener(entry.value);
         }
         pickupEntities = null;
-        pickupIds.clear();
     }
 
     private float timer = 0;

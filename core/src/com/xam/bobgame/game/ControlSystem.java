@@ -15,15 +15,18 @@ import com.xam.bobgame.events.*;
 import com.xam.bobgame.net.NetDriver;
 
 public class ControlSystem extends EntitySystem {
-    private IntSet idSet = new IntSet();
 
     private PlayerControlInfo[] playerControlInfos = new PlayerControlInfo[NetDriver.MAX_CLIENTS];
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
+    /**
+     * Whether this system should control the rotation of all player entities. Should only be true for Servers.
+     */
     private boolean controlFacing = false;
 
-    private Vector2 localMouseVec = new Vector2();
+    // control states for local player
+    private final Vector2 localMouseVec = new Vector2();
     private boolean localButtonState = false;
     private int localButton = 0;
 
@@ -58,7 +61,6 @@ public class ControlSystem extends EntitySystem {
     public void removedFromEngine(Engine engine) {
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);
-        idSet.clear();
     }
 
     @Override

@@ -28,8 +28,6 @@ import com.xam.bobgame.utils.ExpoMovingAverage;
 import com.xam.bobgame.utils.MathUtils2;
 
 public class PhysicsSystem extends EntitySystem {
-    public static final float SIM_UPDATE_STEP = 1f / 60f;
-
     private ImmutableArray<Entity> entities;
     private ImmutableArray<Entity> gravFieldEntities;
 
@@ -39,14 +37,10 @@ public class PhysicsSystem extends EntitySystem {
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
     private ObjectMap<Family, EntityListener> entityListeners = new ObjectMap<>();
-
-    private Vector2 tempVec = new Vector2();
-    private Vector2 tempVec2 = new Vector2();
-    private Vector2 tempVec3 = new Vector2();
     private float forceFactor = 1;
 
     private int velIterations = 6, posIterations = 2;
-    private float simUpdateStep = SIM_UPDATE_STEP;
+    private float simUpdateStep = GameProperties.SIMULATION_UPDATE_INTERVAL;
 
     private Filter nullFilter = new Filter();
 
@@ -59,25 +53,7 @@ public class PhysicsSystem extends EntitySystem {
             @Override
             public void handleEvent(ButtonReleaseEvent event) {
                 if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
-                    Log.debug("Player " + event.playerId + " ButtonRelease " + event.holdDuration);
-                    RefereeSystem refereeSystem = getEngine().getSystem(RefereeSystem.class);
-                    Entity entity = refereeSystem.getPlayerEntity(event.playerId);
-                    if (entity == null) return;
-                    PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
-                    PlayerInfo playerInfo = refereeSystem.getPlayerInfo(event.playerId);
-
-                    tempVec.set(event.x, event.y).sub(pb.body.getPosition()).nor();
-                    tempVec2.set(pb.body.getLinearVelocity()).scl(pb.body.getMass() / SIM_UPDATE_STEP);
-                    float scalarProj = tempVec2.dot(tempVec);
-                    tempVec3.set(tempVec).scl(-scalarProj).add(tempVec2);
-
-                    float chargeAmount = (event.holdDuration * GameProperties.CHARGE_RATE) % (2 * playerInfo.stamina);
-                    chargeAmount = (chargeAmount <= playerInfo.stamina ? chargeAmount : (playerInfo.stamina * 2 - chargeAmount)) / GameProperties.PLAYER_STAMINA_MAX;
-                    float strength = GameProperties.PLAYER_FORCE_STRENGTH * chargeAmount;
-//                    Log.info("strength=" + strength);
-                    pb.body.applyForceToCenter(tempVec.scl(Math.max(0, strength - tempVec3.len())).sub(tempVec3), true);
-
-                    playerInfo.stamina = Math.max(GameProperties.PLAYER_STAMINA_MIN, playerInfo.stamina - chargeAmount * GameProperties.PLAYER_STAMINA_LOSS);
+                    playerMovement(event.playerId, event.x, event.y, event.holdDuration);
                 }
             }
         });
@@ -220,6 +196,10 @@ public class PhysicsSystem extends EntitySystem {
         world.clearForces();
     }
 
+    private final Vector2 tempVec = new Vector2();
+    private final Vector2 tempVec2 = new Vector2();
+    private final Vector2 tempVec3 = new Vector2();
+
     private void quantizePhysics() {
         for (Entity entity : entities) {
             PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
@@ -244,6 +224,31 @@ public class PhysicsSystem extends EntitySystem {
             physicsBody.prevPos.set(x, y);
             physicsBody.displacement.set(tempVec);
         }
+    }
+
+    private void playerMovement(int playerId, float x, float y, float holdDuration) {
+        Log.debug("Player " + playerId + " ButtonRelease " + holdDuration);
+
+        RefereeSystem refereeSystem = getEngine().getSystem(RefereeSystem.class);
+        Entity entity = refereeSystem.getPlayerEntity(playerId);
+        if (entity == null) return;
+        PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
+        PlayerInfo playerInfo = refereeSystem.getPlayerInfo(playerId);
+
+        float chargeAmount = (holdDuration * GameProperties.CHARGE_RATE) % (2 * playerInfo.stamina);
+        chargeAmount = (chargeAmount <= playerInfo.stamina ? chargeAmount : (playerInfo.stamina * 2 - chargeAmount)) / GameProperties.PLAYER_STAMINA_MAX;
+        float strength = GameProperties.PLAYER_FORCE_STRENGTH * chargeAmount;
+//                    Log.info("strength=" + strength);
+
+        tempVec.set(x, y).sub(pb.body.getPosition()).nor();
+        tempVec2.set(pb.body.getLinearVelocity()).scl(pb.body.getMass() / simUpdateStep);
+        float scalarProj = tempVec2.dot(tempVec);
+        tempVec3.set(tempVec).scl(-scalarProj).add(tempVec2);
+        tempVec.scl(Math.max(0, strength - tempVec3.len())).sub(tempVec3);
+
+        pb.body.applyForceToCenter(tempVec, true);
+
+        playerInfo.stamina = Math.max(GameProperties.PLAYER_STAMINA_MIN, playerInfo.stamina - chargeAmount * GameProperties.PLAYER_STAMINA_LOSS);
     }
 
     public void setForceFactor(float forceFactor) {
@@ -420,6 +425,17 @@ public class PhysicsSystem extends EntitySystem {
 
         public PhysicsHistory(Entity entity) {
             this.entity = entity;
+        }
+
+        public void updatePosition(float newX, float newY, float oldX, float oldY) {
+            if (posXError.isInit()) {
+                posXError.update(newX - (oldX + posXError.getAverage()));
+                posYError.update(newY - (oldY + posYError.getAverage()));
+            }
+            else {
+                posXError.update(0);
+                posYError.update(0);
+            }
         }
     }
 

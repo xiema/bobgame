@@ -80,14 +80,34 @@ public class GraphicsRenderer {
     private Vector2 tempVec = new Vector2();
 
     public void draw(Batch batch) {
+        updateEntities();
+
         Camera camera = viewport.getCamera();
         camera.update();
-
         shapeRenderer.setProjectionMatrix(camera.combined);
+        batch.setProjectionMatrix(camera.combined);
+
         shapeRenderer.begin();
         drawBackground();
         shapeRenderer.end();
 
+        batch.begin();
+        for (int i = 3; i >= 1; --i) {
+            drawEntities(batch, i);
+        }
+        drawWalls(batch);
+        batch.end();
+
+        shapeRenderer.begin();
+        drawGuideLine();
+        shapeRenderer.end();
+
+        batch.begin();
+        drawEntities(batch, 0);
+        batch.end();
+    }
+
+    private void updateEntities() {
         for (Entity entity: entities) {
             PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
             GraphicsComponent graphics = ComponentMappers.graphics.get(entity);
@@ -102,20 +122,6 @@ public class GraphicsRenderer {
 
 //            Log.info("entity " + EntityUtils.getId(entity) + " posXError=" + physicsHistory.posXError.getAverage() + " posYError=" + physicsHistory.posYError.getAverage());
         }
-
-        batch.setProjectionMatrix(camera.combined);
-        batch.begin();
-        for (int i = 3; i >= 1; --i) {
-            drawEntities(batch, i);
-        }
-        drawWalls(batch);
-        batch.end();
-        shapeRenderer.begin();
-        drawGuideLine();
-        shapeRenderer.end();
-        batch.begin();
-        drawEntities(batch, 0);
-        batch.end();
     }
 
     private void drawEntities(Batch batch, int z) {

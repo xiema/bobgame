@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.Texture;
 
 public class TextureDef {
 
+    // TODO: Create all textures on application start
     public TextureType type = TextureType.PlayerBall;
     public int wh;
     public int textureVal1;
