@@ -304,7 +304,7 @@ public enum ConnectionState {
         @Override
         int start(ConnectionManager.ConnectionSlot slot) {
             GameEngine engine = (GameEngine) slot.netDriver.getEngine();
-            engine.pauseGame();
+            engine.pauseSystems();
             return 0;
         }
 
@@ -312,7 +312,7 @@ public enum ConnectionState {
         int readMessage(ConnectionManager.ConnectionSlot slot, Message message) {
             if (message.getType() == Message.MessageType.Snapshot) {
                 GameEngine engine = (GameEngine) slot.netDriver.getEngine();
-                engine.resumeGame();
+                engine.resumeSystems();
                 slot.transitionState(ClientConnected);
                 ClientConnected.readMessage(slot, message);
             } else {

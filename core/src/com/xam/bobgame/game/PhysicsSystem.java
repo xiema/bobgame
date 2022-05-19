@@ -38,7 +38,6 @@ public class PhysicsSystem extends EntitySystem {
     private World world;
     private Body[] wallBodies;
     private Sprite[] wallSprites;
-    private boolean enabled = false;
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
     private ObjectMap<Family, EntityListener> entityListeners = new ObjectMap<>();
@@ -61,7 +60,7 @@ public class PhysicsSystem extends EntitySystem {
         listeners.put(ButtonReleaseEvent.class, new EventListenerAdapter<ButtonReleaseEvent>() {
             @Override
             public void handleEvent(ButtonReleaseEvent event) {
-                if (enabled) {
+                if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
                     Log.debug("Player " + event.playerId + " ButtonRelease " + event.holdDuration);
                     RefereeSystem refereeSystem = getEngine().getSystem(RefereeSystem.class);
                     Entity entity = refereeSystem.getPlayerEntity(event.playerId);
@@ -161,10 +160,6 @@ public class PhysicsSystem extends EntitySystem {
         EntityUtils.removeEntityListeners(engine, entityListeners);
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
     }
 
     @Override

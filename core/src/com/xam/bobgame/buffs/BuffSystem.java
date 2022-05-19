@@ -6,14 +6,11 @@ import com.badlogic.gdx.utils.Null;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
-import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.components.BuffableComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.events.*;
 
 public class BuffSystem extends EntitySystem {
-
-    private boolean enabled = false;
 
     private ImmutableArray<Entity> buffableEntities;
 
@@ -202,9 +199,5 @@ public class BuffSystem extends EntitySystem {
         }
         BuffableComponent buffable = ComponentMappers.buffables.get(entity);
         return hasBuffDef(buffable, buffDef);
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
     }
 }

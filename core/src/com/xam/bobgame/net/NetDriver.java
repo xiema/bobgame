@@ -117,7 +117,7 @@ public class NetDriver extends EntitySystem {
                     GameProfile.lastConnectedServerAddress = connectionSlot.getAddress();
                     GameProfile.clientSalt = connectionSlot.getSalt();
                     GameProfile.save();
-                    engine.resumeGame();
+                    engine.resumeSystems();
                 }
             }
         });

@@ -34,7 +34,6 @@ public class GameEngine extends PooledEngine {
     EventsSystem eventsSystem;
     RefereeSystem refereeSystem;
     NetDriver netDriver;
-    ControlSystem controlSystem;
 
     private int currentFrame = 0;
 
@@ -59,27 +58,27 @@ public class GameEngine extends PooledEngine {
 
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-                controlSystem.userInput(screenX, screenY, button, true);
+                getSystem(ControlSystem.class).userInput(screenX, screenY, button, true);
                 activeButton = button;
                 return false;
             }
 
             @Override
             public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-                controlSystem.userInput(screenX, screenY, activeButton, false);
+                getSystem(ControlSystem.class).userInput(screenX, screenY, activeButton, false);
                 activeButton = -1;
                 return false;
             }
 
             @Override
             public boolean touchDragged(int screenX, int screenY, int pointer) {
-                controlSystem.userInput(screenX, screenY, activeButton, true);
+                getSystem(ControlSystem.class).userInput(screenX, screenY, activeButton, true);
                 return false;
             }
 
             @Override
             public boolean mouseMoved(int screenX, int screenY) {
-                controlSystem.userInput(screenX, screenY, activeButton, false);
+                getSystem(ControlSystem.class).userInput(screenX, screenY, activeButton, false);
                 activeButton = -1;
                 return false;
             }
@@ -102,14 +101,14 @@ public class GameEngine extends PooledEngine {
         addSystem(eventsSystem = new EventsSystem(1));
         addSystem(netDriver = new NetDriver(0));
         addSystem(refereeSystem = new RefereeSystem(10));
-        addSystem(controlSystem = new ControlSystem(20));
+        addSystem(new ControlSystem(20));
         addSystem(new AISystem(30));
         addSystem(new PickupsSystem(40));
         addSystem(new BuffSystem(50));
         addSystem(new PhysicsSystem(60));
         addSystem(new HazardsSystem(70));
 
-        pauseGame();
+        pauseSystems();
 
         eventsSystem.addListeners(listeners);
     }
@@ -126,12 +125,12 @@ public class GameEngine extends PooledEngine {
     }
 
     private void restartInternal() {
+        // remove systems
         Array<EntitySystem> systems = new Array<>();
         removeSystem(eventsSystem);
         removeSystem(netDriver);
         removeSystem(refereeSystem);
         for (EntitySystem system : getSystems()) systems.add(system);
-//            Log.info("All systems removed");
 
         addSystem(eventsSystem);
         addSystem(netDriver);
@@ -157,17 +156,17 @@ public class GameEngine extends PooledEngine {
 
     public void start() {
         refereeSystem.setupGame();
-        resumeGame();
+        resumeSystems();
     }
 
-    public void pauseGame() {
+    public void pauseSystems() {
         for (Class<?> clazz : PAUSABLE_SYSTEMS) {
             //noinspection unchecked
             getSystem((Class<? extends EntitySystem>) clazz).setProcessing(false);
         }
     }
 
-    public void resumeGame() {
+    public void resumeSystems() {
         for (Class<?> clazz : PAUSABLE_SYSTEMS) {
             //noinspection unchecked
             getSystem((Class<? extends EntitySystem>) clazz).setProcessing(true);
@@ -178,7 +177,7 @@ public class GameEngine extends PooledEngine {
     public void addEntity(Entity entity) {
         super.addEntity(entity);
         int entityID = EntityUtils.getId(entity);
-        Entity old = entityMap.put(entityID, entity);
+        entityMap.put(entityID, entity);
         if (mode == Mode.Server) {
             EntityCreatedEvent netEvent = Pools.obtain(EntityCreatedEvent.class);
             netEvent.entityId = entityID;
@@ -213,26 +212,12 @@ public class GameEngine extends PooledEngine {
 
     public void setupServer() {
         mode = Mode.Server;
-        refereeSystem.setEnabled(true);
-        getSystem(ControlSystem.class).setEnabled(true);
         getSystem(ControlSystem.class).setControlFacing(true);
-        getSystem(PhysicsSystem.class).setEnabled(true);
-        getSystem(HazardsSystem.class).setEnabled(true);
-        getSystem(PickupsSystem.class).setEnabled(true);
-        getSystem(BuffSystem.class).setEnabled(true);
-        getSystem(RefereeSystem.class).setEnabled(true);
     }
 
     public void setupClient() {
         mode = Mode.Client;
-        refereeSystem.setEnabled(false);
-        getSystem(ControlSystem.class).setEnabled(true);
         getSystem(ControlSystem.class).setControlFacing(false);
-        getSystem(PhysicsSystem.class).setEnabled(false);
-        getSystem(HazardsSystem.class).setEnabled(false);
-        getSystem(PickupsSystem.class).setEnabled(false);
-        getSystem(BuffSystem.class).setEnabled(false);
-        getSystem(RefereeSystem.class).setEnabled(false);
         netDriver.setupClient();
 //        getSystem(PhysicsSystem.class).setForceFactor(NetDriver.FORCE_FACTOR);
     }
@@ -248,7 +233,7 @@ public class GameEngine extends PooledEngine {
     public Entity getEntityById(int entityId) {
         Entity entity = entityMap.get(entityId, null);
         if (entity == null) return null;
-        if ((entity.isRemoving() || entity.isScheduledForRemoval())) return null;
+        if (!(EntityUtils.isAdded(entity))) return null;
         return entity;
     }
 

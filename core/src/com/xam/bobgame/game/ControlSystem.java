@@ -21,7 +21,6 @@ public class ControlSystem extends EntitySystem {
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
-    private boolean enabled = false;
     private boolean controlFacing = false;
 
     private Vector2 localMouseVec = new Vector2();
@@ -148,16 +147,8 @@ public class ControlSystem extends EntitySystem {
         playerControlInfo.buttonState = buttonState;
     }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
     public void setControlFacing(boolean controlFacing) {
         this.controlFacing = controlFacing;
-    }
-
-    public boolean isEnabled() {
-        return enabled;
     }
 
     public PlayerControlInfo getPlayerControlInfo(int playerId) {

@@ -9,13 +9,13 @@ import com.badlogic.gdx.utils.IntSet;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.IdentityComponent;
 import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.components.PickupComponent;
 import com.xam.bobgame.entity.*;
 import com.xam.bobgame.events.*;
-import com.xam.bobgame.net.NetDriver;
 
 public class PickupsSystem extends EntitySystem {
 
@@ -24,7 +24,6 @@ public class PickupsSystem extends EntitySystem {
 
     private ImmutableArray<Entity> pickupEntities;
 
-    private boolean enabled = false;
     private IntSet pickupIds = new IntSet();
 
     public PickupsSystem(int priority) {
@@ -34,7 +33,7 @@ public class PickupsSystem extends EntitySystem {
             private final Vector2 tempVec = new Vector2();
             @Override
             public void handleEvent(PickupContactEvent event) {
-                if (enabled) {
+                if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
                     IdentityComponent pickupIden = ComponentMappers.identity.get(event.pickup);
                     if (pickupIden.despawning) return;
 
@@ -114,7 +113,7 @@ public class PickupsSystem extends EntitySystem {
 
     @Override
     public void update(float deltaTime) {
-        if (enabled) {
+        if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
             timer += deltaTime;
             if (timer > nextPickupSpawn) {
                 timer -= nextPickupSpawn;
@@ -142,9 +141,5 @@ public class PickupsSystem extends EntitySystem {
         pb.bodyDef.position.y = y;
 
         getEngine().addEntity(entity);
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
     }
 }

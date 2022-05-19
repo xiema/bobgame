@@ -27,12 +27,9 @@ public class RefereeSystem extends EntitySystem {
             Color.CYAN, Color.BLUE, Color.YELLOW, Color.LIME, Color.GOLD, Color.SCARLET, Color.VIOLET,
     };
 
-    private int playerCount = 0;
     private int localPlayerId = -1;
 
     private final PlayerInfo[] playerInfos = new PlayerInfo[NetDriver.MAX_CLIENTS];
-
-    private boolean enabled = false;
 
     private boolean matchStarted = false;
 
@@ -64,8 +61,7 @@ public class RefereeSystem extends EntitySystem {
         listeners.put(PlayerScoreEvent.class, new EventListenerAdapter<PlayerScoreEvent>() {
             @Override
             public void handleEvent(PlayerScoreEvent event) {
-                // TODO: combine enabled flag for systems
-                if (enabled) {
+                if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
                     playerInfos[event.playerId].score += event.scoreIncrement;
                     ScoreBoardRefreshEvent scoreBoardEvent = Pools.obtain(ScoreBoardRefreshEvent.class);
                     getEngine().getSystem(NetDriver.class).queueClientEvent(-1, scoreBoardEvent, true);
@@ -76,8 +72,7 @@ public class RefereeSystem extends EntitySystem {
         listeners.put(RequestJoinEvent.class, new EventListenerAdapter<RequestJoinEvent>() {
             @Override
             public void handleEvent(RequestJoinEvent event) {
-                if (enabled) {
-                    // only for Server
+                if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
                     joinPlayer(event.clientId);
                 }
             }
@@ -111,7 +106,6 @@ public class RefereeSystem extends EntitySystem {
         for (PlayerInfo playerInfo : playerInfos) {
             playerInfo.reset();
         }
-        playerCount = 0;
         matchStarted = false;
         localPlayerId = -1;
     }
@@ -122,7 +116,7 @@ public class RefereeSystem extends EntitySystem {
             if (!playerInfos[i].inPlay) continue;
             playerInfos[i].respawnTime = Math.max(0, playerInfos[i].respawnTime - deltaTime);
             playerInfos[i].stamina = Math.max(GameProperties.PLAYER_STAMINA_MIN, Math.min(100, playerInfos[i].stamina + deltaTime * GameProperties.PLAYER_STAMINA_RECOVERY));
-            if (enabled && playerInfos[i].respawnTime <= 0 && playerInfos[i].controlledEntityId == -1) spawnPlayerBall(i);
+            if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server && playerInfos[i].respawnTime <= 0 && playerInfos[i].controlledEntityId == -1) spawnPlayerBall(i);
         }
     }
 
@@ -197,7 +191,6 @@ public class RefereeSystem extends EntitySystem {
         }
 
         playerInfos[playerId].inPlay = true;
-        playerCount++;
 
         return playerId;
     }
@@ -263,8 +256,6 @@ public class RefereeSystem extends EntitySystem {
         event.kicked = kicked;
         engine.getSystem(NetDriver.class).queueClientEvent(-1, event);
         engine.getSystem(EventsSystem.class).queueEvent(event);
-
-        playerCount--;
     }
 
     private Entity spawnPlayerBall(int playerId) {
@@ -319,10 +310,6 @@ public class RefereeSystem extends EntitySystem {
         getEngine().removeEntity(entity);
 
         playerInfos[playerId].respawnTime = GameProperties.PLAYER_RESPAWN_TIME;
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
     }
 
     public PlayerInfo getPlayerInfo(int playerId) {

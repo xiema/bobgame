@@ -3,6 +3,7 @@ package com.xam.bobgame.game;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.buffs.BuffDefs;
 import com.xam.bobgame.buffs.BuffSystem;
 import com.xam.bobgame.entity.EntityUtils;
@@ -12,15 +13,13 @@ public class HazardsSystem extends EntitySystem {
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
-    private boolean enabled = false;
-
     public HazardsSystem(int priority) {
         super(priority);
 
         listeners.put(HazardContactEvent.class, new EventListenerAdapter<HazardContactEvent>() {
             @Override
             public void handleEvent(HazardContactEvent event) {
-                if (enabled) {
+                if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
                     RefereeSystem refereeSystem = getEngine().getSystem(RefereeSystem.class);
                     if (BuffSystem.hasBuffDef(event.entity, BuffDefs.SpawnInvBuffDef)) return;
                     int entityId = EntityUtils.getId(event.entity);
@@ -43,9 +42,5 @@ public class HazardsSystem extends EntitySystem {
     public void removedFromEngine(Engine engine) {
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         if (eventsSystem != null) eventsSystem.removeListeners(listeners);
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
     }
 }
