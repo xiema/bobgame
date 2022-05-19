@@ -57,7 +57,7 @@ public class GraphicsRenderer {
             @Override
             public void entityAdded(Entity entity) {
                 GraphicsComponent graphics = ComponentMappers.graphics.get(entity);
-                if (!BoBGame.isHeadless()) graphics.spriteActor.getSprite().setRegion(new TextureRegion(graphics.textureDef.createTexture()));
+                if (!BoBGame.isHeadless()) graphics.sprite.setRegion(new TextureRegion(graphics.textureDef.createTexture()));
                 zSortedEntities[graphics.z].add(entity);
             }
 
@@ -97,8 +97,8 @@ public class GraphicsRenderer {
             Vector2 pos = tfm.getPosition();
             float x = pos.x + physicsHistory.posXError.getAverage() - (physicsBody.xJitterCount > 1 ? physicsBody.displacement.x / 2 : 0);
             float y = pos.y + physicsHistory.posYError.getAverage() - (physicsBody.yJitterCount > 1 ? physicsBody.displacement.y / 2 : 0);
-            graphics.spriteActor.getSprite().setOriginBasedPosition(x, y);
-            graphics.spriteActor.getSprite().setRotation(MathUtils.radiansToDegrees * tfm.getRotation() + 90);
+            graphics.sprite.setOriginBasedPosition(x, y);
+            graphics.sprite.setRotation(MathUtils.radiansToDegrees * tfm.getRotation() + 90);
 
 //            Log.info("entity " + EntityUtils.getId(entity) + " posXError=" + physicsHistory.posXError.getAverage() + " posYError=" + physicsHistory.posYError.getAverage());
         }
@@ -124,7 +124,7 @@ public class GraphicsRenderer {
             IdentityComponent iden = ComponentMappers.identity.get(entity);
             if (iden.despawning) continue;
             GraphicsComponent graphics = ComponentMappers.graphics.get(entity);
-            graphics.spriteActor.draw(batch, 1);
+            graphics.sprite.draw(batch, 1);
         }
     }
 

@@ -45,8 +45,8 @@ public class ComponentFactory {
     public static GraphicsComponent graphics(Engine engine, TextureDef textureDef, float w, float h, int z) {
         GraphicsComponent g = engine.createComponent(GraphicsComponent.class);
         g.textureDef = textureDef;
-        g.spriteActor.getSprite().setSize(w, h);
-        g.spriteActor.getSprite().setOriginCenter();
+        g.sprite.setSize(w, h);
+        g.sprite.setOriginCenter();
         g.z = z;
         return g;
     }
