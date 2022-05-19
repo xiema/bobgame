@@ -21,9 +21,13 @@ public class Message {
      * Unique identifier for message. Does not vary across clients.
      */
     int messageId = -1;
-
+    /**
+     * Frame number of game engine when this message was created.
+     */
     int frameNum = -1;
-
+    /**
+     * The number of entries present in this message. Valid when message is of type Update.
+     */
     int entryCount = 0;
 
     /**
@@ -93,6 +97,9 @@ public class Message {
         byteBuffer.rewind();
     }
 
+    /**
+     * Appends the contents of another message to this message, adding its entries into this message.
+     */
     public void append(Message in) {
         int count = in.length;
         ByteBuffer bufferIn = in.getByteBuffer();
@@ -138,7 +145,6 @@ public class Message {
         frameNum = -1;
         entryCount = 0;
         eventTypes.clear();
-//        needsAck = false;
     }
 
     public boolean equals(Message other) {
@@ -160,9 +166,7 @@ public class Message {
     }
 
     public enum MessageType {
-//        Update(0), Event(1), Snapshot(2), Empty(3)
-        Update(0), Snapshot(1), Input(2), Empty(3)
-        ;
+        Update(0), Snapshot(1), Input(2), Empty(3);
 
         private final int value;
 
@@ -176,8 +180,7 @@ public class Message {
     }
 
     public enum UpdateType {
-        System(0), Event(1)
-        ;
+        System(0), Event(1);
 
         private final int value;
 
