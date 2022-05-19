@@ -20,17 +20,6 @@ public class BuffSystem extends EntitySystem {
     public BuffSystem(int priority) {
         super(priority);
 
-//        listeners.put(EntityDespawnedEvent.class, new EventListenerAdapter<EntityDespawnedEvent>() {
-//            @Override
-//            public void handleEvent(EntityDespawnedEvent event) {
-//                Entity entity = ((GameEngine) getEngine()).getEntityById(event.entityId);
-//                if (entity != null) {
-//                }
-//                else {
-//                    Log.warn("BuffSystem", "Despawned entity with id " + event.entityId + " not found");
-//                }
-//            }
-//        });
         entityListeners.put(Family.all(BuffableComponent.class).get(), new EntityListener() {
             @Override
             public void entityAdded(Entity entity) {

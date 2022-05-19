@@ -48,7 +48,6 @@ public class AISystem extends EntitySystem {
                     steering.set(ai, steerable);
                     ai.steering = steering;
                     ai.tree = library.createBehaviorTree("default", entity);
-                    ((AIArrive<Vector2>) ai.steering).setTarget(ai.target);
                 }
             }
 

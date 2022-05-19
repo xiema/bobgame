@@ -1,23 +1,21 @@
 package com.xam.bobgame.ai.steering;
 
-import com.badlogic.gdx.ai.steer.Limiter;
 import com.badlogic.gdx.ai.steer.Steerable;
 import com.badlogic.gdx.ai.steer.SteeringAcceleration;
-import com.badlogic.gdx.ai.steer.behaviors.Arrive;
+import com.badlogic.gdx.ai.steer.SteeringBehavior;
 import com.badlogic.gdx.ai.utils.Location;
 import com.badlogic.gdx.math.Vector;
-import com.badlogic.gdx.math.Vector2;
-import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.components.AIComponent;
 
-public class AIArrive<T extends Vector<T>> extends Arrive<T> {
+public class AIArrive<T extends Vector<T>> extends SteeringBehavior<T> {
 
     public AIArrive(Steerable<T> owner) {
         super(owner);
     }
 
     private AIComponent ai;
+    private Location<T> target;
 
     protected T offset;
 
@@ -25,13 +23,12 @@ public class AIArrive<T extends Vector<T>> extends Arrive<T> {
 
     @SuppressWarnings("unchecked")
     public void set(AIComponent ai, Steerable<T> steerable) {
-        setOwner(steerable);
-        setTarget((Location<T>) ai.target);
-        setLimiter(steerable);
-        setArrivalTolerance(ai.minDistance);
         this.ai = ai;
+        target = (Location<T>) ai.target;
+        setOwner(steerable);
+        setLimiter(steerable);
         if (offset == null) {
-            offset = (T) steerable.newLocation().getPosition();
+            offset = steerable.newLocation().getPosition();
         }
         tempLoc = owner.newLocation();
     }
@@ -43,71 +40,6 @@ public class AIArrive<T extends Vector<T>> extends Arrive<T> {
     public T getOffset() {
         return offset;
     }
-
-    @Override
-    protected SteeringAcceleration<T> arrive (SteeringAcceleration<T> steering, T targetPosition) {
-        // Get the direction and distance to the target
-        T toTarget = steering.linear.set(targetPosition).sub(owner.getPosition()).add(offset);
-        float distance = toTarget.len();
-
-        // Check if we are there, return no steering
-        if (distance <= arrivalTolerance) return steering.setZero();
-
-        Limiter actualLimiter = getActualLimiter();
-        // Go max speed
-        float targetSpeed = actualLimiter.getMaxLinearSpeed();
-
-        // If we are inside the slow down radius calculate a scaled speed
-        if (distance < decelerationRadius) targetSpeed *= distance / decelerationRadius;
-
-        // Target velocity combines speed and direction
-        T targetVelocity = toTarget.scl(targetSpeed / distance); // Optimized code for: toTarget.nor().scl(targetSpeed)
-
-        // Acceleration tries to get to the target velocity without exceeding max acceleration
-        // Notice that steering.linear and targetVelocity are the same vector
-        targetVelocity.sub(owner.getLinearVelocity()).scl(1f / timeToTarget).limit(actualLimiter.getMaxLinearAcceleration());
-
-        // No angular acceleration
-        steering.angular = 0f;
-
-        // Output the steering
-        return steering;
-    }
-
-    float maxPredictionTime = 1f;
-
-    public void setMaxPredictionTime(float maxPredictionTime) {
-        this.maxPredictionTime = maxPredictionTime;
-    }
-
-//    protected SteeringAcceleration<T> pursue (SteeringAcceleration<T> steering) {
-//        T targetPosition = target.getPosition();
-//
-//        // Get the square distance to the evader (the target)
-//        float squareDistance = steering.linear.set(targetPosition).add(offset).sub(owner.getPosition()).len2();
-//
-//        // Work out our current square speed
-//        float squareSpeed = owner.getLinearVelocity().len2();
-//
-//        float predictionTime = maxPredictionTime;
-//
-//        if (squareSpeed > 0) {
-//            // Calculate prediction time if speed is not too small to give a reasonable value
-//            float squarePredictionTime = squareDistance / squareSpeed;
-//            if (squarePredictionTime < maxPredictionTime * maxPredictionTime)
-//                predictionTime = (float)Math.sqrt(squarePredictionTime);
-//        }
-//
-//        // Calculate and seek/flee the predicted position of the target
-//        steering.linear.set(targetPosition).mulAdd(worldMovementVector, -predictionTime).sub(owner.getPosition()).nor()
-//                .scl(getActualLimiter().getMaxLinearAcceleration());
-//
-//        // No angular acceleration
-//        steering.angular = 0;
-//
-//        // Output steering acceleration
-//        return steering;
-//    }
 
     protected SteeringAcceleration<T> pursue(SteeringAcceleration<T> steering, T targetPosition) {
         float maxAccel = getLimiter().getMaxLinearAcceleration();
@@ -195,17 +127,7 @@ public class AIArrive<T extends Vector<T>> extends Arrive<T> {
 
     @Override
     protected SteeringAcceleration<T> calculateRealSteering(SteeringAcceleration<T> steering) {
-        T targetPosition = getTarget().getPosition();
-//        if (ai.relativeSteering) return pursue(steering);
-//        if (targetPosition.dst(getOwner().getPosition()) < getArrivalTolerance()) {
-//            steering.linear.set(getOwner().getLinearVelocity().scl(-1.0f));
-//        }
-//        else {
-//            arrive(steering, targetPosition);
-//            if (steering.linear.len2() < getLimiter().getZeroLinearSpeedThreshold()) steering.linear.setZero();
-//        }
-//        steer(steering, targetPosition);
-        pursue(steering, targetPosition);
+        pursue(steering, target.getPosition());
         return steering;
     }
 }

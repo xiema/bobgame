@@ -127,7 +127,6 @@ public class PhysicsSystem extends EntitySystem {
 
     @Override
     public void removedFromEngine(Engine engine) {
-        // TODO: dispose walls?
         world.dispose();
         world = null;
         wallBodies = null;
