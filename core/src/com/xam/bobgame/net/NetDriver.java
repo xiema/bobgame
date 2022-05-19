@@ -262,12 +262,14 @@ public class NetDriver extends EntitySystem {
     static class ClientEvent implements Pool.Poolable {
         NetworkEvent event;
         Bits2 clientMask = new Bits2(NetDriver.MAX_CLIENTS);
+        Message serializedMessage = new Message(DATA_MAX_SIZE);
 
         @Override
         public void reset() {
             Pools.free(event);
             event = null;
             clientMask.clear();
+            serializedMessage.clear();
         }
     }
 

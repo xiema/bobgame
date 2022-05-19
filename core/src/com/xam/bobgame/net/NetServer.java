@@ -1,5 +1,6 @@
 package com.xam.bobgame.net;
 
+import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Serialization;
@@ -111,15 +112,17 @@ public class NetServer extends Server {
 
             for (int i = 0; i < netDriver.clientEvents.size; ++i) {
                 NetDriver.ClientEvent clientEvent = netDriver.clientEvents.get(i);
-                // TODO: pre-serialize message
                 if (clientEvent.clientMask.get(connectionSlot.clientId)) {
-                    netDriver.messageReader.serializeEvent(eventPacket.getMessage(), clientEvent.event);
-                    sendPacket.getMessage().append(eventPacket.getMessage());
+                    if (clientEvent.serializedMessage.messageId == -1) {
+                        netDriver.messageReader.serializeEvent(clientEvent.serializedMessage, clientEvent.event);
+                    }
+                    sendPacket.getMessage().append(clientEvent.serializedMessage);
                     eventPacket.clear();
                     clientEvent.clientMask.unset(connectionSlot.clientId);
 
                     if (!clientEvent.clientMask.anySet()) {
     //                    Log.info("Removing event " + clientEvent.event + " from queue");
+                        Pools.free(clientEvent);
                         netDriver.clientEvents.removeIndex(i);
                         i--;
                     }

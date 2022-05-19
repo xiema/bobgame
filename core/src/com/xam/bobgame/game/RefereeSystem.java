@@ -295,7 +295,6 @@ public class RefereeSystem extends EntitySystem {
         PlayerDeathEvent deathEvent = Pools.obtain(PlayerDeathEvent.class);
         deathEvent.playerId = playerId;
         deathEvent.entityId = EntityUtils.getId(entity);
-        netDriver.queueClientEvent(-1, deathEvent, false);
         eventsSystem.queueEvent(deathEvent);
 
         ScoreBoardRefreshEvent scoreEvent = Pools.obtain(ScoreBoardRefreshEvent.class);

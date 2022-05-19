@@ -269,12 +269,16 @@ public enum ConnectionState {
             // send events
             for (NetDriver.ClientEvent clientEvent : slot.netDriver.clientEvents) {
 //                Log.info("Send event " + clientEvent.event);
-                slot.netDriver.messageReader.serializeEvent(slot.sendPacket.getMessage(), clientEvent.event);
+                if (clientEvent.serializedMessage.messageId == -1) {
+                    slot.netDriver.messageReader.serializeEvent(clientEvent.serializedMessage, clientEvent.event);
+                }
+                clientEvent.serializedMessage.copyTo(slot.sendPacket.getMessage());
                 slot.sendPacket.requestSnapshot = slot.needsSnapshot;
                 slot.needsSnapshot = false;
                 slot.sendDataPacket(slot.sendPacket);
                 slot.sendPacket.clear();
                 sent = true;
+                Pools.free(clientEvent);
             }
             slot.netDriver.clientEvents.clear();
 
