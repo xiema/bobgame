@@ -1,11 +1,13 @@
 package com.xam.bobgame.components;
 
+import com.badlogic.ashley.core.Component;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.gdx.utils.Pool.Poolable;
 import com.xam.bobgame.entity.EntityType;
+import com.xam.bobgame.net.NetSerializable;
 import com.xam.bobgame.utils.BitPacker;
 
-public class IdentityComponent implements Component2, Poolable {
+public class IdentityComponent implements Component, NetSerializable, Poolable {
     public int id = -1;
     public EntityType type = EntityType.Neutral;
     public boolean spawning = true;

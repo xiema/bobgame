@@ -1,5 +1,6 @@
 package com.xam.bobgame.components;
 
+import com.badlogic.ashley.core.Component;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
@@ -10,9 +11,10 @@ import com.badlogic.gdx.utils.Pool.Poolable;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.game.ShapeDef;
 import com.xam.bobgame.net.NetDriver;
+import com.xam.bobgame.net.NetSerializable;
 import com.xam.bobgame.utils.BitPacker;
 
-public class PhysicsBodyComponent implements Component2, Poolable {
+public class PhysicsBodyComponent implements Component, NetSerializable, Poolable {
     public BodyDef bodyDef;
     public FixtureDef fixtureDef;
     public ShapeDef shapeDef;

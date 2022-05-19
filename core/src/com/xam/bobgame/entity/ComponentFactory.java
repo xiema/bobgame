@@ -73,13 +73,4 @@ public class ComponentFactory {
         BuffableComponent b = engine.createComponent(BuffableComponent.class);
         return b;
     }
-
-    public static Texture textureCircle(int wh, int radius, Color color) {
-        Pixmap pmap = new Pixmap(wh, wh, Pixmap.Format.RGBA8888);
-        pmap.setColor(color);
-        pmap.fillCircle(wh / 2, wh / 2, radius);
-        Texture tx = new Texture(pmap);
-        pmap.dispose();
-        return tx;
-    }
 }

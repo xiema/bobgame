@@ -1,5 +1,6 @@
 package com.xam.bobgame.components;
 
+import com.badlogic.ashley.core.Component;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -7,9 +8,10 @@ import com.badlogic.gdx.utils.Pool.Poolable;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.graphics.TextureDef;
 import com.xam.bobgame.net.NetDriver;
+import com.xam.bobgame.net.NetSerializable;
 import com.xam.bobgame.utils.BitPacker;
 
-public class GraphicsComponent implements Component2, Poolable {
+public class GraphicsComponent implements Component, NetSerializable, Poolable {
     public TextureDef textureDef;
     public Sprite sprite = new Sprite();
     public int z = 0;

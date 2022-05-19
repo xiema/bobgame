@@ -1,5 +1,6 @@
 package com.xam.bobgame.components;
 
+import com.badlogic.ashley.core.Component;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.gdx.ai.steer.Steerable;
 import com.badlogic.gdx.ai.utils.Location;
@@ -8,10 +9,11 @@ import com.badlogic.gdx.physics.box2d.Transform;
 import com.badlogic.gdx.utils.Pool.Poolable;
 import com.badlogic.gdx.utils.Pools;
 import com.xam.bobgame.ai.Location2;
+import com.xam.bobgame.net.NetSerializable;
 import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.utils.MathUtils2;
 
-public class SteerableComponent implements Component2, Steerable<Vector2>, Poolable {
+public class SteerableComponent implements Component, NetSerializable, Steerable<Vector2>, Poolable {
 
     public PhysicsBodyComponent physicsBody;
     public float maxLinearSpeed = 0.0f;

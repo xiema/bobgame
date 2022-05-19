@@ -1,14 +1,16 @@
 package com.xam.bobgame.components;
 
+import com.badlogic.ashley.core.Component;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Pool.Poolable;
 import com.xam.bobgame.net.NetDriver;
+import com.xam.bobgame.net.NetSerializable;
 import com.xam.bobgame.utils.BitPacker;
 
-public class GravitationalFieldComponent implements Component2, Poolable {
+public class GravitationalFieldComponent implements Component, NetSerializable, Poolable {
 
     public Fixture fixture;
     public float strength = 0;
