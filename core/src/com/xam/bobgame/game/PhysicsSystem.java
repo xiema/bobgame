@@ -326,6 +326,12 @@ public class PhysicsSystem extends EntitySystem {
                     hazardEvent.hazard = fd1.entity;
                     event = hazardEvent;
                 }
+                else if (type2 == EntityType.Hazard && type1 == EntityType.Player) {
+                    HazardContactEvent hazardEvent = Pools.obtain(HazardContactEvent.class);
+                    hazardEvent.entity = fd1.entity;
+                    hazardEvent.hazard = fd2.entity;
+                    event = hazardEvent;
+                }
                 if (event != null) {
                     getEngine().getSystem(EventsSystem.class).queueEvent(event);
                 }
