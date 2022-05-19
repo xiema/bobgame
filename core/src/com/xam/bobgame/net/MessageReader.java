@@ -193,6 +193,10 @@ public class MessageReader {
             EntityDespawnedEvent despawnedEvent = (EntityDespawnedEvent) event;
             notUpdated.removeValue(despawnedEvent.entityId);
         }
+        else if (event instanceof EntityCreatedEvent) {
+            EntityCreatedEvent entityCreatedEvent = (EntityCreatedEvent) event;
+            nonExistent.removeValue(entityCreatedEvent.entityId);
+        }
 
         if (packer.isReadMode()) {
             event.clientId = clientId;
