@@ -71,9 +71,6 @@ public class NetDriver extends EntitySystem {
      */
     final Array<ClientEvent> clientEvents = new Array<>(false, 4);
 
-    private float curTime = 0;
-    private float curTimeDelta = 0;
-
     private ExpoMovingAverage movingAverage = new ExpoMovingAverage(0.1f);
     private float bitrate = 0;
     private int sentBytes = 0;
@@ -137,7 +134,6 @@ public class NetDriver extends EntitySystem {
         for (ClientEvent clientEvent : clientEvents) Pools.free(clientEvent);
         clientEvents.clear();
         movingAverage.reset();
-        curTime = 0;
         connectionManager.clear();
         transport.clearDropped();
     }
@@ -145,18 +141,16 @@ public class NetDriver extends EntitySystem {
     @Override
     public void update(float deltaTime) {
         serialization.clearBits();
-        curTime += (curTimeDelta = deltaTime);
         connectionManager.update(deltaTime);
         counter++;
 
         getEngine().getSystem(PhysicsSystem.class).setSimUpdateStep(PhysicsSystem.SIM_UPDATE_STEP - simUpdateStepError.getAverage());
     }
 
-    public void update2() {
+    public void update2(float deltaTime) {
         updateDropped();
         connectionManager.update2();
-//        if (server.isRunning()) server.sendEvents();
-        updateBitRate(curTimeDelta);
+        updateBitRate(deltaTime);
     }
 
     private final Bits2 tempBitMask = new Bits2(NetDriver.MAX_CLIENTS);
@@ -228,14 +222,6 @@ public class NetDriver extends EntitySystem {
 
     public float getAverageBitrate() {
         return movingAverage.getAverage();
-    }
-
-    public float getCurTime() {
-        return curTime;
-    }
-
-    public float getCurTimeDelta() {
-        return curTimeDelta;
     }
 
     public boolean startServer() {

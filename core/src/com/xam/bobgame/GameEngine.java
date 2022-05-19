@@ -36,6 +36,7 @@ public class GameEngine extends PooledEngine {
     NetDriver netDriver;
 
     private int currentFrame = 0;
+    private float currentTime = 0;
 
     private boolean restarting = false;
 
@@ -120,8 +121,9 @@ public class GameEngine extends PooledEngine {
             return;
         }
         super.update(deltaTime);
-        netDriver.update2();
+        netDriver.update2(deltaTime);
         currentFrame++;
+        currentTime += deltaTime;
     }
 
     private void restartInternal() {
@@ -140,11 +142,12 @@ public class GameEngine extends PooledEngine {
         for (EntitySystem system : getSystems()) system.setProcessing(true);
 //        pauseGame();
 
-        eventsSystem.addListeners(listeners);
-
-        game.onEngineStarted();
-
+        currentTime = 0;
+        currentFrame = 0;
         restarting = false;
+
+        eventsSystem.addListeners(listeners);
+        game.onEngineStarted();
     }
 
     public void restart() {
@@ -228,6 +231,10 @@ public class GameEngine extends PooledEngine {
 
     public int getCurrentFrame() {
         return currentFrame;
+    }
+
+    public float getCurrentTime() {
+        return currentTime;
     }
 
     public Entity getEntityById(int entityId) {
