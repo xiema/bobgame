@@ -20,7 +20,6 @@ public class NetServer extends Server {
     private Packet eventPacket = new Packet(NetDriver.DATA_MAX_SIZE);
     private Packet sendPacket = new Packet(NetDriver.DATA_MAX_SIZE);
 
-    private int counter = 0;
     private boolean hasUpdatePacket = false;
     private boolean hasSnapshotPacket = false;
 
@@ -78,27 +77,31 @@ public class NetServer extends Server {
         ((GameEngine) netDriver.getEngine()).restart();
     }
 
+    private int lastSyncFrame = -1;
+
     public void syncClient(ConnectionManager.ConnectionSlot connectionSlot) {
-        if (counter != netDriver.counter) {
-            counter = netDriver.counter;
+        int currentFrame = ((GameEngine) netDriver.getEngine()).getCurrentFrame();
+
+        if (lastSyncFrame != currentFrame) {
+            lastSyncFrame = currentFrame;
             updatePacket.clear();
             snapshotPacket.clear();
             hasUpdatePacket = false;
             hasSnapshotPacket = false;
         }
 
-        if (connectionSlot.needsSnapshot && (connectionSlot.lastSnapshotFrame == -1 || ((GameEngine) netDriver.getEngine()).getCurrentFrame() - connectionSlot.lastSnapshotFrame >= NetDriver.SNAPSHOT_FRAME_INTERVAL)) {
+        if (connectionSlot.needsSnapshot && (connectionSlot.lastSnapshotFrame == -1 || currentFrame - connectionSlot.lastSnapshotFrame >= NetDriver.SNAPSHOT_FRAME_INTERVAL)) {
             if (!hasSnapshotPacket) {
                 netDriver.messageReader.serialize(snapshotPacket.getMessage(), netDriver.getEngine(), Message.MessageType.Snapshot);
                 hasSnapshotPacket = true;
             }
             connectionSlot.needsSnapshot = false;
-            connectionSlot.lastSnapshotFrame = ((GameEngine) netDriver.getEngine()).getCurrentFrame();
+            connectionSlot.lastSnapshotFrame = currentFrame;
             snapshotPacket.copyTo(sendPacket);
 //            Log.info("Send snapshot " + snapshotPacket.getMessage());
         }
         else {
-            if (netDriver.counter % NetDriver.SERVER_UPDATE_FREQUENCY == 0) {
+            if (((GameEngine) netDriver.getEngine()).getCurrentFrame() % NetDriver.SERVER_UPDATE_FREQUENCY == 0) {
                 if (!hasUpdatePacket) {
                     netDriver.messageReader.serialize(updatePacket.getMessage(), netDriver.getEngine(), Message.MessageType.Update);
                     hasUpdatePacket = true;
@@ -129,10 +132,6 @@ public class NetServer extends Server {
         }
 
         sendPacket.clear();
-    }
-
-    public void flagSnapshot(int clientId) {
-        netDriver.connectionManager.getConnectionSlot(clientId).needsSnapshot = true;
     }
 
     public boolean isRunning() {

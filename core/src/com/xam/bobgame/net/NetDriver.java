@@ -76,8 +76,6 @@ public class NetDriver extends EntitySystem {
     private int sentBytes = 0;
     private int receivedBytes = 0;
 
-    int counter = 0;
-
     public static final Class<?>[] networkEventClasses = {
             PlayerAssignEvent.class,
             PlayerJoinedEvent.class,
@@ -142,7 +140,6 @@ public class NetDriver extends EntitySystem {
     public void update(float deltaTime) {
         serialization.clearBits();
         connectionManager.update(deltaTime);
-        counter++;
 
         getEngine().getSystem(PhysicsSystem.class).setSimUpdateStep(PhysicsSystem.SIM_UPDATE_STEP - simUpdateStepError.getAverage());
     }
