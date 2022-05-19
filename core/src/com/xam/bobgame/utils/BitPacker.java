@@ -135,7 +135,6 @@ public class BitPacker {
 
     public int packByte(byte b) {
         packIntBits((b & 0xFF), 8, 0);
-        totalBits += 8;
         return 8;
     }
 
@@ -146,7 +145,7 @@ public class BitPacker {
         int byteCount = (bits - scratchBits + 7) / 8;
         scratchBits += byteCount * 8;
         if (scratchBits > 64) {
-            Log.error("PacketBuilder", "gigtBitsB: Tried to get too many bits");
+            Log.error("PacketBuilder", "getBitsB: Tried to get too many bits");
             return;
         }
         while (byteCount-- > 0) {
@@ -166,7 +165,7 @@ public class BitPacker {
         int byteCount = (bits - scratchBits + 7) / 8;
         scratchBits += byteCount * 8;
         if (scratchBits > 64) {
-            Log.error("PacketBuilder", "gigtBitsL: Tried to get too many bits");
+            Log.error("PacketBuilder", "getBitsL: Tried to get too many bits");
             return;
         }
         int p = 0;
@@ -300,58 +299,35 @@ public class BitPacker {
     }
 
 
-    public void packIntBits(int i, int packBits, int min) {
-        int p;
-        long l = ((i - min) & 0xFFFFFFFFL);
-        if (buffer.order() == ByteOrder.BIG_ENDIAN) {
-            if (scratchBits + packBits <= 64) {
-                scratch = (scratch << packBits) | l;
-                scratchBits += packBits;
-            } else {
-                p = 64 - scratchBits;
-                scratchBits = packBits - p;
-                buffer.putLong((scratch << p) | (l >> scratchBits));
-                scratch = l & masks[scratchBits];
-            }
-        } else {
-            if (scratchBits + packBits <= 64) {
-                scratch |= (l & 0xFFFFFFFFL) << packBits;
-                scratchBits += packBits;
-            } else {
-                buffer.putLong(scratch | ((l & 0xFFFFFFFFFL) << scratchBits));
-                scratchBits += packBits - 64;
-                scratch = l >> scratchBits;
-            }
-        }
-
-        totalBits += packBits;
+    public void packIntBits(int i, int bitCount, int min) {
+        packBits(((i - min) & 0xFFFFFFFFL), bitCount, 0);
     }
 
-    public void packBits(long i, int packBits, int min) {
+    public void packBits(long i, int bitCount, int min) {
         int p;
         i -= min;
         if (buffer.order() == ByteOrder.BIG_ENDIAN) {
-            if (scratchBits + packBits <= 64) {
-                scratch = (scratch << packBits) | i;
-                scratchBits += packBits;
+            if (scratchBits + bitCount <= 64) {
+                scratch = (scratch << bitCount) | i;
+                scratchBits += bitCount;
             } else {
                 p = 64 - scratchBits;
-                scratchBits = packBits - p;
+                scratchBits = bitCount - p;
                 buffer.putLong((scratch << p) | (i >> scratchBits));
                 scratch = i & masks[scratchBits];
             }
         } else {
-            if (scratchBits + packBits <= 64) {
-                scratch |= i << packBits;
-                scratchBits += packBits;
+            if (scratchBits + bitCount <= 64) {
+                scratch |= i << bitCount;
+                scratchBits += bitCount;
             } else {
                 buffer.putLong(scratch | ((i & 0xFFFFFFFFL) << scratchBits));
-                scratchBits += packBits - 64;
+                scratchBits += bitCount - 64;
                 scratch = i >> scratchBits;
             }
         }
 
-        totalBits += packBits;
+        totalBits += bitCount;
     }
 
     public int packBytes(ByteBuffer in, int l) {
@@ -395,9 +371,9 @@ public class BitPacker {
 
     public int packInt(int i, int min, int max) {
         int r = max - min;
-        int packBits = r < 0 ? 32 : calcBits(r);
-        packIntBits(i, packBits, min);
-        return packBits;
+        int bitCount = r < 0 ? 32 : calcBits(r);
+        packIntBits(i, bitCount, min);
+        return bitCount;
     }
 
     public int packInt(int i) {
