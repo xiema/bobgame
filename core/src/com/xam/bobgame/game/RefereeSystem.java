@@ -76,7 +76,10 @@ public class RefereeSystem extends EntitySystem {
         listeners.put(RequestJoinEvent.class, new EventListenerAdapter<RequestJoinEvent>() {
             @Override
             public void handleEvent(RequestJoinEvent event) {
-                joinPlayer(event.clientId);
+                if (enabled) {
+                    // only for Server
+                    joinPlayer(event.clientId);
+                }
             }
         });
         listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
@@ -186,35 +189,53 @@ public class RefereeSystem extends EntitySystem {
         return -1;
     }
 
-    public void joinPlayer(int clientId) {
-        GameEngine engine = (GameEngine) getEngine();
-        NetDriver netDriver = engine.getSystem(NetDriver.class);
-
+    private int addPlayer() {
         int playerId = getEmptyPlayerSlot();
         if (playerId == -1) {
             Log.info("Too many players");
-            return;
+            return -1;
         }
 
         playerInfos[playerId].inPlay = true;
         playerCount++;
 
-//        spawnPlayerBall(playerId);
+        return playerId;
+    }
+
+    public void joinPlayer(int clientId) {
+        GameEngine engine = (GameEngine) getEngine();
+        NetDriver netDriver = engine.getSystem(NetDriver.class);
+
+        int playerId = -1;
 
         if (clientId == -1) {
-            localPlayerId = playerId;
+            if (localPlayerId == -1) {
+                // local server
+                playerId = localPlayerId = addPlayer();
+            }
         }
         else {
             // remote client
-            ConnectionManager connectionManager = netDriver.getConnectionManager();
-            connectionManager.getConnectionSlot(clientId).setPlayerId(playerId);
-            assignPlayer(clientId, playerId);
+            ConnectionManager.ConnectionSlot slot = netDriver.getConnectionManager().getConnectionSlot(clientId);
+            if (slot.getPlayerId() == -1) {
+                playerId = addPlayer();
+                if (playerId != -1) {
+                    slot.setPlayerId(playerId);
+                }
+            }
+            // send on first connect, reconnect, and if client somehow lost its playerId
+            if (slot.getPlayerId() != -1) {
+                assignPlayer(clientId, slot.getPlayerId());
+            }
         }
 
-        PlayerJoinedEvent joinedEvent = Pools.obtain(PlayerJoinedEvent.class);
-        joinedEvent.playerId = playerId;
-        netDriver.queueClientEvent(-1, joinedEvent);
-        engine.getSystem(EventsSystem.class).triggerEvent(joinedEvent);
+        if (playerId != -1) {
+    //        spawnPlayerBall(playerId);
+            PlayerJoinedEvent joinedEvent = Pools.obtain(PlayerJoinedEvent.class);
+            joinedEvent.playerId = playerId;
+            netDriver.queueClientEvent(-1, joinedEvent);
+            engine.getSystem(EventsSystem.class).triggerEvent(joinedEvent);
+        }
     }
 
     public void assignPlayer(int clientId, int playerId) {

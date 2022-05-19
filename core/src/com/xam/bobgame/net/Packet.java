@@ -145,7 +145,7 @@ public class Packet {
 
     public enum PacketType {
         ConnectionRequest(0), ConnectionChallenge(1), ConnectionChallengeResponse(2),
-        Data(3), Disconnect(4), Reconnect(5);
+        Data(3), Disconnect(4), Reconnect(5), Empty(6);
 
         private final int value;
 
