@@ -18,7 +18,7 @@ import com.xam.bobgame.utils.ExpoMovingAverage;
 import java.nio.ByteBuffer;
 
 public class NetDriver extends EntitySystem {
-    public static final int DATA_MAX_WORDS = 1024;
+    public static final int DATA_MAX_WORDS = 256;
     public static final int DATA_MAX_SIZE = DATA_MAX_WORDS * 4;
     public static final float BUFFER_TIME_LIMIT = 0.15f;
     public static final int MAX_CLIENTS = 32;
@@ -28,6 +28,7 @@ public class NetDriver extends EntitySystem {
     public static final int PORT_UDP = 55196;
     public static final int PACKET_SEQUENCE_LIMIT = 128;
     public static final int JITTER_BUFFER_SIZE = 4;
+    public static final int PACKET_MAX_MESSAGES = 4;
 
     public static final int SNAPSHOT_FRAME_INTERVAL = 60;
 
@@ -197,14 +198,16 @@ public class NetDriver extends EntitySystem {
 
     private void updateDropped() {
         for (PacketTransport.PacketInfo packetInfo : transport.getDroppedPackets()) {
-            if (packetInfo.messageId != -1) {
-                MessageReader.MessageInfo messageInfo = messageReader.getMessageInfo(packetInfo.messageId);
-                if (messageInfo == null) continue;
-                switch (messageInfo.type) {
-                    case Snapshot:
-                        connectionManager.getConnectionSlot(packetInfo.clientId).needsSnapshot = true;
-                        Log.warn("Dropped message: " + messageInfo.type);
-                        break;
+            if (packetInfo.messageCount > 0) {
+                for (int i = 0; i < packetInfo.messageCount; ++i) {
+                    MessageReader.MessageInfo messageInfo = messageReader.getMessageInfo(packetInfo.messageIds[i]);
+                    if (messageInfo == null) continue;
+                    switch (messageInfo.type) {
+                        case Snapshot:
+                            connectionManager.getConnectionSlot(packetInfo.clientId).needsSnapshot = true;
+                            Log.warn("Dropped message: " + messageInfo.type);
+                            break;
+                    }
                 }
             }
         }
@@ -302,14 +305,13 @@ public class NetDriver extends EntitySystem {
 
             if (o instanceof Packet) {
                 Packet packet = (Packet) o;
-                if (packet.type == Packet.PacketType.Data && packet.getMessage().messageId == -1) {
-                    Log.error("Attempted to send data packet with unset messageId ");
+                if (packet.type == Packet.PacketType.Data && packet.messageCount == 0) {
+                    Log.error("Attempted to send empty data packet");
                 }
                 else {
                     byteBuffer.put((byte) 1);
                     PacketTransport.PacketInfo dropped = transport.setHeaders(packet, connection);
                     packet.encode(writeBitPacker);
-//                    Log.debug("Sending Packet " + packet);
 //                    if (dropped != null) {
 //                        Log.info("Packet dropped: " + dropped.packetSeqNum + " (" + dropped.messageSeqNum + ")");
 //                    }

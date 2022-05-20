@@ -96,7 +96,7 @@ public class PacketTransport {
         PacketInfo setHeaders(Packet packet, int clientId) {
             PacketInfo r = null;
             if (packet.localSeqNum == -1) {
-                if (!acks.get(localSeqNum) && packetInfos[localSeqNum].messageId != -1) {
+                if (!acks.get(localSeqNum) && packetInfos[localSeqNum].messageCount != -1) {
                     r = Pools.obtain(PacketInfo.class);
                     packetInfos[localSeqNum].copyTo(r);
                 }
@@ -109,8 +109,8 @@ public class PacketTransport {
             }
             else {
                 // debug
-                if (packet.type != Packet.PacketType.Disconnect && packet.getMessage().messageId != packetInfos[localSeqNum].messageId) {
-                    Log.warn("Client " + clientId + ": Packet " + localSeqNum + " doesn't match message (" + packet.getMessage().messageId + " " + packet.getMessage().getType() + ", " + packetInfos[localSeqNum].messageId + " " + packetInfos[localSeqNum].messageType + ")");
+                if (packet.type != Packet.PacketType.Disconnect && !packetInfos[localSeqNum].matches(packet)) {
+                    Log.warn("Client " + clientId + ": Packet (" + packet + ") doesn't match packet info (" + packetInfos[localSeqNum] + ")");
                 }
             }
             packet.remoteSeqNum = remoteSeqNum;
@@ -137,21 +137,48 @@ public class PacketTransport {
     }
 
     public static class PacketInfo {
-        int packetSeqNum = -1, messageId = -1, clientId = -1;
-        Message.MessageType messageType = null;
+        int packetSeqNum = -1, clientId = -1;
+        int messageCount = -1;
+        int[] messageIds = new int[NetDriver.PACKET_MAX_MESSAGES];
+        Message.MessageType[] messageTypes = new Message.MessageType[NetDriver.PACKET_MAX_MESSAGES];
 
         void set(Packet packet, int clientId) {
             packetSeqNum = packet.localSeqNum;
-            messageId = packet.getMessage().messageId;
             this.clientId = clientId;
-            messageType = packet.getMessage().getType();
+            messageCount = packet.messageCount;
+
+            int i;
+            for (i = 0; i < messageCount; ++i) {
+                messageIds[i] = packet.getMessage(i).messageId;
+                messageTypes[i] = packet.getMessage(i).getType();
+            }
+            while (i < messageIds.length) {
+                messageIds[i] = -1;
+                messageTypes[i] = null;
+                i++;
+            }
         }
 
         void copyTo(PacketInfo other) {
             other.packetSeqNum = packetSeqNum;
-            other.messageId = messageId;
             other.clientId = clientId;
-            other.messageType = messageType;
+            other.messageCount = messageCount;
+            System.arraycopy(messageIds, 0, other.messageIds, 0, messageIds.length);
+            System.arraycopy(messageTypes, 0, other.messageTypes, 0, messageTypes.length);
+        }
+
+        boolean matches(Packet packet) {
+            if (messageCount != packet.messageCount) return false;
+            for (int i = 0; i < messageCount; ++i) {
+                if (messageIds[i] != packet.getMessage(i).messageId) return false;
+                if (messageTypes[i] != packet.getMessage(i).getType()) return false;
+            }
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return packetSeqNum + " messageCount=" + messageCount + " messages [" + messageIds[0] + ":" + messageTypes[0] + "]";
         }
     }
 }

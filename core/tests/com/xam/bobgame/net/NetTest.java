@@ -26,7 +26,7 @@ public class NetTest {
         Message message;
         for (int i = 0; i < count; ++i) {
             packets[i] = new Packet(NetDriver.DATA_MAX_SIZE);
-            message = packets[i].getMessage();
+            message = packets[i].getMessage(0);
             message.messageId = i;
             pb.setBuffer(message.getByteBuffer());
             crc32.reset();

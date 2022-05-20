@@ -1,5 +1,6 @@
 package com.xam.bobgame.net;
 
+import com.badlogic.gdx.utils.Null;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.utils.BitPacker;
 
@@ -8,12 +9,13 @@ import java.util.zip.CRC32;
 public class Packet {
     PacketType type;
 
-    private Message message;
+    private Message[] messages = new Message[NetDriver.PACKET_MAX_MESSAGES];
     private CRC32 crc32 = new CRC32();
     private long crc = -1;
 
     int localSeqNum = -1;
 
+    int messageCount = 0;
     int remoteSeqNum = -1;
     int ack = 0;
     int salt = 0;
@@ -26,11 +28,7 @@ public class Packet {
     boolean requestSnapshot = false;
 
     public Packet(int size) {
-        message = new Message(size);
-    }
-
-    public Message getMessage() {
-        return message;
+        for (int i = 0; i < messages.length; ++i) messages[i] = new Message(size);
     }
 
     public PacketType getType() {
@@ -46,10 +44,15 @@ public class Packet {
             crc32.update(type.getValue());
             crc32.update(salt);
             crc32.update(requestSnapshot ? 1 : 0);
-            crc32.update(message.messageId);
-            crc32.update(message.getType().getValue());
-            crc32.update(message.getLength());
-            crc32.update(message.getBytes(), 0, message.getLength());
+
+            for (int i = 0; i < messageCount; ++i) {
+                Message message = messages[i];
+                crc32.update(message.messageId);
+                crc32.update(message.getType().getValue());
+                crc32.update(message.getLength());
+                crc32.update(message.getBytes(), 0, message.getLength());
+            }
+
             crc = crc32.getValue();
         }
         return crc;
@@ -64,18 +67,26 @@ public class Packet {
         bitPacker.packInt(salt);
         bitPacker.packInt(requestSnapshot ? 1 : 0, 0, 1);
         bitPacker.packInt(frameNum);
-        bitPacker.packInt(message.messageId);
-        bitPacker.packInt(message.frameNum);
-        bitPacker.packInt(message.getType().getValue(), 0, Message.MessageType.values().length-1);
-        bitPacker.packInt(message.entryCount, 0, 15);
-        bitPacker.packInt(message.getLength(), 0, NetDriver.DATA_MAX_SIZE);
+
+        bitPacker.packInt(messageCount, 0, NetDriver.PACKET_MAX_MESSAGES);
+        for (int i = 0; i < messageCount; ++i) {
+            Message message = messages[i];
+            bitPacker.packInt(message.messageId);
+            bitPacker.packInt(message.frameNum);
+            bitPacker.packInt(message.getType().getValue(), 0, Message.MessageType.values().length-1);
+            bitPacker.packInt(message.entryCount, 0, 15);
+            bitPacker.packInt(message.getLength(), 0, NetDriver.DATA_MAX_SIZE);
+            bitPacker.padToWord();
+            message.copyTo(bitPacker);
+        }
         bitPacker.padToWord();
-        message.copyTo(bitPacker);
+
         bitPacker.packInt(0xFFFFFFFF);
         bitPacker.flush(false);
     }
 
     public int decode(BitPacker bitPacker) {
+        int totalLength = 0;
         clear();
 
         float packetCRC = bitPacker.unpackInt();
@@ -87,13 +98,18 @@ public class Packet {
         requestSnapshot = bitPacker.unpackInt(0, 1) == 1;
         frameNum = bitPacker.unpackInt();
 
-        message.messageId = bitPacker.unpackInt();
-        message.frameNum = bitPacker.unpackInt();
-        message.setType(Message.MessageType.values()[bitPacker.unpackInt(0, Message.MessageType.values().length-1)]);
-        message.entryCount = bitPacker.unpackInt(0, 15);
-        int length = bitPacker.unpackInt(0, NetDriver.DATA_MAX_SIZE);
+        messageCount = bitPacker.unpackInt(0, NetDriver.PACKET_MAX_MESSAGES);
+        for (int i = 0; i < messageCount; ++i) {
+            Message message = messages[i];
+            message.messageId = bitPacker.unpackInt();
+            message.frameNum = bitPacker.unpackInt();
+            message.setType(Message.MessageType.values()[bitPacker.unpackInt(0, Message.MessageType.values().length-1)]);
+            message.entryCount = bitPacker.unpackInt(0, 15);
+            int length = bitPacker.unpackInt(0, NetDriver.DATA_MAX_SIZE);
+            bitPacker.skipToWord();
+            message.set(bitPacker, length);
+        }
         bitPacker.skipToWord();
-        message.set(bitPacker, length);
 
         int footer = bitPacker.unpackInt();
         if (footer != 0xFFFFFFFF) {
@@ -102,15 +118,42 @@ public class Packet {
         }
 
         if (packetCRC != ((int) getCrc())) {
-            Log.error("Packet", "Bad CRC [" + length + "]");
+            Log.error("Packet", "Bad CRC [" + totalLength + "] (" + messageCount + ")");
             return -1;
         }
         return 0;
     }
 
+    public @Null Message createMessage() {
+        if (messageCount >= messages.length) return null;
+        return messages[messageCount++];
+//        if (messageCount == 0) messageCount = 1;
+//        return messages[0];
+    }
+
+    public boolean addMessage(Message in) {
+        if (messageCount >= messages.length) return false;
+        in.copyTo(messages[messageCount++]);
+        return true;
+//        if (messageCount == 0) messageCount = 1;
+//        messages[0].append(in);
+//        return true;
+    }
+
+    public Message getMessage(int index) {
+        if (index >= messageCount) Log.warn("Invalid message index " + index + " (" + messageCount + ")");
+        return messages[index];
+    }
+
+    public int getMessageCount() {
+        return messageCount;
+    }
+
     public void copyTo(Packet packet) {
         packet.type = type;
-        message.copyTo(packet.message);
+        packet.messageCount = messageCount;
+        for (int i = 0; i < messageCount; ++i) messages[i].copyTo(packet.messages[i]);
+//        message.copyTo(packet.message);
         packet.localSeqNum = localSeqNum;
         packet.remoteSeqNum = remoteSeqNum;
         packet.ack = ack;
@@ -120,13 +163,15 @@ public class Packet {
         packet.frameNum = frameNum;
     }
 
-    public boolean equals(Packet other) {
-        return message.equals(other.message);
-    }
+//    public boolean equals(Packet other) {
+//        return message.equals(other.message);
+//    }
 
     public void clear() {
         type = null;
-        message.clear();
+//        message.clear();
+        for (Message message : messages) message.clear();
+        messageCount = 0;
         localSeqNum = -1;
         remoteSeqNum = -1;
         ack = 0;
@@ -139,7 +184,7 @@ public class Packet {
     @Override
     public String toString() {
 //        return DebugUtils.intHex(message.messageId) + DebugUtils.intHex(message.getLength()) + DebugUtils.intHex((int) getCrc()) + DebugUtils.bytesHex(message.getBytes());
-        if (type == PacketType.Data) return "[Packet " + localSeqNum + "] " + message.getType() + " entryCount=" + message.entryCount;
+        if (type == PacketType.Data) return "[Packet " + localSeqNum + "] " + messages[0].getType() + " entryCount=" + messages[0].entryCount;
         else return "[Packet " + localSeqNum + "] " + type;
     }
 

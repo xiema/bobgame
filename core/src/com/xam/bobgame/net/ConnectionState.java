@@ -272,7 +272,7 @@ public enum ConnectionState {
                 if (clientEvent.serializedMessage.messageId == -1) {
                     slot.netDriver.messageReader.serializeEvent(clientEvent.serializedMessage, clientEvent.event);
                 }
-                clientEvent.serializedMessage.copyTo(slot.sendPacket.getMessage());
+                slot.sendPacket.addMessage(clientEvent.serializedMessage);
                 slot.sendPacket.requestSnapshot = slot.needsSnapshot;
                 slot.needsSnapshot = false;
                 slot.sendDataPacket(slot.sendPacket);
@@ -354,7 +354,15 @@ public enum ConnectionState {
     }
 
     int receiveData(ConnectionManager.ConnectionSlot slot, Packet in) {
-        slot.messageBuffer.receive(in.getMessage(), in.frameNum);
+        for (int i = 0; i < in.getMessageCount(); ++i) {
+            Message message = in.getMessage(i);
+            if (slot.checkMessageNum(message.messageId)) {
+                // message already seen or old and assumed seen
+                Log.info("Discarded message num=" + message.messageId);
+            } else {
+                slot.messageBuffer.receive(message, in.frameNum);
+            }
+        }
 //        Log.debug("Queued packet " + in);
         return 0;
     }
@@ -379,12 +387,7 @@ public enum ConnectionState {
         while (slot.packetBuffer.get(slot.syncPacket)) {
             if (!slot.state.checksSalt || slot.syncPacket.salt == slot.salt) {
                 if (slot.syncPacket.type == Packet.PacketType.Data) {
-                    if (slot.checkMessageNum(slot.syncPacket.getMessage().messageId)) {
-                        // message already seen or old and assumed seen
-                        Log.info("Discarded message num=" + slot.syncPacket.getMessage().messageId);
-                    } else {
-                        slot.state.receiveData(slot, slot.syncPacket);
-                    }
+                    slot.state.receiveData(slot, slot.syncPacket);
                 } else {
                     if (slot.state.read(slot, slot.syncPacket) == -1) return -1;
                 }

@@ -18,7 +18,7 @@ public class NetServer extends Server {
 
     private Packet updatePacket = new Packet(NetDriver.DATA_MAX_SIZE);
     private Packet snapshotPacket = new Packet(NetDriver.DATA_MAX_SIZE);
-    private Packet eventPacket = new Packet(NetDriver.DATA_MAX_SIZE);
+//    private Packet eventPacket = new Packet(NetDriver.DATA_MAX_SIZE);
     private Packet sendPacket = new Packet(NetDriver.DATA_MAX_SIZE);
 
     private boolean hasUpdatePacket = false;
@@ -93,21 +93,21 @@ public class NetServer extends Server {
 
         if (connectionSlot.needsSnapshot && (connectionSlot.lastSnapshotFrame == -1 || currentFrame - connectionSlot.lastSnapshotFrame >= NetDriver.SNAPSHOT_FRAME_INTERVAL)) {
             if (!hasSnapshotPacket) {
-                netDriver.messageReader.serialize(snapshotPacket.getMessage(), Message.MessageType.Snapshot);
+                netDriver.messageReader.serialize(snapshotPacket.createMessage(), Message.MessageType.Snapshot);
                 hasSnapshotPacket = true;
             }
             connectionSlot.needsSnapshot = false;
             connectionSlot.lastSnapshotFrame = currentFrame;
-            snapshotPacket.copyTo(sendPacket);
+            sendPacket.addMessage(snapshotPacket.getMessage(0));
 //            Log.info("Send snapshot " + snapshotPacket.getMessage());
         }
         else {
             if (((GameEngine) netDriver.getEngine()).getCurrentFrame() % NetDriver.SERVER_UPDATE_FREQUENCY == 0) {
                 if (!hasUpdatePacket) {
-                    netDriver.messageReader.serialize(updatePacket.getMessage(), Message.MessageType.Update);
+                    netDriver.messageReader.serialize(updatePacket.createMessage(), Message.MessageType.Update);
                     hasUpdatePacket = true;
                 }
-                updatePacket.copyTo(sendPacket);
+                sendPacket.addMessage(updatePacket.getMessage(0));
             }
 
             for (int i = 0; i < netDriver.clientEvents.size; ++i) {
@@ -116,8 +116,8 @@ public class NetServer extends Server {
                     if (clientEvent.serializedMessage.messageId == -1) {
                         netDriver.messageReader.serializeEvent(clientEvent.serializedMessage, clientEvent.event);
                     }
-                    sendPacket.getMessage().append(clientEvent.serializedMessage);
-                    eventPacket.clear();
+                    sendPacket.addMessage(clientEvent.serializedMessage);
+//                    eventPacket.clear();
                     clientEvent.clientMask.unset(connectionSlot.clientId);
 
                     if (!clientEvent.clientMask.anySet()) {
@@ -130,7 +130,7 @@ public class NetServer extends Server {
             }
         }
 
-        if (sendPacket.getMessage().messageId != -1) {
+        if (sendPacket.getMessageCount() > 0) {
             connectionSlot.sendDataPacket(sendPacket);
         }
 
