@@ -3,6 +3,7 @@ package com.xam.bobgame.net;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.EntitySystem;
 import com.badlogic.gdx.utils.*;
+import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.KryoSerialization;
 import com.esotericsoftware.minlog.Log;
@@ -10,6 +11,8 @@ import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProfile;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.events.classes.*;
+import com.xam.bobgame.game.PlayerInfo;
+import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.utils.Bits2;
 import com.xam.bobgame.utils.DebugUtils;
@@ -28,9 +31,10 @@ public class NetDriver extends EntitySystem {
     public static final int PORT_UDP = 55196;
     public static final int PACKET_SEQUENCE_LIMIT = 128;
     public static final int JITTER_BUFFER_SIZE = 4;
-    public static final int PACKET_MAX_MESSAGES = 4;
+    public static final int PACKET_MAX_MESSAGES = 7;
 
     public static final int SNAPSHOT_FRAME_INTERVAL = 60;
+    public static final float RECONNECT_FREQUENCY_LIMIT = 1f;
 
     public static final float INACTIVITY_DISCONNECT_TIMEOUT = 15;
 
@@ -43,6 +47,8 @@ public class NetDriver extends EntitySystem {
     public static final float MIN_ORIENTATION = -3.14159f;
     public static final float MAX_ORIENTATION = 3.14159f;
     public static final int MAX_ENTITY_ID = 4095;
+    public static final float MAX_LATENCY = 2048;
+    public static final float RES_LATENCY = (float) Math.pow(2d, -5d);
 
     public static final float MAX_GRAVITY_STRENGTH = 128;
     public static final float RES_GRAVITY_STRENGTH = 1e-2f;
@@ -56,7 +62,7 @@ public class NetDriver extends EntitySystem {
     public static final float FRICTION_FACTOR = 2f;
     public static final float RESTITUTION_FACTOR = 0f;
     public static final float DAMPING_FACTOR = 10f;
-    public static final float FORCE_FACTOR = 0.8f;
+    public static final float FORCE_FACTOR = 0.65f;
 
 //    private final ExpoMovingAverage simUpdateStepError = new ExpoMovingAverage(0.1f);
 
@@ -83,10 +89,10 @@ public class NetDriver extends EntitySystem {
             PlayerLeftEvent.class,
             PlayerControlEvent.class,
             PlayerScoreEvent.class,
+            PlayerDeathEvent.class,
             ScoreBoardRefreshEvent.class,
             EntityCreatedEvent.class,
             EntityDespawnedEvent.class,
-            PlayerDeathEvent.class,
             RequestJoinEvent.class,
     };
 
@@ -142,6 +148,15 @@ public class NetDriver extends EntitySystem {
         serialization.clearBits();
         connectionManager.update(deltaTime);
 
+        RefereeSystem refereeSystem = getEngine().getSystem(RefereeSystem.class);
+        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
+            ConnectionManager.ConnectionSlot slot = connectionManager.getConnectionSlot(i);
+            PacketTransport.EndPointInfo endPointInfo = transport.endPointInfos[i];
+            if (endPointInfo == null || slot == null || slot.playerId == -1) continue;
+            PlayerInfo playerInfo = refereeSystem.getPlayerInfo(slot.playerId);
+            if (playerInfo == null) continue;
+            playerInfo.latency = endPointInfo.roundTripTime.getAverage() * 1000;
+        }
 //        getEngine().getSystem(PhysicsSystem.class).setSimUpdateStep(PhysicsSystem.SIM_UPDATE_STEP - simUpdateStepError.getAverage());
     }
 
@@ -309,7 +324,7 @@ public class NetDriver extends EntitySystem {
                     Log.error("Attempted to send empty data packet");
                 }
                 else {
-                    byteBuffer.put((byte) 1);
+                    byteBuffer.put((byte) 0xF1);
                     PacketTransport.PacketInfo dropped = transport.setHeaders(packet, connection);
                     packet.encode(writeBitPacker);
 //                    if (dropped != null) {
@@ -318,7 +333,7 @@ public class NetDriver extends EntitySystem {
                 }
             }
             else {
-                byteBuffer.put((byte) 0);
+                byteBuffer.put((byte) 0xF2);
                 super.write(connection, byteBuffer, o);
             }
             sentBytes += byteBuffer.position() - i;
@@ -326,32 +341,46 @@ public class NetDriver extends EntitySystem {
 
         @Override
         public Object read(Connection connection, ByteBuffer byteBuffer) {
-            Object r = null;
             int i = byteBuffer.position();
             readBitPacker.setBuffer(byteBuffer);
 
-            if (byteBuffer.get() > 0) {
+            byte b = byteBuffer.get();
+
+            if (b == (byte) 0xF1) {
                 int clientId = connectionManager.getClientId(connection);
                 if (clientId != -1) {
                     if (returnPacket.decode(readBitPacker) != -1) {
 //                        Log.debug("Received Packet " + returnPacket);
                         synchronized (transport) {
                             if (!transport.updateReceived(returnPacket, clientId)) {
-                                r = returnPacket;
+                                receivedBytes += byteBuffer.position() - i;
+                                return returnPacket;
                             }
                         }
                     }
                     else {
-                        Log.debug("Packet: " + DebugUtils.bytesHex(byteBuffer, i, byteBuffer.limit() - i));
+                        Log.debug("Error decoding Packet: " + DebugUtils.bytesHex(byteBuffer, i, byteBuffer.limit() - i));
                     }
                 }
             }
+            else if (b == (byte) 0xF2) {
+                try {
+                    Object r = super.read(connection, byteBuffer);
+                    receivedBytes += byteBuffer.position() - i;
+                    return r;
+                } catch (KryoException e) {
+                    Log.error("NetSerialization.read", "" + e.getClass() + " " + e.getMessage());
+//                    e.printStackTrace();
+                }
+            }
             else {
-                r = super.read(connection, byteBuffer);
+                Log.error("NetSerialization.read", "Bad type: " + b);
             }
 
+            byteBuffer.position(byteBuffer.limit());
             receivedBytes += byteBuffer.position() - i;
-            return r;
+
+            return null;
         }
 
         public void clearBits() {

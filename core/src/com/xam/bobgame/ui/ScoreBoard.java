@@ -16,6 +16,8 @@ import com.xam.bobgame.game.PlayerInfo;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.net.NetDriver;
 
+import java.util.Formatter;
+
 public class ScoreBoard extends Table {
 
     GameEngine engine;
@@ -24,9 +26,11 @@ public class ScoreBoard extends Table {
     private final Cell<?>[] playerNameCells = new Cell[NetDriver.MAX_CLIENTS];
     private final Cell<?>[] playerScoreCells = new Cell[NetDriver.MAX_CLIENTS];
     private final Cell<?>[] playerRespawnTimeCells = new Cell[NetDriver.MAX_CLIENTS];
+    private final Cell<?>[] playerLatencyCells = new Cell[NetDriver.MAX_CLIENTS];
     private final Label[] playerNameLabels = new Label[NetDriver.MAX_CLIENTS];
     private final Label[] playerScoreLabels = new Label[NetDriver.MAX_CLIENTS];
     private final Label[] playerRespawnTimeLabels = new Label[NetDriver.MAX_CLIENTS];
+    private final Label[] playerLatencyLabels = new Label[NetDriver.MAX_CLIENTS];
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
@@ -39,11 +43,18 @@ public class ScoreBoard extends Table {
 
         columnDefaults(0).align(Align.left).fill().expand();
         columnDefaults(1).align(Align.right).fill().expand();
+        columnDefaults(2).align(Align.center).fill().expand();
+        columnDefaults(3).align(Align.right).fill().expand();
 
         for (int i = 0; i < playerNameLabels.length; ++i) {
             playerNameCells[i] = add(playerNameLabels[i] = new Label("", skin));
             playerScoreCells[i] = add(playerScoreLabels[i] = new Label("", skin));
             playerRespawnTimeCells[i] = add(playerRespawnTimeLabels[i] = new Label("", skin));
+            playerLatencyCells[i] = add(playerLatencyLabels[i] = new Label("", skin));
+
+            playerRespawnTimeLabels[i].setAlignment(Align.center);
+            playerScoreLabels[i].setAlignment(Align.right);
+            playerLatencyLabels[i].setAlignment(Align.right);
             row();
         }
 
@@ -85,7 +96,7 @@ public class ScoreBoard extends Table {
             PlayerInfo playerInfo = refereeSystem.getPlayerInfo(i);
             if (playerInfo.inPlay) {
                 addPlayer(i);
-                setPlayerScore(i, playerInfo.score, playerInfo.respawnTime);
+                setPlayerScore(i, playerInfo.score, playerInfo.respawnTime, playerInfo.latency);
             }
         }
 
@@ -93,6 +104,7 @@ public class ScoreBoard extends Table {
             playerNameCells[j].clearActor();
             playerScoreCells[j].clearActor();
             playerRespawnTimeCells[j].clearActor();
+            playerLatencyCells[j].clearActor();
         }
         reposition();
     }
@@ -101,11 +113,13 @@ public class ScoreBoard extends Table {
         Label playerNameLabel = playerNameLabels[playerId];
         Label playerScoreLabel = playerScoreLabels[playerId];
         Label playerRespawnTimeLabel = playerRespawnTimeLabels[playerId];
+        Label playerLatencyLabel = playerLatencyLabels[playerId];
         playerNameLabel.setText("PL." + playerId);
         playerScoreLabel.setText(0);
         playerNameCells[rowCount].setActor(playerNameLabel);
         playerScoreCells[rowCount].setActor(playerScoreLabel);
         playerRespawnTimeCells[rowCount].setActor(playerRespawnTimeLabel);
+        playerLatencyCells[rowCount].setActor(playerLatencyLabel);
         rowCount++;
         reposition();
     }
@@ -114,16 +128,20 @@ public class ScoreBoard extends Table {
         Label playerNameLabel = playerNameLabels[playerId];
         Label playerScoreLabel = playerScoreLabels[playerId];
         Label playerRespawnTimeLabel = playerRespawnTimeLabels[playerId];
+        Label playerLatencyLabel = playerLatencyLabels[playerId];
         getCell(playerNameLabel).clearActor();
         getCell(playerScoreLabel).clearActor();
         getCell(playerRespawnTimeLabel).clearActor();
+        getCell(playerLatencyLabel).clearActor();
         rowCount--;
         reposition();
     }
 
-    public void setPlayerScore(int playerId, int score, float respawnTime) {
+    public void setPlayerScore(int playerId, int score, float respawnTime, float latency) {
         playerScoreLabels[playerId].setText(String.valueOf(score));
         playerRespawnTimeLabels[playerId].setText(String.valueOf((int) respawnTime));
+        Formatter formatter = new Formatter();
+        playerLatencyLabels[playerId].setText(formatter.format("%1.2f", latency).toString());
     }
 
     @Override
@@ -133,7 +151,7 @@ public class ScoreBoard extends Table {
         for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
             PlayerInfo playerInfo = refereeSystem.getPlayerInfo(i);
             if (playerInfo.inPlay) {
-                setPlayerScore(i, playerInfo.score, playerInfo.respawnTime);
+                setPlayerScore(i, playerInfo.score, playerInfo.respawnTime, playerInfo.latency);
             }
         }
     }

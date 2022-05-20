@@ -108,8 +108,12 @@ public enum ConnectionState {
                     slot.netDriver.connectionManager.removeConnection(slot.clientId);
                     return 0;
                 case Reconnect:
-                    Log.info("Client " + slot.clientId + " (" + slot.getAddress() + ") reconnected");
-                    slot.netDriver.getEngine().getSystem(RefereeSystem.class).assignPlayer(slot.clientId, slot.playerId);
+                    float currentTime = ((GameEngine) slot.netDriver.getEngine()).getCurrentTime();
+                    if (slot.lastReconnect < 0 || currentTime - slot.lastReconnect > NetDriver.RECONNECT_FREQUENCY_LIMIT) {
+                        Log.info("Client " + slot.clientId + " (" + slot.getAddress() + ") reconnected");
+                        slot.lastReconnect = currentTime;
+                        slot.netDriver.getEngine().getSystem(RefereeSystem.class).assignPlayer(slot.clientId, slot.playerId);
+                    }
                     return 0;
                 case Empty:
                     return 0;
@@ -318,10 +322,10 @@ public enum ConnectionState {
                 ClientConnected.readMessage(slot, message);
             } else {
                 Log.debug("Waiting for snapshot");
-                slot.sendPacket.type = Packet.PacketType.Empty;
-                slot.sendPacket.requestSnapshot = true;
-                slot.sendTransportPacket(slot.sendPacket);
-                slot.sendPacket.clear();
+//                slot.sendPacket.type = Packet.PacketType.Empty;
+//                slot.sendPacket.requestSnapshot = true;
+//                slot.sendTransportPacket(slot.sendPacket);
+//                slot.sendPacket.clear();
             }
             return 0;
         }
@@ -329,9 +333,6 @@ public enum ConnectionState {
         @Override
         int read(ConnectionManager.ConnectionSlot slot, Packet in) {
             ClientConnected.read(slot, in);
-            slot.sendPacket.type = Packet.PacketType.Reconnect;
-            slot.sendTransportPacket(slot.sendPacket);
-            slot.sendPacket.clear();
             return 0;
         }
 
@@ -343,7 +344,18 @@ public enum ConnectionState {
 
         @Override
         int update(ConnectionManager.ConnectionSlot slot, float t) {
-            if (super.update(slot, t) == -1) return -1;
+            if (!slot.connection.isConnected()) {
+                Log.info("Disconnected from server");
+                slot.transitionState(ClientEmpty);
+                slot.netDriver.client.connect(slot.netDriver.client.connectHost);
+            }
+            else {
+                if (super.update(slot, t) == -1) return -1;
+                slot.sendPacket.type = Packet.PacketType.Reconnect;
+                slot.sendPacket.requestSnapshot = true;
+                slot.sendTransportPacket(slot.sendPacket);
+                slot.sendPacket.clear();
+            }
             return 0;
         }
     },

@@ -17,8 +17,8 @@ public class ConnectionManager {
     }
 
     public boolean hasConnections() {
-        for (int i = 0; i < connectionSlots.length; ++i) {
-            if (connectionSlots[i] != null) return true;
+        for (ConnectionSlot connectionSlot : connectionSlots) {
+            if (connectionSlot != null) return true;
         }
         return false;
     }
@@ -57,7 +57,7 @@ public class ConnectionManager {
     public int addConnection(Connection connection, boolean isServer) {
         synchronized (connectionSlots) {
             for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
-                if (connectionSlots[i] == null) {
+                if (connectionSlots[i] == null || connectionSlots[i].state == ConnectionState.ClientEmpty || connectionSlots[i].state == ConnectionState.ServerEmpty) {
 //                    ConnectionManager.ConnectionSlot connectionSlot = Pools.obtain(ConnectionManager.ConnectionSlot.class);
                     ConnectionManager.ConnectionSlot connectionSlot = new ConnectionSlot();
                     connectionSlot.initialize(netDriver);
@@ -183,6 +183,7 @@ public class ConnectionManager {
         ConnectionState state = null;
         float accumulator = 0;
         int salt = 0;
+        float lastReconnect = -1;
 
         Packet sendPacket = new Packet(NetDriver.DATA_MAX_SIZE);
         Packet syncPacket = new Packet(NetDriver.DATA_MAX_SIZE);

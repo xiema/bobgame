@@ -69,7 +69,13 @@ public class MessageReader {
             for (int i = 0; i < notUpdated.size; ++i) {
                 int entityId = notUpdated.get(i);
                 Log.warn("Entity " + entityId + " was not updated");
-                netDriver.getEngine().removeEntity(((GameEngine) netDriver.getEngine()).getEntityById(entityId));
+                Entity entity = ((GameEngine) netDriver.getEngine()).getEntityById(entityId);
+                if (entity != null) {
+                    netDriver.getEngine().removeEntity(entity);
+                }
+                else {
+                    Log.warn("Entity " + entityId + " was already removed");
+                }
             }
             notUpdated.clear();
         }

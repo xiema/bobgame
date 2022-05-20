@@ -31,6 +31,10 @@ public class ExpoMovingAverage {
     }
 
     public void reset() {
-        ave = 0;
+        reset(0);
+    }
+
+    public void reset(float val) {
+        ave = val;
     }
 }

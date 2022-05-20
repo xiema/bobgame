@@ -93,21 +93,35 @@ public class NetServer extends Server {
 
         if (connectionSlot.needsSnapshot && (connectionSlot.lastSnapshotFrame == -1 || currentFrame - connectionSlot.lastSnapshotFrame >= NetDriver.SNAPSHOT_FRAME_INTERVAL)) {
             if (!hasSnapshotPacket) {
-                netDriver.messageReader.serialize(snapshotPacket.createMessage(), Message.MessageType.Snapshot);
-                hasSnapshotPacket = true;
+                if (snapshotPacket.createMessage() != null) {
+                    netDriver.messageReader.serialize(snapshotPacket.getMessage(0), Message.MessageType.Snapshot);
+                    hasSnapshotPacket = true;
+                }
+                else {
+                    Log.warn("NetServer", "Failed to send Snapshot Message");
+                }
             }
-            connectionSlot.needsSnapshot = false;
-            connectionSlot.lastSnapshotFrame = currentFrame;
-            sendPacket.addMessage(snapshotPacket.getMessage(0));
-//            Log.info("Send snapshot " + snapshotPacket.getMessage());
+            if (snapshotPacket.messageCount > 0) {
+                connectionSlot.needsSnapshot = false;
+                connectionSlot.lastSnapshotFrame = currentFrame;
+                sendPacket.addMessage(snapshotPacket.getMessage(0));
+    //            Log.info("Send snapshot " + snapshotPacket.getMessage());
+            }
         }
         else {
             if (((GameEngine) netDriver.getEngine()).getCurrentFrame() % NetDriver.SERVER_UPDATE_FREQUENCY == 0) {
                 if (!hasUpdatePacket) {
-                    netDriver.messageReader.serialize(updatePacket.createMessage(), Message.MessageType.Update);
-                    hasUpdatePacket = true;
+                    if (updatePacket.createMessage() != null) {
+                        netDriver.messageReader.serialize(updatePacket.getMessage(0), Message.MessageType.Update);
+                        hasUpdatePacket = true;
+                    }
+                    else {
+                        Log.warn("NetServer", "Failed to send Update Message");
+                    }
                 }
-                sendPacket.addMessage(updatePacket.getMessage(0));
+                if (updatePacket.messageCount > 0) {
+                    sendPacket.addMessage(updatePacket.getMessage(0));
+                }
             }
 
             for (int i = 0; i < netDriver.clientEvents.size; ++i) {
@@ -116,15 +130,19 @@ public class NetServer extends Server {
                     if (clientEvent.serializedMessage.messageId == -1) {
                         netDriver.messageReader.serializeEvent(clientEvent.serializedMessage, clientEvent.event);
                     }
-                    sendPacket.addMessage(clientEvent.serializedMessage);
-//                    eventPacket.clear();
-                    clientEvent.clientMask.unset(connectionSlot.clientId);
 
-                    if (!clientEvent.clientMask.anySet()) {
-    //                    Log.info("Removing event " + clientEvent.event + " from queue");
-                        Pools.free(clientEvent);
-                        netDriver.clientEvents.removeIndex(i);
-                        i--;
+                    if (sendPacket.addMessage(clientEvent.serializedMessage)) {
+    //                    eventPacket.clear();
+                        clientEvent.clientMask.unset(connectionSlot.clientId);
+                        if (!clientEvent.clientMask.anySet()) {
+        //                    Log.info("Removing event " + clientEvent.event + " from queue");
+                            Pools.free(clientEvent);
+                            netDriver.clientEvents.removeIndex(i);
+                            i--;
+                        }
+                    }
+                    else {
+                        Log.warn("NetServer", "Failed to send Event Message: " + clientEvent.event);
                     }
                 }
             }

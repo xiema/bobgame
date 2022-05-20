@@ -1,6 +1,7 @@
 package com.xam.bobgame;
 
 import com.badlogic.ashley.core.*;
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.utils.*;
 import com.badlogic.gdx.utils.viewport.Viewport;
@@ -126,7 +127,7 @@ public class GameEngine extends PooledEngine {
         super.update(deltaTime);
         netDriver.update2(deltaTime);
         currentFrame++;
-        currentTime += deltaTime;
+        currentTime += Gdx.graphics.getDeltaTime();
     }
 
     private void restartInternal() {

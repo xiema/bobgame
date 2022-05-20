@@ -12,6 +12,7 @@ public class PlayerInfo implements NetSerializable {
     public int controlledEntityId = -1;
     public int score = 0;
     public float respawnTime = 0;
+    public float latency = 0;
     public float stamina = 100;
 
     public void reset() {
@@ -20,6 +21,7 @@ public class PlayerInfo implements NetSerializable {
         score = 0;
         respawnTime = 0;
         stamina = 100;
+        latency = 0;
     }
 
     @Override
@@ -28,6 +30,7 @@ public class PlayerInfo implements NetSerializable {
         controlledEntityId = packer.readInt(controlledEntityId, -1, NetDriver.MAX_ENTITY_ID);
         score = packer.readInt(score, NetDriver.MIN_SCORE, NetDriver.MAX_SCORE);
         respawnTime = packer.readFloat(respawnTime, 0, GameProperties.PLAYER_RESPAWN_TIME, 0.125f);
+        latency = packer.readFloat(latency, 0, NetDriver.MAX_LATENCY, NetDriver.RES_LATENCY);
         stamina = packer.readFloat(stamina, GameProperties.PLAYER_STAMINA_MIN, GameProperties.PLAYER_STAMINA_MAX, 0.125f);
 
         return 0;

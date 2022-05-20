@@ -23,6 +23,7 @@ import com.kotcrab.vis.ui.widget.file.FileChooser;
 import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.dev.tools.EntityInspector;
+import com.xam.bobgame.dev.tools.QuickCommands;
 import com.xam.bobgame.dev.tools.WindowManager;
 import com.xam.bobgame.dev.utils.DevToolWindow;
 
@@ -95,7 +96,7 @@ public class DevTools {
             // prep windows
 //            devToolWindows.add(new EntityInfo(this, skin));
             devToolWindows.add(new EntityInspector(this, skin));
-//            devToolWindows.add(new QuickCommands(this, skin));
+            devToolWindows.add(new QuickCommands(this, skin));
             for (DevToolWindow devToolWindow : devToolWindows) {
                 devUIStage.addActor(devToolWindow);
             }
