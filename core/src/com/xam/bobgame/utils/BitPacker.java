@@ -388,6 +388,10 @@ public class BitPacker {
                 l--;
             }
             while (l > 0) {
+                if (!buffer.hasRemaining()) {
+                    Log.error("BitPacker", "Buffer underflow (" + l + ")");
+                    return;
+                }
                 out.put(buffer.get());
                 l--;
             }
