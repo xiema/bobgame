@@ -6,6 +6,7 @@ import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.events.classes.ClientConnectedEvent;
 import com.xam.bobgame.events.classes.ClientDisconnectedEvent;
 import com.xam.bobgame.events.EventsSystem;
+import com.xam.bobgame.events.classes.ConnectionStateRefreshEvent;
 import com.xam.bobgame.game.RefereeSystem;
 
 public enum ConnectionState {
@@ -172,6 +173,15 @@ public enum ConnectionState {
     },
     ClientEmpty(-1, false) {
         @Override
+        int start(ConnectionManager.ConnectionSlot slot) {
+            slot.netDriver.connectionManager.removeConnection(slot.clientId);
+            slot.netDriver.client.stop();
+            ((GameEngine) slot.netDriver.getEngine()).stop();
+            slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
+            return 0;
+        }
+
+        @Override
         int read(ConnectionManager.ConnectionSlot slot, Packet in) {
             return 0;
         }
@@ -238,7 +248,6 @@ public enum ConnectionState {
     ClientConnected(0.5f, true) {
         @Override
         int start(ConnectionManager.ConnectionSlot slot) {
-            // TODO: Check behavior on reconnect
             Log.info("Connected to " + slot.getAddress());
             slot.netDriver.client.reconnectSalt = slot.salt;
             ClientConnectedEvent event = Pools.obtain(ClientConnectedEvent.class);

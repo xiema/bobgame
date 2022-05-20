@@ -172,7 +172,8 @@ public class RefereeSystem extends EntitySystem {
     public void joinGame() {
         if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Client) {
             RequestJoinEvent requestJoinEvent = Pools.obtain(RequestJoinEvent.class);
-            getEngine().getSystem(NetDriver.class).queueClientEvent(-1, requestJoinEvent, false);
+            NetDriver netDriver = getEngine().getSystem(NetDriver.class);
+            netDriver.queueClientEvent(netDriver.getClientHostId(), requestJoinEvent, false);
         }
     }
 
@@ -206,6 +207,8 @@ public class RefereeSystem extends EntitySystem {
                 // local server
                 playerId = localPlayerId = addPlayer();
             }
+            ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
+            netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
         }
         else {
             // remote client

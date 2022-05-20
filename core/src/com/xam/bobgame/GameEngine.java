@@ -13,7 +13,6 @@ import com.xam.bobgame.definitions.GameDefinitions;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
-import com.xam.bobgame.events.classes.DisconnectEvent;
 import com.xam.bobgame.events.classes.EntityCreatedEvent;
 import com.xam.bobgame.events.classes.EntityDespawnedEvent;
 import com.xam.bobgame.game.*;
@@ -42,7 +41,7 @@ public class GameEngine extends PooledEngine {
     private int currentFrame = 0;
     private float currentTime = 0;
 
-    private boolean restarting = false;
+    private boolean stopping = false;
 
     private final OrderedIntMap<Entity> entityMap = new OrderedIntMap<>();
 
@@ -51,12 +50,6 @@ public class GameEngine extends PooledEngine {
     public GameEngine(BoBGame game) {
         super();
         this.game = game;
-        listeners.put(DisconnectEvent.class, new EventListenerAdapter<DisconnectEvent>() {
-            @Override
-            public void handleEvent(DisconnectEvent event) {
-                restart();
-            }
-        });
 
         game.inputMultiplexer.addProcessor(new InputAdapter() {
             private int activeButton = -1;
@@ -120,8 +113,10 @@ public class GameEngine extends PooledEngine {
 
     @Override
     public void update(float deltaTime) {
-        if (restarting) {
-            restartInternal();
+        if (stopping) {
+            stopInternal();
+            for (EntitySystem system : getSystems()) system.setProcessing(true);
+            pauseSystems();
             return;
         }
         super.update(deltaTime);
@@ -130,39 +125,40 @@ public class GameEngine extends PooledEngine {
         currentTime += Gdx.graphics.getDeltaTime();
     }
 
-    private void restartInternal() {
+    private void stopInternal() {
         // remove systems
         Array<EntitySystem> systems = new Array<>();
-        removeSystem(eventsSystem);
         removeSystem(netDriver);
         removeSystem(refereeSystem);
-        for (EntitySystem system : getSystems()) systems.add(system);
+        for (EntitySystem system : getSystems()) {
+            if (system != eventsSystem) {
+                systems.add(system);
+            }
+        }
+        for (EntitySystem system : systems) removeSystem(system);
+        removeSystem(eventsSystem);
 
         addSystem(eventsSystem);
         addSystem(netDriver);
         addSystem(refereeSystem);
         for (EntitySystem system : systems) addSystem(system);
 
-        for (EntitySystem system : getSystems()) system.setProcessing(true);
-//        pauseGame();
-
         currentTime = 0;
         currentFrame = 0;
-        restarting = false;
+        stopping = false;
 
         eventsSystem.addListeners(listeners);
         game.onEngineStarted();
     }
 
-    public void restart() {
+    public void stop() {
         removeAllEntities();
-        restarting = true;
-
+        stopping = true;
         for (EntitySystem system : getSystems()) system.setProcessing(false);
     }
 
     public void start() {
-        refereeSystem.setupGame();
+        if (mode == Mode.Server) refereeSystem.setupGame();
         resumeSystems();
     }
 

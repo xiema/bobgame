@@ -21,6 +21,13 @@ public class PlayerAssignEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
+    public NetDriver.NetworkEvent copyTo(NetDriver.NetworkEvent event) {
+        PlayerAssignEvent other = (PlayerAssignEvent) event;
+        other.playerId = playerId;
+        return super.copyTo(event);
+    }
+
+    @Override
     public String toString() {
         return "PlayerAssignEvent playerId=" + playerId;
     }

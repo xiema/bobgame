@@ -8,6 +8,8 @@ import com.esotericsoftware.kryonet.Server;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameEngine;
+import com.xam.bobgame.events.EventsSystem;
+import com.xam.bobgame.events.classes.ConnectionStateRefreshEvent;
 
 import java.io.IOException;
 
@@ -47,6 +49,8 @@ public class NetServer extends Server {
             }
             ((GameEngine) netDriver.getEngine()).setupServer();
             running = true;
+            ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
+            netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
             return;
         } catch (IOException e) {
             stop();
@@ -68,6 +72,12 @@ public class NetServer extends Server {
             ConnectionManager.ConnectionSlot slot = netDriver.connectionManager.getConnectionSlot(connection);
             slot.packetBuffer.receive(packet);
         }
+
+        @Override
+        public void disconnected(Connection connection) {
+            ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
+            netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
+        }
     };
 
     @Override
@@ -75,7 +85,9 @@ public class NetServer extends Server {
         if (!running) return;
         super.stop();
         running = false;
-        ((GameEngine) netDriver.getEngine()).restart();
+        ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
+        netDriver.getEngine().getSystem(EventsSystem.class).triggerEvent(event);
+        ((GameEngine) netDriver.getEngine()).stop();
     }
 
     private int lastSyncFrame = -1;

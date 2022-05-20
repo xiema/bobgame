@@ -11,14 +11,15 @@ import com.xam.bobgame.events.classes.*;
 
 public class EventsSystem extends EntitySystem {
 
-    private static final ObjectSet<Class<?>> registeredEvents = new ObjectSet<>();
-    static {
+//    private static final ObjectSet<Class<?>> registeredEvents = new ObjectSet<>();
+//    static {
 //        registeredEvents.add(HazardContactEvent.class);
 //        registeredEvents.add(PlayerAssignEvent.class);
 //        registeredEvents.add(PlayerControlEvent.class);
 //        registeredEvents.add(PlayerJoinedEvent.class);
 //        registeredEvents.add(RequestJoinEvent.class);
-    }
+//        registeredEvents.add(ClientConnectedEvent.class);
+//    }
 
     private final Array<GameEvent> eventQueue = new Array<>();
     private ObjectMap<Class<? extends GameEvent>, Array<GameEventListener>> listenerMap = new ObjectMap<>();

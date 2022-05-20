@@ -9,6 +9,7 @@ import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.events.classes.ConnectionStateRefreshEvent;
 import com.xam.bobgame.events.classes.PlayerAssignEvent;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.net.NetDriver;
@@ -48,7 +49,6 @@ public class MainMenu extends Table {
             public void clicked(InputEvent event, float x, float y) {
                 engine.start();
                 refereeSystem.joinPlayer(-1);
-                refreshElementStates();
             }
         });
 
@@ -57,7 +57,6 @@ public class MainMenu extends Table {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 refereeSystem.joinGame();
-                refreshElementStates();
             }
         });
 
@@ -66,7 +65,6 @@ public class MainMenu extends Table {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 netDriver.disconnectClient();
-                refreshElementStates();
             }
         });
 
@@ -75,7 +73,6 @@ public class MainMenu extends Table {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 netDriver.connectToServer(serverAddressField.getText());
-                refreshElementStates();
             }
         });
 
@@ -84,7 +81,6 @@ public class MainMenu extends Table {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 netDriver.disconnectClient();
-                refreshElementStates();
             }
         });
 
@@ -94,7 +90,6 @@ public class MainMenu extends Table {
             public void clicked(InputEvent event, float x, float y) {
                 // TODO: check reconnecting to same address
                 netDriver.connectToServer(GameProfile.lastConnectedServerAddress);
-                refreshElementStates();
             }
         });
 
@@ -103,7 +98,6 @@ public class MainMenu extends Table {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 netDriver.startServer();
-                refreshElementStates();
             }
         });
 
@@ -112,7 +106,6 @@ public class MainMenu extends Table {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 netDriver.stopServer();
-                refreshElementStates();
             }
         });
 
@@ -132,6 +125,12 @@ public class MainMenu extends Table {
                 refreshElementStates();
             }
         });
+        listeners.put(ConnectionStateRefreshEvent.class, new EventListenerAdapter<ConnectionStateRefreshEvent>() {
+            @Override
+            public void handleEvent(ConnectionStateRefreshEvent event) {
+                refreshElementStates();
+            }
+        });
 
         setWidth(350);
     }
@@ -147,7 +146,13 @@ public class MainMenu extends Table {
 
     void refreshElementStates() {
         // client connected
-        if (netDriver.isClientConnected()) {
+        if (netDriver.isClientConnecting()) {
+            disabled(joinCell, joinButton);
+            disabled(addressCell, serverAddressField);
+            disabled(connectCell, disconnectButton);
+            disabled(serverCell, startServerButton);
+        }
+        else if (netDriver.isClientConnected()) {
             if (refereeSystem.isLocalPlayerJoined()) {
                 disabled(joinCell, joinButton);
             }
@@ -173,7 +178,7 @@ public class MainMenu extends Table {
             disabled(connectCell, connectButton);
         }
         else {
-            if (engine.getMode() != GameEngine.Mode.Client || !netDriver.canReconnect()) {
+            if (!netDriver.canReconnect()) {
                 disabled(joinCell, joinButton);
                 enabled(addressCell, serverAddressField);
                 enabled(connectCell, connectButton);

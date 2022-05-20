@@ -30,7 +30,7 @@ public class NetDriver extends EntitySystem {
     public static final int PORT_TCP = 55192;
     public static final int PORT_UDP = 55196;
     public static final int PACKET_SEQUENCE_LIMIT = 128;
-    public static final int JITTER_BUFFER_SIZE = 4;
+    public static final int JITTER_BUFFER_SIZE = 2;
     public static final int PACKET_MAX_MESSAGES = 7;
 
     public static final int SNAPSHOT_FRAME_INTERVAL = 60;
@@ -122,6 +122,8 @@ public class NetDriver extends EntitySystem {
                     GameProfile.clientSalt = connectionSlot.getSalt();
                     GameProfile.save();
                     engine.resumeSystems();
+
+                    engine.getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
                 }
             }
         });
@@ -131,13 +133,18 @@ public class NetDriver extends EntitySystem {
     public void addedToEngine(Engine engine) {
         // TODO: set this here?
         client.reconnectSalt = GameProfile.clientSalt;
-        engine.getSystem(EventsSystem.class).addListeners(listeners);
+        EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
+        eventsSystem.addListeners(listeners);
+        eventsSystem.addListeners(client.listeners);
     }
 
     @Override
     public void removedFromEngine(Engine engine) {
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
-        if (eventsSystem != null) eventsSystem.removeListeners(listeners);
+        if (eventsSystem != null) {
+            eventsSystem.removeListeners(listeners);
+            eventsSystem.removeListeners(client.listeners);
+        }
         for (ClientEvent clientEvent : clientEvents) Pools.free(clientEvent);
         clientEvents.clear();
         movingAverage.reset();
@@ -277,6 +284,14 @@ public class NetDriver extends EntitySystem {
         return ((GameEngine) getEngine()).getMode() == GameEngine.Mode.Client && client.isConnected();
     }
 
+    public boolean isClientConnecting() {
+        return ((GameEngine) getEngine()).getMode() == GameEngine.Mode.Client && client.isConnecting();
+    }
+
+    public int getClientHostId() {
+        return client.hostId;
+    }
+
     public ConnectionManager getConnectionManager() {
         return connectionManager;
     }
@@ -360,9 +375,9 @@ public class NetDriver extends EntitySystem {
                             }
                         }
                     }
-                    else {
-                        Log.debug("Error decoding Packet: " + DebugUtils.bytesHex(byteBuffer, i, byteBuffer.limit() - i));
-                    }
+//                    else {
+//                        Log.debug("Error decoding Packet: " + DebugUtils.bytesHex(byteBuffer, i, byteBuffer.limit() - i));
+//                    }
                 }
             }
             else if (b == (byte) 0xF2) {

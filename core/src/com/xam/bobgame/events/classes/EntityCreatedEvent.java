@@ -28,6 +28,7 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
     public NetDriver.NetworkEvent copyTo(NetDriver.NetworkEvent event) {
         EntityCreatedEvent other = (EntityCreatedEvent) event;
         other.entityId = entityId;
+        other.snapshot = snapshot;
         return super.copyTo(event);
     }
 
