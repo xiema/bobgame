@@ -174,9 +174,8 @@ public enum ConnectionState {
     ClientEmpty(-1, false) {
         @Override
         int start(ConnectionManager.ConnectionSlot slot) {
-            slot.netDriver.connectionManager.removeConnection(slot.clientId);
+//            slot.netDriver.connectionManager.removeConnection(slot.clientId);
             slot.netDriver.client.stop();
-            ((GameEngine) slot.netDriver.getEngine()).stop();
             slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
             return 0;
         }

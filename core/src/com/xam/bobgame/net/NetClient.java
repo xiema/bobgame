@@ -147,11 +147,11 @@ public class NetClient extends Client {
             connectionSlot.packetBuffer.receive(packet);
         }
 
-//        @Override
-//        public void disconnected(Connection connection) {
-//            ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
-//            netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
-//            stop();
-//        }
+        @Override
+        public void disconnected(Connection connection) {
+            ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
+            netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
+            stop();
+        }
     };
 }
