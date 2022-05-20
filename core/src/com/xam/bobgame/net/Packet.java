@@ -74,7 +74,6 @@ public class Packet {
             bitPacker.packInt(message.messageId);
             bitPacker.packInt(message.frameNum);
             bitPacker.packInt(message.getType().getValue(), 0, Message.MessageType.values().length-1);
-            bitPacker.packInt(message.entryCount, 0, 15);
             bitPacker.packInt(message.getLength(), 0, NetDriver.DATA_MAX_SIZE);
             bitPacker.padToWord();
             message.copyTo(bitPacker);
@@ -104,7 +103,6 @@ public class Packet {
             message.messageId = bitPacker.unpackInt();
             message.frameNum = bitPacker.unpackInt();
             message.setType(Message.MessageType.values()[bitPacker.unpackInt(0, Message.MessageType.values().length-1)]);
-            message.entryCount = bitPacker.unpackInt(0, 15);
             int length = bitPacker.unpackInt(0, NetDriver.DATA_MAX_SIZE);
             bitPacker.skipToWord();
             message.set(bitPacker, length);
@@ -125,23 +123,24 @@ public class Packet {
     }
 
     public @Null Message createMessage() {
-        if (messageCount >= messages.length) return null;
+        if (messageCount >= messages.length) {
+            Log.error("Packet.createMessage", "Reached message limit");
+            return null;
+        }
         return messages[messageCount++];
-//        if (messageCount == 0) messageCount = 1;
-//        return messages[0];
     }
 
     public boolean addMessage(Message in) {
-        if (messageCount >= messages.length) return false;
+        if (messageCount >= messages.length) {
+            Log.error("Packet.addMessage", "Reached message limit");
+            return false;
+        }
         in.copyTo(messages[messageCount++]);
         return true;
-//        if (messageCount == 0) messageCount = 1;
-//        messages[0].append(in);
-//        return true;
     }
 
     public Message getMessage(int index) {
-        if (index >= messageCount) Log.warn("Invalid message index " + index + " (" + messageCount + ")");
+        if (index >= messageCount) Log.error("Invalid message index " + index + " (" + messageCount + ")");
         return messages[index];
     }
 
@@ -184,8 +183,8 @@ public class Packet {
     @Override
     public String toString() {
 //        return DebugUtils.intHex(message.messageId) + DebugUtils.intHex(message.getLength()) + DebugUtils.intHex((int) getCrc()) + DebugUtils.bytesHex(message.getBytes());
-        if (type == PacketType.Data) return "[Packet " + localSeqNum + "] " + messages[0].getType() + " entryCount=" + messages[0].entryCount;
-        else return "[Packet " + localSeqNum + "] " + type;
+        if (type == PacketType.Data) return "[Data Packet " + localSeqNum + "] (" + messageCount + ") " + messages[0].getType() + "...";
+        else return "[" + type + " Packet " + localSeqNum + "] ";
     }
 
     public enum PacketType {

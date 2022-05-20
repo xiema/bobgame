@@ -125,6 +125,13 @@ public enum ConnectionState {
         }
 
         @Override
+        int update(ConnectionManager.ConnectionSlot slot, float t) {
+            int r = super.update(slot, t);
+            slot.netDriver.messageReader.consistencyCheck();
+            return r;
+        }
+
+        @Override
         int update2(ConnectionManager.ConnectionSlot slot) {
             slot.netDriver.server.syncClient(slot);
             return 0;

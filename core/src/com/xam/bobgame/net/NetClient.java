@@ -25,7 +25,7 @@ public class NetClient extends Client {
     private boolean connecting = false;
 
     public NetClient(NetDriver netDriver, Serialization serialization) {
-        super(8192, 2048, serialization);
+        super(8192, 8192, serialization);
         this.netDriver = netDriver;
         addListener(listener);
     }

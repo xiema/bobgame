@@ -55,28 +55,40 @@ public class MessageReader {
         return messageInfos[messageId % messageInfos.length];
     }
 
+    public void consistencyCheck() {
+        if (nonExistent.notEmpty()) {
+            for (int i = 0; i < nonExistent.size; ++i) {
+                int entityId = nonExistent.get(i);
+                Log.warn("Received update for nonexistent entity " + entityId);
+            }
+            nonExistent.clear();
+            netDriver.client.requestSnapshot();
+        }
+
+        if (notUpdated.notEmpty()) {
+            for (int i = 0; i < notUpdated.size; ++i) {
+                int entityId = notUpdated.get(i);
+                Log.warn("Entity " + entityId + " was not updated");
+                netDriver.getEngine().removeEntity(((GameEngine) netDriver.getEngine()).getEntityById(entityId));
+            }
+            notUpdated.clear();
+        }
+    }
+
     public int deserialize(Message message, int clientId) {
         packer.setBuffer(message.getByteBuffer());
         packer.setReadMode();
 
-        int entryCount = message.entryCount;
-
         switch (message.getType()) {
             case Update:
-                // TODO: Server should only receive Event types
-                while (entryCount-- > 0) {
-                    Message.UpdateType updateType = Message.UpdateType.values()[packer.readInt(-1, 0, Message.UpdateType.values().length - 1)];
-                    switch (updateType) {
-                        case System:
-                            readSystemUpdate();
-                            break;
-                        case Event:
-                            readEvent(clientId);
-                            break;
-                    }
-                    if (entryCount > 0) {
-                        packer.skipToWord();
-                    }
+                Message.UpdateType updateType = Message.UpdateType.values()[packer.readInt(-1, 0, Message.UpdateType.values().length - 1)];
+                switch (updateType) {
+                    case System:
+                        readSystemUpdate();
+                        break;
+                    case Event:
+                        readEvent(clientId);
+                        break;
                 }
                 break;
             case Snapshot:
@@ -95,24 +107,6 @@ public class MessageReader {
 
         if (message.getByteBuffer().hasRemaining()) {
             Log.warn("Message has excess bytes: " + message);
-        }
-
-        if (nonExistent.notEmpty()) {
-            for (int i = 0; i < nonExistent.size; ++i) {
-                int entityId = nonExistent.get(i);
-                Log.warn("Received update for nonexistent entity " + entityId);
-            }
-            nonExistent.clear();
-            netDriver.client.requestSnapshot();
-        }
-
-        if (notUpdated.notEmpty()) {
-            for (int i = 0; i < notUpdated.size; ++i) {
-                int entityId = notUpdated.get(i);
-                Log.warn("Entity " + entityId + " was not updated");
-                netDriver.getEngine().removeEntity(((GameEngine) netDriver.getEngine()).getEntityById(entityId));
-            }
-            notUpdated.clear();
         }
 
         return 0;
@@ -138,7 +132,6 @@ public class MessageReader {
 //        packer.padToWord();
         packer.flush(true);
         message.setLength(packer.getTotalBytes());
-        message.entryCount = 1;
 
         return 0;
     }
@@ -170,7 +163,6 @@ public class MessageReader {
         }
         message.eventTypes.add(event.getClass());
         message.setLength(packer.getTotalBytes());
-        message.entryCount = 1;
         setMessageInfo(message);
 
 //        Log.debug("MessagerReader.serializeEvent", "" + event + " : " + message);

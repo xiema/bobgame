@@ -25,10 +25,6 @@ public class Message {
      * Frame number of game engine when this message was created.
      */
     int frameNum = -1;
-    /**
-     * The number of entries present in this message. Valid when message is of type Update.
-     */
-    int entryCount = 0;
 
     /**
      * For recordkeeping in {@link MessageReader.MessageInfo}.
@@ -91,7 +87,6 @@ public class Message {
         out.type = type;
         out.messageId = messageId;
         out.frameNum = frameNum;
-        out.entryCount = entryCount;
         out.eventTypes.clear();
         out.eventTypes.addAll(eventTypes);
         byteBuffer.rewind();
@@ -111,7 +106,6 @@ public class Message {
         bufferIn.rewind();
         byteBuffer.rewind();
         length += in.length;
-        entryCount += in.entryCount;
         eventTypes.addAll(in.eventTypes);
 
         if (messageId == -1) {
@@ -143,7 +137,6 @@ public class Message {
         type = MessageType.Empty;
         messageId = -1;
         frameNum = -1;
-        entryCount = 0;
         eventTypes.clear();
     }
 
@@ -158,7 +151,7 @@ public class Message {
 
     @Override
     public String toString() {
-        return "<" + messageId + "> " + type + " (" + entryCount + ")";
+        return "<" + messageId + "> " + type;
     }
 
     public String toByteString() {
