@@ -151,7 +151,14 @@ public class BitPacker {
         while (byteCount-- > 0) {
             if (!buffer.hasRemaining()) {
                 Log.warn("PacketBuilder", "Buffer underflow (" + byteCount + ")");
-                scratch <<= 8;
+                int r = 8 * (byteCount + 1);
+                if (r >= 64) {
+                    scratch = 0;
+                }
+                else {
+                    scratch <<= r;
+                }
+                break;
             } else {
                 scratch = (scratch << 8) | (buffer.get() & 0xFFL);
             }
