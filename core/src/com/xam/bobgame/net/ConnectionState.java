@@ -270,6 +270,7 @@ public enum ConnectionState {
         int update(ConnectionManager.ConnectionSlot slot, float t) {
             slot.messageBuffer.incrementSyncFrameNum();
             if (super.update(slot, t) == -1) return -1;
+            slot.netDriver.messageReader.consistencyCheck();
 
             boolean sent = false;
 
