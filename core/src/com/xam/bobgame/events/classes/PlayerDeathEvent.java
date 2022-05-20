@@ -17,6 +17,14 @@ public class PlayerDeathEvent extends NetDriver.NetworkEvent {
     }
 
     @Override
+    public NetDriver.NetworkEvent copyTo(NetDriver.NetworkEvent event) {
+        PlayerDeathEvent other = (PlayerDeathEvent) event;
+        other.playerId = playerId;
+        other.entityId = entityId;
+        return super.copyTo(event);
+    }
+
+    @Override
     public int read(BitPacker packer, Engine engine) {
         playerId = packer.readInt(playerId, 0, NetDriver.MAX_CLIENTS - 1);
         entityId = packer.readInt(entityId, 0, NetDriver.MAX_ENTITY_ID);
