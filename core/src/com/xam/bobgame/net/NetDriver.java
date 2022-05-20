@@ -46,7 +46,7 @@ public class NetDriver extends EntitySystem {
     public static final float RES_COLOR = 1e-4f;
     public static final float MIN_ORIENTATION = -3.14159f;
     public static final float MAX_ORIENTATION = 3.14159f;
-    public static final int MAX_ENTITY_ID = 4095;
+    public static final int MAX_ENTITY_ID = (int) Math.pow(2d, 14) - 1;
     public static final float MAX_LATENCY = 2048;
     public static final float RES_LATENCY = (float) Math.pow(2d, -5d);
 
@@ -59,10 +59,12 @@ public class NetDriver extends EntitySystem {
     public static final int MAX_SCORE = 511;
     public static final int MAX_SCORE_INCREMENT = 31;
 
+    public static final float VEL_SMOOTHING_FACTOR = 1.2f;
+
     public static final float FRICTION_FACTOR = 2f;
     public static final float RESTITUTION_FACTOR = 0f;
     public static final float DAMPING_FACTOR = 10f;
-    public static final float FORCE_FACTOR = 0.65f;
+    public static final float FORCE_FACTOR = 0.4f;
 
 //    private final ExpoMovingAverage simUpdateStepError = new ExpoMovingAverage(0.1f);
 

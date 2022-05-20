@@ -77,7 +77,8 @@ public class GraphicsRenderer {
         shapeRenderer.setAutoShapeType(true);
     }
 
-    private Vector2 tempVec = new Vector2();
+    private final Vector2 tempVec = new Vector2();
+    private final Vector2 tempVec2 = new Vector2();
 
     public void draw(Batch batch) {
         updateEntities();
@@ -146,11 +147,15 @@ public class GraphicsRenderer {
 
         PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
         Transform tfm = pb.body.getTransform();
+        PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) pb.body.getUserData();
+
         tempVec.set(tfm.getOrientation()).scl(400).add(tfm.getPosition());
+        tempVec2.set(tfm.getPosition()).add(physicsHistory.posXError.getAverage(), physicsHistory.posYError.getAverage());
+
         shapeRenderer.setProjectionMatrix(viewport.getCamera().combined);
         shapeRenderer.setColor(Color.GREEN);
         shapeRenderer.set(ShapeRenderer.ShapeType.Line);
-        shapeRenderer.line(tfm.getPosition(), tempVec);
+        shapeRenderer.line(tempVec2, tempVec);
     }
 
     private void drawWalls(Batch batch) {

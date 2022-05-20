@@ -338,6 +338,7 @@ public class MessageReader {
             }
             else {
                 physicsHistory.updatePosition(t1, t2, tfm.vals[0], tfm.vals[1]);
+                physicsHistory.updateVel(v1, v2, vel.x, vel.y);
                 tempVec.set(t1 - tfm.vals[0], t2 - tfm.vals[1]);
                 body.setTransform(t1, t2, t3);
                 body.setLinearVelocity(v1, v2);

@@ -56,9 +56,7 @@ public class PhysicsSystem extends EntitySystem {
         listeners.put(ButtonReleaseEvent.class, new EventListenerAdapter<ButtonReleaseEvent>() {
             @Override
             public void handleEvent(ButtonReleaseEvent event) {
-                if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
-                    playerMovement(event.playerId, event.x, event.y, event.holdDuration);
-                }
+                playerMovement(event.playerId, event.x, event.y, event.holdDuration);
             }
         });
         listeners.put(PlayerBallSpawnedEvent.class, new EventListenerAdapter<PlayerBallSpawnedEvent>() {
@@ -150,6 +148,7 @@ public class PhysicsSystem extends EntitySystem {
 
         world.step(simUpdateStep, velIterations, posIterations);
         quantizePhysics();
+        if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Client) updateSmoothing(deltaTime);
     }
 
     private void createWalls(MapDefinition mapDefinition) {
@@ -229,6 +228,20 @@ public class PhysicsSystem extends EntitySystem {
         }
     }
 
+    private void updateSmoothing(float deltaTime) {
+        for (Entity entity : entities) {
+            PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
+            Body body = physicsBody.body;
+            PhysicsHistory physicsHistory = (PhysicsHistory) body.getUserData();
+            if (physicsHistory == null || physicsHistory.velError <= 0) continue;
+
+            physicsHistory.posXError.update(physicsHistory.velXError.getAverage() * deltaTime * NetDriver.VEL_SMOOTHING_FACTOR);
+            physicsHistory.posYError.update(physicsHistory.velYError.getAverage() * deltaTime * NetDriver.VEL_SMOOTHING_FACTOR);
+            physicsHistory.velXError.update(0);
+            physicsHistory.velYError.update(0);
+        }
+    }
+
     private void playerMovement(int playerId, float x, float y, float holdDuration) {
         Log.debug("Player " + playerId + " ButtonRelease " + holdDuration);
 
@@ -243,13 +256,33 @@ public class PhysicsSystem extends EntitySystem {
         float strength = GameProperties.PLAYER_FORCE_STRENGTH * chargeAmount;
 //                    Log.info("strength=" + strength);
 
+        // movement direction
         tempVec.set(x, y).sub(pb.body.getPosition()).nor();
+        // projection of current vel to movement direction
         tempVec2.set(pb.body.getLinearVelocity()).scl(pb.body.getMass() / simUpdateStep);
         float scalarProj = tempVec2.dot(tempVec);
-        tempVec3.set(tempVec).scl(-scalarProj).add(tempVec2);
-        tempVec.scl(Math.max(0, strength - tempVec3.len())).sub(tempVec3);
+        // negative rejection of current vel to movement direction
+        tempVec3.set(tempVec).scl(scalarProj).sub(tempVec2);
+        float strengthProj = Math.max(0, strength - tempVec3.len());
+        // target accel along movement direction
+        tempVec2.set(tempVec).scl(strengthProj);
+        // target accel perpendicular to movement direction
+        tempVec3.add(tempVec2);
 
-        pb.body.applyForceToCenter(tempVec, true);
+        if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Client) {
+            PhysicsHistory physicsHistory = (PhysicsHistory) pb.body.getUserData();
+//            physicsHistory.posXError.reset();
+//            physicsHistory.posYError.reset();
+            physicsHistory.velXError.reset();
+            physicsHistory.velYError.reset();
+            physicsHistory.velXError.update(tempVec2.x - tempVec3.x);
+            physicsHistory.velYError.update(tempVec2.y - tempVec3.y);
+            physicsHistory.velError = 4;
+            pb.body.applyForceToCenter(tempVec3.scl(NetDriver.FORCE_FACTOR), true);
+        }
+        else {
+            pb.body.applyForceToCenter(tempVec3, true);
+        }
 
         playerInfo.stamina = Math.max(GameProperties.PLAYER_STAMINA_MIN, playerInfo.stamina - chargeAmount * GameProperties.PLAYER_STAMINA_LOSS);
     }
@@ -424,6 +457,10 @@ public class PhysicsSystem extends EntitySystem {
         public final ExpoMovingAverage posXError = new ExpoMovingAverage(0.1f);
         public final ExpoMovingAverage posYError = new ExpoMovingAverage(0.1f);
 
+        public int velError = 0;
+        public final ExpoMovingAverage velXError = new ExpoMovingAverage(0.1f);
+        public final ExpoMovingAverage velYError = new ExpoMovingAverage(0.1f);
+
         public final Entity entity;
 
         public PhysicsHistory(Entity entity) {
@@ -439,6 +476,15 @@ public class PhysicsSystem extends EntitySystem {
                 posXError.update(0);
                 posYError.update(0);
             }
+        }
+
+        public void updateVel(float newX, float newY, float oldX, float oldY) {
+            if (velError == 0) return;
+            velError--;
+//            velXError.update(newX - (oldX + velXError.getAverage()));
+//            velYError.update(newY - (oldY + velYError.getAverage()));
+            velXError.update(newX);
+            velYError.update(newY);
         }
     }
 
