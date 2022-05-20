@@ -75,7 +75,7 @@ public class MessageReader {
                             break;
                     }
                     if (entryCount > 0) {
-                        packer.skipToNextByte();
+                        packer.skipToWord();
                     }
                 }
                 break;
@@ -91,6 +91,7 @@ public class MessageReader {
             default:
                 return -1;
         }
+        packer.skipToWord();
 
         if (message.getByteBuffer().hasRemaining()) {
             Log.warn("Message has excess bytes: " + message);
@@ -134,7 +135,7 @@ public class MessageReader {
             case Empty:
                 break;
         }
-        packer.padToNextByte();
+//        packer.padToWord();
         packer.flush(true);
         message.setLength(packer.getTotalBytes());
         message.entryCount = 1;
@@ -146,33 +147,33 @@ public class MessageReader {
         packer.setBuffer(message.getByteBuffer());
         packer.setWriteMode();
 
-        if (event instanceof PlayerControlEvent) {
-            message.setType(Message.MessageType.Input);
-            setMessageInfo(message);
-            packer.packInt(NetDriver.getNetworkEventIndex(event.getClass()), 0, NetDriver.networkEventClasses.length - 1);
-            event.read(packer, netDriver.getEngine());
-            packer.padToNextByte();
-            packer.flush(true);
-            message.setLength(packer.getTotalBytes());
-            message.entryCount = 1;
+        int typeIndex = NetDriver.getNetworkEventIndex(event.getClass());
+        if (typeIndex == -1) {
+            Log.error("Unknown typeIndex for " + event.getClass());
+            return -1;
         }
-        else {
-            message.setType(Message.MessageType.Update);
-            setMessageInfo(message);
-            packer.packInt(Message.UpdateType.Event.getValue(), 0, Message.UpdateType.values().length - 1);
-            message.eventTypes.add(event.getClass());
-            int typeIndex = NetDriver.getNetworkEventIndex(event.getClass());
-            if (typeIndex == -1) {
-                Log.error("Unknown typeIndex for " + event.getClass());
-                return -1;
-            }
+
+        if (event instanceof PlayerControlEvent) {
             packer.packInt(typeIndex, 0, NetDriver.networkEventClasses.length - 1);
             event.read(packer, netDriver.getEngine());
-            packer.padToNextByte();
+//            packer.padToWord();
             packer.flush(true);
-            message.setLength(packer.getTotalBytes());
-            message.entryCount = 1;
+            message.setType(Message.MessageType.Input);
         }
+        else {
+            packer.packInt(Message.UpdateType.Event.getValue(), 0, Message.UpdateType.values().length - 1);
+            packer.packInt(typeIndex, 0, NetDriver.networkEventClasses.length - 1);
+            event.read(packer, netDriver.getEngine());
+//            packer.padToWord();
+            packer.flush(true);
+            message.setType(Message.MessageType.Update);
+        }
+        message.eventTypes.add(event.getClass());
+        message.setLength(packer.getTotalBytes());
+        message.entryCount = 1;
+        setMessageInfo(message);
+
+//        Log.debug("MessagerReader.serializeEvent", "" + event + " : " + message);
 
         return 0;
     }
@@ -201,6 +202,7 @@ public class MessageReader {
 //            Log.debug("MessageReader", "Read event " + event);
             netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
         }
+//        packer.skipToWord();
 
         return 0;
     }

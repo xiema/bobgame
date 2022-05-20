@@ -158,7 +158,7 @@ public class Message {
 
     @Override
     public String toString() {
-        return "<" + messageId + "> " + type;
+        return "<" + messageId + "> " + type + " (" + entryCount + ")";
     }
 
     public String toByteString() {

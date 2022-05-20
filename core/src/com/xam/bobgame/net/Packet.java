@@ -2,7 +2,6 @@ package com.xam.bobgame.net;
 
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.utils.BitPacker;
-import com.xam.bobgame.utils.DebugUtils;
 
 import java.util.zip.CRC32;
 
@@ -58,8 +57,8 @@ public class Packet {
 
     public void encode(BitPacker bitPacker) {
         bitPacker.packInt((int) getCrc());
-        bitPacker.packInt(localSeqNum, 0, NetDriver.PACKET_SEQUENCE_LIMIT);
-        bitPacker.packInt(remoteSeqNum, 0, NetDriver.PACKET_SEQUENCE_LIMIT);
+        bitPacker.packInt(localSeqNum, 0, NetDriver.PACKET_SEQUENCE_LIMIT - 1);
+        bitPacker.packInt(remoteSeqNum, 0, NetDriver.PACKET_SEQUENCE_LIMIT - 1);
         bitPacker.packInt(ack);
         bitPacker.packInt(type.getValue(), 0, PacketType.values().length-1);
         bitPacker.packInt(salt);
@@ -70,9 +69,9 @@ public class Packet {
         bitPacker.packInt(message.getType().getValue(), 0, Message.MessageType.values().length-1);
         bitPacker.packInt(message.entryCount, 0, 15);
         bitPacker.packInt(message.getLength(), 0, NetDriver.DATA_MAX_SIZE);
-        bitPacker.padToLong();
+        bitPacker.padToWord();
         message.copyTo(bitPacker);
-        bitPacker.packByte((byte) 0xFF);
+        bitPacker.packInt(0xFFFFFFFF);
         bitPacker.flush(false);
     }
 
@@ -80,8 +79,8 @@ public class Packet {
         clear();
 
         float packetCRC = bitPacker.unpackInt();
-        localSeqNum = bitPacker.unpackInt(0, NetDriver.PACKET_SEQUENCE_LIMIT);
-        remoteSeqNum = bitPacker.unpackInt(0, NetDriver.PACKET_SEQUENCE_LIMIT);
+        localSeqNum = bitPacker.unpackInt(0, NetDriver.PACKET_SEQUENCE_LIMIT - 1);
+        remoteSeqNum = bitPacker.unpackInt(0, NetDriver.PACKET_SEQUENCE_LIMIT - 1);
         ack = bitPacker.unpackInt();
         type = PacketType.values()[bitPacker.unpackInt(0, PacketType.values().length-1)];
         salt = bitPacker.unpackInt();
@@ -93,11 +92,11 @@ public class Packet {
         message.setType(Message.MessageType.values()[bitPacker.unpackInt(0, Message.MessageType.values().length-1)]);
         message.entryCount = bitPacker.unpackInt(0, 15);
         int length = bitPacker.unpackInt(0, NetDriver.DATA_MAX_SIZE);
-        bitPacker.skipToLong();
+        bitPacker.skipToWord();
         message.set(bitPacker, length);
 
-        byte footer = bitPacker.unpackByte();
-        if (footer != (byte) 0xFF) {
+        int footer = bitPacker.unpackInt();
+        if (footer != 0xFFFFFFFF) {
             Log.error("Wrong footer " + footer);
             return -1;
         }

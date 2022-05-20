@@ -309,7 +309,7 @@ public class NetDriver extends EntitySystem {
                     byteBuffer.put((byte) 1);
                     PacketTransport.PacketInfo dropped = transport.setHeaders(packet, connection);
                     packet.encode(writeBitPacker);
-//                    Log.info("Sending Packet " + packet);
+//                    Log.debug("Sending Packet " + packet);
 //                    if (dropped != null) {
 //                        Log.info("Packet dropped: " + dropped.packetSeqNum + " (" + dropped.messageSeqNum + ")");
 //                    }
@@ -332,7 +332,7 @@ public class NetDriver extends EntitySystem {
                 int clientId = connectionManager.getClientId(connection);
                 if (clientId != -1) {
                     if (returnPacket.decode(readBitPacker) != -1) {
-//                        Log.info("Received Packet " + returnPacket);
+//                        Log.debug("Received Packet " + returnPacket);
                         synchronized (transport) {
                             if (!transport.updateReceived(returnPacket, clientId)) {
                                 r = returnPacket;
@@ -340,7 +340,7 @@ public class NetDriver extends EntitySystem {
                         }
                     }
                     else {
-                        Log.debug("Packet: " + DebugUtils.bytesHex(byteBuffer, i, returnPacket.getMessage().getLength() + 13));
+                        Log.debug("Packet: " + DebugUtils.bytesHex(byteBuffer, i, byteBuffer.limit() - i));
                     }
                 }
             }

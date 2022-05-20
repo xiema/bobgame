@@ -44,7 +44,7 @@ public class BitPacker {
     }
 
     public int getTotalBytes() {
-        return (totalBits + 7) / 8;
+        return (totalBits + 31) / 32 * 4;
     }
 
     public void setBuffer(ByteBuffer buffer) {
@@ -175,6 +175,18 @@ public class BitPacker {
         }
     }
 
+    private void putLong(long l) {
+        buffer.putLong(l);
+    }
+
+    private void putInt(int i) {
+        buffer.putInt(i);
+    }
+
+    private void putByte(byte b) {
+        buffer.put(b);
+    }
+
     private static final long[] masks = new long[64];
     static {
         long m = 1L;
@@ -190,12 +202,12 @@ public class BitPacker {
      * @return The number of bits padded
      */
     public int flush(boolean rewind) {
-        int byteCount = (scratchBits + 7) / 8;
+        int byteCount = (scratchBits + 31) / 32 * 4;
         int p = byteCount * 8;
         int r = p - scratchBits;
 
         if (buffer.order() == ByteOrder.BIG_ENDIAN) {
-            scratch <<= (64 - scratchBits) % 8;
+            scratch <<= (64 - scratchBits) % 32;
             while (byteCount-- > 0) {
                 p -= 8;
                 buffer.put((byte) ((scratch >> p) & 0xFF));
@@ -224,6 +236,18 @@ public class BitPacker {
         totalBits = 0;
     }
 
+    public int padToWord() {
+        int padding = (32 - (scratchBits % 32)) % 32;
+        if (padding != 0) packIntBits(0, padding, 0);
+        return padding;
+    }
+
+    public int skipToWord() {
+        int padding = (32 - (totalBits % 32)) % 32;
+        if (padding != 0) unpackIntBits(padding, 0);
+        return padding;
+    }
+
     public int padToLong() {
         int padding = 64 - scratchBits;
         if (padding != 0) packIntBits(0, padding, 0);
@@ -237,13 +261,13 @@ public class BitPacker {
     }
 
     public int padToNextByte() {
-        int padding = ((-scratchBits % 8) + 8) % 8;
+        int padding = (-(scratchBits % 8) + 8) % 8;
         packIntBits(0, padding, 0);
         return padding;
     }
 
     public int skipToNextByte() {
-        int padding = ((-totalBits % 8) + 8) % 8;
+        int padding = (-(scratchBits % 8) + 8) % 8;
         unpackIntBits(padding, 0);
         return padding;
     }
@@ -313,7 +337,7 @@ public class BitPacker {
             } else {
                 p = 64 - scratchBits;
                 scratchBits = bitCount - p;
-                buffer.putLong((scratch << p) | (i >> scratchBits));
+                putLong((scratch << p) | (i >> scratchBits));
                 scratch = i & masks[scratchBits];
             }
         } else {
@@ -321,7 +345,7 @@ public class BitPacker {
                 scratch |= i << bitCount;
                 scratchBits += bitCount;
             } else {
-                buffer.putLong(scratch | ((i & 0xFFFFFFFFL) << scratchBits));
+                putLong(scratch | ((i & 0xFFFFFFFFL) << scratchBits));
                 scratchBits += bitCount - 64;
                 scratch = i >> scratchBits;
             }
@@ -335,7 +359,7 @@ public class BitPacker {
         if (scratchBits % 8 == 0) {
             flush(false);
             while (count-- > 0) {
-                buffer.put(in.get());
+                putByte(in.get());
                 totalBits += 8;
             }
         }
@@ -344,6 +368,9 @@ public class BitPacker {
                 packByte(in.get());
             }
         }
+//        while (count-- > 0) {
+//            packByte(in.get());
+//        }
         return l;
     }
 
