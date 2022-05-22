@@ -235,6 +235,7 @@ public class MessageReader {
         }
 
         readPlayerInfos(true);
+        netDriver.getEngine().getSystem(RefereeSystem.class).refreshSortedPlayerInfos();
 
         return 0;
     }
@@ -384,14 +385,27 @@ public class MessageReader {
     private int readPlayerInfos(boolean refresh) {
         RefereeSystem refereeSystem = netDriver.getEngine().getSystem(RefereeSystem.class);
 
-        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
-            PlayerInfo playerInfo = refereeSystem.getPlayerInfo(i);
-            playerInfo.read(packer, netDriver.getEngine());
+        if (packer.isWriteMode()) {
+            packer.packInt(refereeSystem.getSortedPlayerInfos().size(), 0, NetDriver.MAX_CLIENTS);
+            for (PlayerInfo playerInfo : refereeSystem.getSortedPlayerInfos()) {
+                packer.packInt(playerInfo.playerId, 0, NetDriver.MAX_CLIENTS - 1);
+                playerInfo.read(packer, netDriver.getEngine());
+            }
         }
-
-        if (packer.isReadMode() && refresh) {
-            ScoreBoardRefreshEvent event = Pools.obtain(ScoreBoardRefreshEvent.class);
-            netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
+        else {
+            int count = packer.unpackInt(0, NetDriver.MAX_CLIENTS);
+            for (int i = 0; i < count; ++i) {
+                int playerId = packer.unpackInt(0, NetDriver.MAX_CLIENTS - 1);
+                PlayerInfo playerInfo = refereeSystem.getPlayerInfo(playerId);
+                playerInfo.read(packer, netDriver.getEngine());
+            }
+            if (count != refereeSystem.getSortedPlayerInfos().size()) {
+                refereeSystem.refreshSortedPlayerInfos();
+            }
+            if (refresh) {
+                ScoreBoardRefreshEvent event = Pools.obtain(ScoreBoardRefreshEvent.class);
+                netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
+            }
         }
 
         return 0;

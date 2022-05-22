@@ -1,6 +1,7 @@
 package com.xam.bobgame.game;
 
 import com.badlogic.ashley.core.*;
+import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.*;
@@ -30,6 +31,8 @@ public class RefereeSystem extends EntitySystem {
     private int localPlayerId = -1;
 
     private final PlayerInfo[] playerInfos = new PlayerInfo[NetDriver.MAX_CLIENTS];
+    private final Array<PlayerInfo> sortedPlayerInfos = new Array<>();
+    private final ImmutableArray<PlayerInfo> sortedPlayerInfosImmutable = new ImmutableArray<>(sortedPlayerInfos);
 
     private MatchState matchState = MatchState.NotStarted;
     private float matchTime = 0;
@@ -64,12 +67,10 @@ public class RefereeSystem extends EntitySystem {
             @Override
             public void handleEvent(PlayerScoreEvent event) {
                 if (matchState != MatchState.Started) return;
-                if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
-                    modifyPlayerScore(event.playerId, event.scoreIncrement);
-                    ScoreBoardRefreshEvent scoreBoardEvent = Pools.obtain(ScoreBoardRefreshEvent.class);
-                    getEngine().getSystem(NetDriver.class).queueClientEvent(-1, scoreBoardEvent, true);
-                    getEngine().getSystem(EventsSystem.class).triggerEvent(scoreBoardEvent);
-                }
+                modifyPlayerScore(event.playerId, event.scoreIncrement);
+//                ScoreBoardRefreshEvent scoreBoardEvent = Pools.obtain(ScoreBoardRefreshEvent.class);
+//                getEngine().getSystem(NetDriver.class).queueClientEvent(-1, scoreBoardEvent, true);
+//                getEngine().getSystem(EventsSystem.class).triggerEvent(scoreBoardEvent);
             }
         });
         listeners.put(RequestJoinEvent.class, new EventListenerAdapter<RequestJoinEvent>() {
@@ -87,7 +88,9 @@ public class RefereeSystem extends EntitySystem {
             }
         });
 
-        for (int i = 0; i < playerInfos.length; ++i) playerInfos[i] = new PlayerInfo();
+        for (int i = 0; i < playerInfos.length; ++i) {
+            playerInfos[i] = new PlayerInfo(i);
+        }
     }
 
     @Override
@@ -135,7 +138,11 @@ public class RefereeSystem extends EntitySystem {
 
     public boolean modifyPlayerScore(int playerId, int amount) {
         if (matchState == MatchState.Started && playerInfos[playerId].inPlay) {
-            playerInfos[playerId].score += amount;
+            if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) playerInfos[playerId].score += amount;
+            sortedPlayerInfos.sort(PlayerInfo.COMPARATOR);
+            sortedPlayerInfos.reverse();
+            ScoreBoardRefreshEvent scoreBoardEvent = Pools.obtain(ScoreBoardRefreshEvent.class);
+            getEngine().getSystem(EventsSystem.class).queueEvent(scoreBoardEvent);
             return true;
         }
         return false;
@@ -312,6 +319,19 @@ public class RefereeSystem extends EntitySystem {
         return -1;
     }
 
+    public ImmutableArray<PlayerInfo> getSortedPlayerInfos() {
+        return sortedPlayerInfosImmutable;
+    }
+
+    public void refreshSortedPlayerInfos() {
+        sortedPlayerInfos.clear();
+        for (PlayerInfo playerInfo : playerInfos) {
+            if (playerInfo.inPlay) sortedPlayerInfos.add(playerInfo);
+        }
+        sortedPlayerInfos.sort(PlayerInfo.COMPARATOR);
+        sortedPlayerInfos.reverse();
+    }
+
     private int addPlayer() {
         int playerId = getEmptyPlayerSlot();
         if (playerId == -1) {
@@ -339,6 +359,9 @@ public class RefereeSystem extends EntitySystem {
             if (localPlayerId == -1) {
                 // local server
                 playerId = localPlayerId = addPlayer();
+                PlayerAssignEvent assignEvent = Pools.obtain(PlayerAssignEvent.class);
+                assignEvent.playerId = playerId;
+                getEngine().getSystem(EventsSystem.class).queueEvent(assignEvent);
             }
         }
         else {
@@ -362,8 +385,9 @@ public class RefereeSystem extends EntitySystem {
     //        spawnPlayerBall(playerId);
             PlayerJoinedEvent joinedEvent = Pools.obtain(PlayerJoinedEvent.class);
             joinedEvent.playerId = playerId;
+            refreshSortedPlayerInfos();
             netDriver.queueClientEvent(-1, joinedEvent);
-            engine.getSystem(EventsSystem.class).triggerEvent(joinedEvent);
+            engine.getSystem(EventsSystem.class).queueEvent(joinedEvent);
         }
     }
 
@@ -387,6 +411,7 @@ public class RefereeSystem extends EntitySystem {
             Log.info("Player " + playerId + " left the game.");
         }
 
+        refreshSortedPlayerInfos();
         PlayerLeftEvent event = Pools.obtain(PlayerLeftEvent.class);
         event.playerId = playerId;
         event.kicked = kicked;
@@ -434,9 +459,9 @@ public class RefereeSystem extends EntitySystem {
         netDriver.queueClientEvent(-1, deathEvent);
         eventsSystem.queueEvent(deathEvent);
 
-        ScoreBoardRefreshEvent scoreEvent = Pools.obtain(ScoreBoardRefreshEvent.class);
-        netDriver.queueClientEvent(-1, scoreEvent);
-        eventsSystem.queueEvent(scoreEvent);
+//        ScoreBoardRefreshEvent scoreEvent = Pools.obtain(ScoreBoardRefreshEvent.class);
+//        netDriver.queueClientEvent(-1, scoreEvent);
+//        eventsSystem.queueEvent(scoreEvent);
 
         getEngine().removeEntity(entity);
 

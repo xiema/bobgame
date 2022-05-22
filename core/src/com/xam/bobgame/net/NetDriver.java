@@ -94,7 +94,6 @@ public class NetDriver extends EntitySystem {
             PlayerControlEvent.class,
             PlayerScoreEvent.class,
             PlayerDeathEvent.class,
-            ScoreBoardRefreshEvent.class,
             EntityCreatedEvent.class,
             EntityDespawnedEvent.class,
             RequestJoinEvent.class,

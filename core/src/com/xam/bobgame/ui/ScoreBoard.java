@@ -6,9 +6,11 @@ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.events.classes.PlayerAssignEvent;
 import com.xam.bobgame.events.classes.PlayerJoinedEvent;
 import com.xam.bobgame.events.classes.PlayerLeftEvent;
 import com.xam.bobgame.events.classes.ScoreBoardRefreshEvent;
@@ -70,6 +72,12 @@ public class ScoreBoard extends Table {
                 removePlayer(event.playerId);
             }
         });
+        listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
+            @Override
+            public void handleEvent(PlayerAssignEvent event) {
+                setPlayerStyle(event.playerId, "defaultWhite");
+            }
+        });
         listeners.put(ScoreBoardRefreshEvent.class, new EventListenerAdapter<ScoreBoardRefreshEvent>() {
             @Override
             public void handleEvent(ScoreBoardRefreshEvent event) {
@@ -82,6 +90,7 @@ public class ScoreBoard extends Table {
         this.engine = engine;
         engine.getSystem(EventsSystem.class).addListeners(listeners);
         refreshScoreBoard();
+        for (int i = 0; i < playerNameLabels.length; ++i) setPlayerStyle(i, "default");
     }
 
     private void reposition() {
@@ -89,23 +98,35 @@ public class ScoreBoard extends Table {
         setPosition(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT, Align.topRight);
     }
 
+    private void setPlayerStyle(int playerId, String styleName) {
+        if (!skin.has(styleName, Label.LabelStyle.class)) {
+            Log.error("Skin has no LabelStyle named " + styleName);
+            return;
+        }
+        Label.LabelStyle style = skin.get(styleName, Label.LabelStyle.class);
+        playerNameLabels[playerId].setStyle(style);
+        playerScoreLabels[playerId].setStyle(style);
+        playerRespawnTimeLabels[playerId].setStyle(style);
+        playerLatencyLabels[playerId].setStyle(style);
+    }
+
     private void refreshScoreBoard() {
         RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
-        rowCount = 0;
-        for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
-            PlayerInfo playerInfo = refereeSystem.getPlayerInfo(i);
-            if (playerInfo.inPlay) {
-                addPlayer(i);
-                setPlayerScore(i, playerInfo.score, playerInfo.respawnTime, playerInfo.latency);
-            }
-        }
+        if (refereeSystem == null) return;
 
-        for (int j = rowCount; j < playerNameCells.length; ++j) {
+        for (int j = 0; j < playerNameCells.length; ++j) {
             playerNameCells[j].clearActor();
             playerScoreCells[j].clearActor();
             playerRespawnTimeCells[j].clearActor();
             playerLatencyCells[j].clearActor();
         }
+
+        rowCount = 0;
+        for (PlayerInfo playerInfo : refereeSystem.getSortedPlayerInfos()) {
+            addPlayer(playerInfo.playerId);
+            setPlayerScore(playerInfo.playerId, playerInfo.score, playerInfo.respawnTime, playerInfo.latency);
+        }
+
         reposition();
     }
 
@@ -140,8 +161,13 @@ public class ScoreBoard extends Table {
     public void setPlayerScore(int playerId, int score, float respawnTime, float latency) {
         playerScoreLabels[playerId].setText(String.valueOf(score));
         playerRespawnTimeLabels[playerId].setText(String.valueOf((int) respawnTime));
-        Formatter formatter = new Formatter();
-        playerLatencyLabels[playerId].setText(formatter.format("%1.2f", latency).toString());
+        if (latency > 0) {
+            Formatter formatter = new Formatter();
+            playerLatencyLabels[playerId].setText(formatter.format("%1.2f", latency).toString());
+        }
+        else {
+            playerLatencyLabels[playerId].setText("");
+        }
     }
 
     @Override

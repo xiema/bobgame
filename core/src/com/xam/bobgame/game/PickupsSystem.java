@@ -17,6 +17,7 @@ import com.xam.bobgame.entity.*;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.events.classes.PickupContactEvent;
 import com.xam.bobgame.events.classes.PlayerScoreEvent;
+import com.xam.bobgame.net.NetDriver;
 
 public class PickupsSystem extends EntitySystem {
 
@@ -50,7 +51,7 @@ public class PickupsSystem extends EntitySystem {
                         scoreEvent.playerId = playerId;
                         scoreEvent.scoreIncrement = 1;
 //                        NetDriver netDriver = getEngine().getSystem(NetDriver.class);
-//                        netDriver.queueClientEvent(-1, scoreEvent);
+                        getEngine().getSystem(NetDriver.class).queueClientEvent(-1, scoreEvent);
                         getEngine().getSystem(EventsSystem.class).triggerEvent(scoreEvent);
                     }
                     else if (iden.type == EntityType.Hazard) {
