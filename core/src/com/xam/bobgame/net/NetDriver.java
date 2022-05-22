@@ -260,8 +260,8 @@ public class NetDriver extends EntitySystem {
         server.stop();
     }
 
-    public void setupClient() {
-        client.setup();
+    public void setClientReconnect() {
+        client.reconnectSalt = GameProfile.clientSalt;
     }
 
     public void disconnectClient() {

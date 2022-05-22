@@ -42,10 +42,6 @@ public class NetClient extends Client {
         });
     }
 
-    public void setup() {
-        reconnectSalt = GameProfile.clientSalt;
-    }
-
     public boolean canReconnect() {
         return reconnectSalt != 0;
     }

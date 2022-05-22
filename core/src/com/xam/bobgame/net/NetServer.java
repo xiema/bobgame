@@ -47,7 +47,6 @@ public class NetServer extends Server {
                 bind(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
                 Log.info("Server listening on " + NetDriver.PORT_TCP + "/" + NetDriver.PORT_UDP);
             }
-            ((GameEngine) netDriver.getEngine()).setupServer();
             running = true;
             ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
             netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);

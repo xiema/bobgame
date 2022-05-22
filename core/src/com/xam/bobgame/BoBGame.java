@@ -12,6 +12,7 @@ import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.definitions.GameDefinitions;
 import com.xam.bobgame.dev.DevTools;
 import com.xam.bobgame.graphics.GraphicsRenderer;
+import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.ui.UIStage;
 import com.xam.bobgame.utils.HeadlessCommandRunnable;
 
@@ -77,7 +78,8 @@ public class BoBGame extends ApplicationAdapter {
 
 			// reconnection
 			if (GameProfile.clientSalt != 0) {
-				engine.setupClient();
+				engine.setMode(GameEngine.Mode.Client);
+				engine.getSystem(NetDriver.class).setClientReconnect();
 			}
 
 			uiStage.initialize(engine);

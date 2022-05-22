@@ -213,18 +213,14 @@ public class GameEngine extends PooledEngine {
     public void setMode(Mode mode) {
         Log.debug("GameEngine mode set to " + mode);
         this.mode = mode;
-    }
-
-    public void setupServer() {
-        mode = Mode.Server;
-        getSystem(ControlSystem.class).setControlFacing(true);
-    }
-
-    public void setupClient() {
-        mode = Mode.Client;
-        getSystem(ControlSystem.class).setControlFacing(false);
-        netDriver.setupClient();
-//        getSystem(PhysicsSystem.class).setForceFactor(NetDriver.FORCE_FACTOR);
+        switch (mode) {
+            case Server:
+                getSystem(ControlSystem.class).setControlFacing(true);
+                break;
+            case Client:
+                getSystem(ControlSystem.class).setControlFacing(false);
+                break;
+        }
     }
 
     public Mode getMode() {
