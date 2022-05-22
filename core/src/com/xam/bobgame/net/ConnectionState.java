@@ -161,6 +161,8 @@ public enum ConnectionState {
 
         @Override
         int timeout(ConnectionManager.ConnectionSlot slot) {
+            RefereeSystem refereeSystem = slot.netDriver.getEngine().getSystem(RefereeSystem.class);
+            if (refereeSystem.isEndless() && refereeSystem.getMatchState() != RefereeSystem.MatchState.Started) return 0;
             Log.info("Client " + slot.clientId + " disconnected due to inactivity");
             ClientDisconnectedEvent event = Pools.obtain(ClientDisconnectedEvent.class);
             event.clientId = slot.clientId;
@@ -411,7 +413,9 @@ public enum ConnectionState {
      */
     int update(ConnectionManager.ConnectionSlot slot, float t) {
         slot.accumulator += t;
-        if (timeoutThreshold > 0 && slot.accumulator > timeoutThreshold) return timeout(slot);
+        if (timeoutThreshold > 0 && slot.accumulator > timeoutThreshold) {
+            if (slot.state.timeout(slot) == -1) return -1;
+        }
         while (slot.packetBuffer.get(slot.syncPacket)) {
             if (!slot.state.checksSalt || slot.syncPacket.salt == slot.salt) {
                 if (slot.syncPacket.type == Packet.PacketType.Data) {

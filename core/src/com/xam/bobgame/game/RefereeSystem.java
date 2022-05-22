@@ -170,6 +170,10 @@ public class RefereeSystem extends EntitySystem {
         }
     }
 
+    public boolean isEndless() {
+        return matchDuration == 0;
+    }
+
     // TODO: Use NetSerializable interface
     public float getMatchDuration() {
         return matchDuration;
@@ -255,11 +259,26 @@ public class RefereeSystem extends EntitySystem {
             return;
         }
 
+        int winningPlayerId = -1, winningPlayerScore = 0;
+        for (int i = 0; i < playerInfos.length; ++i) {
+            PlayerInfo playerInfo = playerInfos[i];
+            if (playerInfo.inPlay) {
+                if (winningPlayerId == -1 || winningPlayerScore < playerInfo.score) {
+                    winningPlayerId = i;
+                    winningPlayerScore = playerInfo.score;
+                }
+            }
+        }
+
         matchState = MatchState.Ended;
-//        getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
-        MatchEndedEvent event = Pools.obtain(MatchEndedEvent.class);
-        getEngine().getSystem(NetDriver.class).queueClientEvent(-1, event);
-        getEngine().getSystem(EventsSystem.class).queueEvent(event);
+
+        if (winningPlayerId != -1) {
+    //        getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
+            MatchEndedEvent event = Pools.obtain(MatchEndedEvent.class);
+            event.winningPlayerId = winningPlayerId;
+            getEngine().getSystem(NetDriver.class).queueClientEvent(-1, event);
+            getEngine().getSystem(EventsSystem.class).queueEvent(event);
+        }
     }
 
     public void setLocalPlayerId(int playerId) {
@@ -278,7 +297,7 @@ public class RefereeSystem extends EntitySystem {
         }
     }
 
-    private int getPlayerCount() {
+    public int getPlayerCount() {
         int count = 0;
         for (PlayerInfo playerInfo : playerInfos) {
             if (playerInfo.inPlay) count++;
@@ -321,8 +340,6 @@ public class RefereeSystem extends EntitySystem {
                 // local server
                 playerId = localPlayerId = addPlayer();
             }
-            ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
-            netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
         }
         else {
             // remote client
@@ -338,6 +355,8 @@ public class RefereeSystem extends EntitySystem {
                 assignPlayer(clientId, slot.getPlayerId());
             }
         }
+        ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
+        netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
 
         if (playerId != -1) {
     //        spawnPlayerBall(playerId);

@@ -41,8 +41,6 @@ public class MainMenu extends Table {
     final TextButton startServerButton;
     final TextButton stopServerButton;
 
-    final Label matchTimeLabel;
-
     private final ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
     public MainMenu(Skin skin) {
@@ -139,9 +137,6 @@ public class MainMenu extends Table {
         serverCell = add(startServerButton);
         row();
 
-        add(matchTimeLabel = new Label("0", skin)).align(Align.center);
-        matchTimeLabel.setAlignment(Align.center);
-
         setSize(getPrefWidth(), getPrefHeight());
 
         listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
@@ -159,7 +154,6 @@ public class MainMenu extends Table {
         listeners.put(MatchEndedEvent.class, new EventListenerAdapter<MatchEndedEvent>() {
             @Override
             public void handleEvent(MatchEndedEvent event) {
-                matchTimeLabel.setText(0);
                 refreshElementStates();
             }
         });
@@ -170,9 +164,6 @@ public class MainMenu extends Table {
     @Override
     public void act(float delta) {
         super.act(delta);
-        if (refereeSystem.getMatchState() == RefereeSystem.MatchState.Started) {
-            matchTimeLabel.setText((int) refereeSystem.getMatchTimeRemaining());
-        }
     }
 
     void initialize(GameEngine engine) {
@@ -212,7 +203,12 @@ public class MainMenu extends Table {
 
             switch (refereeSystem.getMatchState()) {
                 case NotStarted:
-                    enabled(startMatchCell, startMatchButton);
+                    if (refereeSystem.getPlayerCount() > 0) {
+                        enabled(startMatchCell, startMatchButton);
+                    }
+                    else {
+                        disabled(startMatchCell, startMatchButton);
+                    }
                     if (refereeSystem.isLocalPlayerJoined()) {
                         disabled(joinCell, joinButton);
                     }
