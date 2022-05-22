@@ -175,6 +175,9 @@ public class RefereeSystem extends EntitySystem {
             NetDriver netDriver = getEngine().getSystem(NetDriver.class);
             netDriver.queueClientEvent(netDriver.getClientHostId(), requestJoinEvent, false);
         }
+        else {
+            joinPlayer(-1);
+        }
     }
 
     private int getEmptyPlayerSlot() {

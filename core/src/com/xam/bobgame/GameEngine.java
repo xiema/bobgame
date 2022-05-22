@@ -13,6 +13,7 @@ import com.xam.bobgame.definitions.GameDefinitions;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
+import com.xam.bobgame.events.classes.ConnectionStateRefreshEvent;
 import com.xam.bobgame.events.classes.EntityCreatedEvent;
 import com.xam.bobgame.events.classes.EntityDespawnedEvent;
 import com.xam.bobgame.game.*;
@@ -160,6 +161,7 @@ public class GameEngine extends PooledEngine {
     public void start() {
         if (mode == Mode.Server) refereeSystem.setupGame();
         resumeSystems();
+        eventsSystem.queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
     }
 
     public void pauseSystems() {

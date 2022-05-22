@@ -22,10 +22,11 @@ public class MainMenu extends Table {
     NetDriver netDriver;
     final Skin skin;
 
+    final Cell<?> startGameCell;
     final Cell<?> joinCell;
+    final Cell<?> addressCell;
     final Cell<?> connectCell;
     final Cell<?> serverCell;
-    final Cell<?> addressCell;
     final TextField serverAddressField;
     final TextButton startGameButton;
     final TextButton joinButton;
@@ -48,7 +49,6 @@ public class MainMenu extends Table {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 engine.start();
-                refereeSystem.joinPlayer(-1);
             }
         });
 
@@ -110,6 +110,8 @@ public class MainMenu extends Table {
         });
 
         defaults().align(Align.center).fill().expand();
+        startGameCell = add(startGameButton);
+        row();
         joinCell = add(joinButton);
         row();
         addressCell = add(serverAddressField);
@@ -147,12 +149,15 @@ public class MainMenu extends Table {
     void refreshElementStates() {
         // client connected
         if (netDriver.isClientConnecting()) {
+            disabled(startGameCell, startGameButton);
             disabled(joinCell, joinButton);
             disabled(addressCell, serverAddressField);
             disabled(connectCell, disconnectButton);
             disabled(serverCell, startServerButton);
         }
         else if (netDriver.isClientConnected()) {
+            disabled(startGameCell, startGameButton);
+
             if (refereeSystem.isLocalPlayerJoined()) {
                 disabled(joinCell, joinButton);
             }
@@ -166,11 +171,19 @@ public class MainMenu extends Table {
         }
         // server running
         else if (netDriver.isServerRunning()) {
+
             if (refereeSystem.isMatchStarted()) {
-                disabled(joinCell, startGameButton);
+                disabled(startGameCell, startGameButton);
+                if (refereeSystem.isLocalPlayerJoined()) {
+                    disabled(joinCell, joinButton);
+                }
+                else {
+                    enabled(joinCell, joinButton);
+                }
             }
             else {
-                enabled(joinCell, startGameButton);
+                enabled(startGameCell, startGameButton);
+                disabled(joinCell, joinButton);
             }
 
             disabled(addressCell, serverAddressField);
@@ -178,6 +191,7 @@ public class MainMenu extends Table {
             disabled(connectCell, connectButton);
         }
         else {
+            disabled(startGameCell, startGameButton);
             if (!netDriver.canReconnect()) {
                 disabled(joinCell, joinButton);
                 enabled(addressCell, serverAddressField);
