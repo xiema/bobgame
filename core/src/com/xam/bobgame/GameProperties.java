@@ -1,8 +1,11 @@
 package com.xam.bobgame;
 
 public class GameProperties {
-    public static final int WINDOW_WIDTH = 1200;
-    public static final int WINDOW_HEIGHT = 500;
+    public static final int WINDOW_WIDTH = 1280;
+    public static final int WINDOW_HEIGHT = 720;
+    public static final int FORCE_METER_WIDTH = 50;
+    public static final int FORCE_METER_HEIGHT = WINDOW_HEIGHT;
+    public static final int MENU_WIDTH = WINDOW_WIDTH - WINDOW_HEIGHT - FORCE_METER_WIDTH;
 
     public static final float MAP_WIDTH = 20f;
     public static final float MAP_HEIGHT = 20f;

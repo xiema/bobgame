@@ -7,6 +7,7 @@ import com.xam.bobgame.net.NetDriver;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Formatter;
 
 public class HeadlessCommandRunnable implements Runnable {
 
@@ -23,7 +24,8 @@ public class HeadlessCommandRunnable implements Runnable {
             try {
                 String input = br.readLine();
                 NetDriver netDriver = game.getEngine().getSystem(NetDriver.class);
-                Log.info("Bitrate send=" + netDriver.getAverageBitrate());
+                Formatter f = new Formatter();
+                Log.info(f.format("Bitrate recv=%1.2f send=%1.2f", netDriver.getAverageReceiveBitrate(), netDriver.getAverageSendBitrate()).toString());
             } catch (IOException e) {
                 e.printStackTrace();
             }

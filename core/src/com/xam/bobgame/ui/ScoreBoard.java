@@ -43,10 +43,21 @@ public class ScoreBoard extends Table {
 
         setBackground(skin.getDrawable("window"));
 
-        columnDefaults(0).align(Align.left).fill().expand();
-        columnDefaults(1).align(Align.right).fill().expand();
-        columnDefaults(2).align(Align.center).fill().expand();
-        columnDefaults(3).align(Align.right).fill().expand();
+        columnDefaults(0).align(Align.center).fillY().expandY().expandX();
+        columnDefaults(1).align(Align.center).fillY().expandY().width(90).spaceLeft(15);
+        columnDefaults(2).align(Align.center).fillY().expandY().width(90);
+        columnDefaults(3).align(Align.center).fillY().expandY().width(110);
+
+        Label label;
+        add(label = new Label("Name", skin, "defaultWhite"));
+        label.setAlignment(Align.center);
+        add(label = new Label("Score", skin, "defaultWhite"));
+        label.setAlignment(Align.center);
+        add(label = new Label("Spawn", skin, "defaultWhite"));
+        label.setAlignment(Align.center);
+        add(label = new Label("Ping", skin, "defaultWhite"));
+        label.setAlignment(Align.center);
+        row();
 
         for (int i = 0; i < playerNameLabels.length; ++i) {
             playerNameCells[i] = add(playerNameLabels[i] = new Label("", skin));
@@ -54,9 +65,10 @@ public class ScoreBoard extends Table {
             playerRespawnTimeCells[i] = add(playerRespawnTimeLabels[i] = new Label("", skin));
             playerLatencyCells[i] = add(playerLatencyLabels[i] = new Label("", skin));
 
+            playerNameLabels[i].setAlignment(Align.center);
             playerRespawnTimeLabels[i].setAlignment(Align.center);
-            playerScoreLabels[i].setAlignment(Align.right);
-            playerLatencyLabels[i].setAlignment(Align.right);
+            playerScoreLabels[i].setAlignment(Align.center);
+            playerLatencyLabels[i].setAlignment(Align.center);
             row();
         }
 
@@ -94,8 +106,8 @@ public class ScoreBoard extends Table {
     }
 
     private void reposition() {
-        setSize(350, 500);
-        setPosition(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT, Align.topRight);
+//        setSize(GameProperties.MENU_WIDTH, );
+//        setPosition(GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT, Align.topRight);
     }
 
     private void setPlayerStyle(int playerId, String styleName) {
@@ -166,7 +178,7 @@ public class ScoreBoard extends Table {
             playerLatencyLabels[playerId].setText(formatter.format("%1.2f", latency).toString());
         }
         else {
-            playerLatencyLabels[playerId].setText("");
+            playerLatencyLabels[playerId].setText("-");
         }
     }
 

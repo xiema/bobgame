@@ -157,8 +157,6 @@ public class MainMenu extends Table {
                 refreshElementStates();
             }
         });
-
-        setWidth(350);
     }
 
     @Override

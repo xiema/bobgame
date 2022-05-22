@@ -13,7 +13,6 @@ import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 
 public class ForceMeter extends ProgressBar {
-
     private boolean buttonState = false;
     private float holdDuration = 0;
     private float forceValue = -1;
@@ -25,8 +24,8 @@ public class ForceMeter extends ProgressBar {
 
     public ForceMeter(Skin skin) {
         super(0, 100, 1, true, skin);
-        getStyle().background.setMinWidth(50);
-        getStyle().knobBefore.setMinWidth(50);
+        getStyle().background.setMinWidth(GameProperties.FORCE_METER_WIDTH);
+        getStyle().knobBefore.setMinWidth(GameProperties.FORCE_METER_WIDTH);
         setWidth(50);
 
         listeners.put(PlayerControlEvent.class, new EventListenerAdapter<PlayerControlEvent>() {
@@ -67,7 +66,7 @@ public class ForceMeter extends ProgressBar {
         else {
             forceValue = 0;
         }
-        setHeight(stamina * 3);
+        setHeight(GameProperties.FORCE_METER_HEIGHT * stamina / 100f);
         setRange(0, stamina);
         setValue(forceValue <= stamina ? forceValue : (2 * stamina - forceValue));
     }

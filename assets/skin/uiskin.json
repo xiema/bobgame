@@ -117,6 +117,10 @@ com.badlogic.gdx.scenes.scene2d.ui.Label$LabelStyle: {
 		font: commodore-64,
 		fontColor: white
 	},
+	defaultWhite: {
+		font: commodore-64,
+		fontColor: white
+	},
 	error: {
 		font: commodore-64,
 		fontColor: { a: 1, b: 0.4, g: 0.4, r: 0.4 }

@@ -121,7 +121,7 @@ public class BoBGame extends ApplicationAdapter {
 		uiViewport.update(width, height);
 		int w = uiViewport.getScreenWidth(), h = uiViewport.getScreenHeight();
 		viewport.update(w, h);
-		viewport.setScreenPosition(uiViewport.getScreenX() + (w - viewport.getScreenWidth()) / 2, uiViewport.getScreenY() + (h - viewport.getScreenHeight()) / 2);
+		viewport.setScreenPosition(uiViewport.getScreenX() + GameProperties.FORCE_METER_WIDTH, uiViewport.getScreenY());
 		if (devMode) devTools.resize(width, height);
 	}
 

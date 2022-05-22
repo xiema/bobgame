@@ -26,6 +26,7 @@ public class NetDriver extends EntitySystem {
     public static final int MAX_CLIENTS = 32;
     public static final int MAX_MESSAGE_HISTORY = 256;
     public static final int SERVER_UPDATE_FREQUENCY = 3;
+    public static final int CLIENT_UPDATE_FREQUENCY = 1;
     public static final int PORT_TCP = 55192;
     public static final int PORT_UDP = 55196;
     public static final int PACKET_SEQUENCE_LIMIT = 128;
@@ -82,8 +83,10 @@ public class NetDriver extends EntitySystem {
      */
     final Array<ClientEvent> clientEvents = new Array<>(false, 4);
 
-    private ExpoMovingAverage movingAverage = new ExpoMovingAverage(0.1f);
-    private float bitrate = 0;
+    private final ExpoMovingAverage sendBitrateAverage = new ExpoMovingAverage(0.1f);
+    private final ExpoMovingAverage receiveBitrateAverage = new ExpoMovingAverage(0.1f);
+    private float sendBitrate = 0;
+    private float receiveBitrate = 0;
     private int sentBytes = 0;
     private int receivedBytes = 0;
 
@@ -148,14 +151,14 @@ public class NetDriver extends EntitySystem {
         }
         for (ClientEvent clientEvent : clientEvents) Pools.free(clientEvent);
         clientEvents.clear();
-        movingAverage.reset();
+        sendBitrateAverage.reset();
+        receiveBitrateAverage.reset();
 //        connectionManager.clear();
         transport.clearDropped();
     }
 
     @Override
     public void update(float deltaTime) {
-        serialization.clearBits();
         connectionManager.update(deltaTime);
 
         RefereeSystem refereeSystem = getEngine().getSystem(RefereeSystem.class);
@@ -217,8 +220,13 @@ public class NetDriver extends EntitySystem {
     }
 
     private void updateBitRate(float deltaTime) {
-        bitrate = sentBytes * 8 / deltaTime;
-        if (!Float.isNaN(bitrate)) movingAverage.update(bitrate);
+        int sent = sentBytes, received = receivedBytes;
+        sentBytes = 0;
+        receivedBytes = 0;
+        sendBitrate = sent * 8 / deltaTime;
+        receiveBitrate = received * 8 / deltaTime;
+        sendBitrateAverage.update(Float.isNaN(sendBitrate) ? 0 : sendBitrate);
+        receiveBitrateAverage.update(Float.isNaN(receiveBitrate) ? 0 : receiveBitrate);
     }
 
     private void updateDropped() {
@@ -245,11 +253,15 @@ public class NetDriver extends EntitySystem {
     }
 
     public float getBitRate() {
-        return bitrate;
+        return sendBitrate;
     }
 
-    public float getAverageBitrate() {
-        return movingAverage.getAverage();
+    public float getAverageSendBitrate() {
+        return sendBitrateAverage.getAverage();
+    }
+
+    public float getAverageReceiveBitrate() {
+        return receiveBitrateAverage.getAverage();
     }
 
     public boolean startServer() {
@@ -354,12 +366,14 @@ public class NetDriver extends EntitySystem {
                 byteBuffer.put((byte) 0xF2);
                 super.write(connection, byteBuffer, o);
             }
+
             sentBytes += byteBuffer.position() - i;
         }
 
         @Override
         public Object read(Connection connection, ByteBuffer byteBuffer) {
             int i = byteBuffer.position();
+            Object r = null;
             readBitPacker.setBuffer(byteBuffer);
 
             byte b = byteBuffer.get();
@@ -371,8 +385,7 @@ public class NetDriver extends EntitySystem {
 //                        Log.debug("Received Packet " + returnPacket);
                         synchronized (transport) {
                             if (!transport.updateReceived(returnPacket, clientId)) {
-                                receivedBytes += byteBuffer.position() - i;
-                                return returnPacket;
+                                r = returnPacket;
                             }
                         }
                     }
@@ -383,27 +396,20 @@ public class NetDriver extends EntitySystem {
             }
             else if (b == (byte) 0xF2) {
                 try {
-                    Object r = super.read(connection, byteBuffer);
-                    receivedBytes += byteBuffer.position() - i;
-                    return r;
+                    r = super.read(connection, byteBuffer);
                 } catch (KryoException e) {
                     Log.error("NetSerialization.read", "" + e.getClass() + " " + e.getMessage());
+                    byteBuffer.position(byteBuffer.limit());
 //                    e.printStackTrace();
                 }
             }
             else {
                 Log.error("NetSerialization.read", "Bad type: " + b);
+                byteBuffer.position(byteBuffer.limit());
             }
 
-            byteBuffer.position(byteBuffer.limit());
             receivedBytes += byteBuffer.position() - i;
-
-            return null;
-        }
-
-        public void clearBits() {
-            sentBytes = 0;
-            receivedBytes = 0;
+            return r;
         }
     }
 }

@@ -18,6 +18,8 @@ import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.net.NetDriver;
 
+import java.util.Formatter;
+
 public class UIStage extends Stage {
 
     final BoBGame game;
@@ -26,7 +28,8 @@ public class UIStage extends Stage {
     final NetDriver netDriver;
     final Skin skin;
 
-    final Label bitrateLabel;
+    final Label sendBitrateLabel;
+    final Label receiveBitrateLabel;
     final Label matchTimeLabel;
     final Label winLabel;
 
@@ -45,35 +48,66 @@ public class UIStage extends Stage {
         netDriver = engine.getSystem(NetDriver.class);
         refereeSystem = engine.getSystem(RefereeSystem.class);
 
-        bitrateLabel = new Label("0", skin) {
-            @Override
-            public void act(float delta) {
-                super.act(delta);
-                setText(String.valueOf(netDriver.getAverageBitrate()));
-            }
-        };
-        bitrateLabel.setPosition(0, 0, Align.bottomLeft);
-        addActor(bitrateLabel);
-
-        mainMenu = new MainMenu(skin);
-        mainMenu.setPosition(0, GameProperties.WINDOW_HEIGHT, Align.topLeft);
-        addActor(mainMenu);
-
         forceMeter = new ForceMeter(skin);
-        forceMeter.setPosition(350, 0, Align.bottomRight);
+        forceMeter.setPosition(0, 0, Align.bottomLeft);
         addActor(forceMeter);
 
+        Table menuTable = new Table();
+        menuTable.setSize(GameProperties.MENU_WIDTH, GameProperties.WINDOW_HEIGHT);
+        menuTable.setPosition(GameProperties.WINDOW_WIDTH, 0, Align.bottomRight);
+
         scoreBoard = new ScoreBoard(skin);
-        addActor(scoreBoard);
+//        scoreBoard.setWidth(GameProperties.MENU_WIDTH);
+        menuTable.add(scoreBoard).colspan(2).fill().expand();
+        menuTable.row();
+
+        mainMenu = new MainMenu(skin);
+//        mainMenu.setPosition(GameProperties.WINDOW_WIDTH, 0, Align.bottomRight);
+        menuTable.add(mainMenu).align(Align.left).width(GameProperties.MENU_WIDTH * 0.5f);
 
         matchTimeLabel = new Label("0", skin);
         matchTimeLabel.setAlignment(Align.center);
-        matchTimeLabel.setPosition(0.5f * GameProperties.WINDOW_WIDTH, GameProperties.WINDOW_HEIGHT - 15f, Align.top);
+        matchTimeLabel.setPosition(0.5f * GameProperties.WINDOW_HEIGHT + GameProperties.FORCE_METER_WIDTH, GameProperties.WINDOW_HEIGHT - 15f, Align.top);
         addActor(matchTimeLabel);
-
         winLabel = new Label("", skin);
         winLabel.setAlignment(Align.center);
-        winLabel.setPosition(0.5f * GameProperties.WINDOW_WIDTH, 0.5f * GameProperties.WINDOW_HEIGHT, Align.center);
+        winLabel.setPosition(0.5f * GameProperties.WINDOW_HEIGHT + GameProperties.FORCE_METER_WIDTH, 0.5f * GameProperties.WINDOW_HEIGHT, Align.center);
+
+        Table subTable = new Table();
+        menuTable.add(subTable).width(GameProperties.MENU_WIDTH * 0.5f);
+
+        subTable.defaults().expand().fill();
+        sendBitrateLabel = new Label("0", skin) {
+            @Override
+            public void act(float delta) {
+                super.act(delta);
+                Formatter formatter = new Formatter();
+                setText(formatter.format("%1.2f", netDriver.getAverageSendBitrate()).toString());
+            }
+        };
+        sendBitrateLabel.setAlignment(Align.right);
+        sendBitrateLabel.setPosition(GameProperties.WINDOW_WIDTH, 0, Align.bottomRight);
+        receiveBitrateLabel = new Label("0", skin) {
+            @Override
+            public void act(float delta) {
+                super.act(delta);
+                Formatter formatter = new Formatter();
+                setText(formatter.format("%1.2f", netDriver.getAverageReceiveBitrate()).toString());
+            }
+        };
+        receiveBitrateLabel.setAlignment(Align.right);
+        receiveBitrateLabel.setPosition(GameProperties.WINDOW_WIDTH, 0, Align.bottomRight);
+
+        Label label;
+        subTable.add(label = new Label("Recv", skin));
+        subTable.add(receiveBitrateLabel).align(Align.right);
+        label.setAlignment(Align.right);
+        subTable.row();
+        subTable.add(label = new Label("Send", skin));
+        label.setAlignment(Align.right);
+        subTable.add(sendBitrateLabel).align(Align.right);
+
+        addActor(menuTable);
 
         ((InputMultiplexer) Gdx.input.getInputProcessor()).addProcessor(this);
 

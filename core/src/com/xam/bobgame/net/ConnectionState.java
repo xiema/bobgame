@@ -286,31 +286,32 @@ public enum ConnectionState {
             if (super.update(slot, t) == -1) return -1;
             slot.netDriver.messageReader.consistencyCheck();
 
-            boolean sent = false;
-
-            // send events
-            for (NetDriver.ClientEvent clientEvent : slot.netDriver.clientEvents) {
-//                Log.info("Send event " + clientEvent.event);
-                if (clientEvent.serializedMessage.messageId == -1) {
-                    slot.netDriver.messageReader.serializeEvent(clientEvent.serializedMessage, clientEvent.event);
+            if (((GameEngine) slot.netDriver.getEngine()).getCurrentFrame() % NetDriver.CLIENT_UPDATE_FREQUENCY == 0) {
+                boolean sent = false;
+                // send events
+                for (NetDriver.ClientEvent clientEvent : slot.netDriver.clientEvents) {
+    //                Log.info("Send event " + clientEvent.event);
+                    if (clientEvent.serializedMessage.messageId == -1) {
+                        slot.netDriver.messageReader.serializeEvent(clientEvent.serializedMessage, clientEvent.event);
+                    }
+                    slot.sendPacket.addMessage(clientEvent.serializedMessage);
+                    slot.sendPacket.requestSnapshot = slot.needsSnapshot;
+                    slot.needsSnapshot = false;
+                    slot.sendDataPacket(slot.sendPacket);
+                    slot.sendPacket.clear();
+                    sent = true;
+                    Pools.free(clientEvent);
                 }
-                slot.sendPacket.addMessage(clientEvent.serializedMessage);
-                slot.sendPacket.requestSnapshot = slot.needsSnapshot;
-                slot.needsSnapshot = false;
-                slot.sendDataPacket(slot.sendPacket);
-                slot.sendPacket.clear();
-                sent = true;
-                Pools.free(clientEvent);
-            }
-            slot.netDriver.clientEvents.clear();
+                slot.netDriver.clientEvents.clear();
 
-            // send heartbeat if needed
-            if (!sent) {
-                slot.sendPacket.type = Packet.PacketType.Empty;
-                slot.sendPacket.requestSnapshot = slot.needsSnapshot;
-                slot.needsSnapshot = false;
-                slot.sendTransportPacket(slot.sendPacket);
-                slot.sendPacket.clear();
+                // send heartbeat if needed
+                if (!sent) {
+                    slot.sendPacket.type = Packet.PacketType.Empty;
+                    slot.sendPacket.requestSnapshot = slot.needsSnapshot;
+                    slot.needsSnapshot = false;
+                    slot.sendTransportPacket(slot.sendPacket);
+                    slot.sendPacket.clear();
+                }
             }
             return 0;
         }
