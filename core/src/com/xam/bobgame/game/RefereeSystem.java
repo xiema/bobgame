@@ -113,6 +113,7 @@ public class RefereeSystem extends EntitySystem {
             PlayerInfo playerInfo = playerInfos[i];
             playerInfo.reset();
         }
+        sortedPlayerInfos.clear();
         matchState = MatchState.NotStarted;
         matchTime = 0;
         localPlayerId = -1;
