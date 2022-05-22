@@ -9,10 +9,7 @@ import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.events.*;
-import com.xam.bobgame.events.classes.EntityCreatedEvent;
-import com.xam.bobgame.events.classes.EntityDespawnedEvent;
-import com.xam.bobgame.events.classes.PlayerControlEvent;
-import com.xam.bobgame.events.classes.ScoreBoardRefreshEvent;
+import com.xam.bobgame.events.classes.*;
 import com.xam.bobgame.game.*;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
@@ -68,7 +65,7 @@ public class MessageReader {
         if (notUpdated.notEmpty()) {
             for (int i = 0; i < notUpdated.size; ++i) {
                 int entityId = notUpdated.get(i);
-                Log.warn("Entity " + entityId + " was not updated");
+                Log.debug("Entity " + entityId + " was not updated");
                 Entity entity = ((GameEngine) netDriver.getEngine()).getEntityById(entityId);
                 if (entity != null) {
                     netDriver.getEngine().removeEntity(entity);
@@ -98,6 +95,7 @@ public class MessageReader {
                 }
                 break;
             case Snapshot:
+                Log.debug("Deserializing system snapshot...");
                 readSystemSnapshot();
                 break;
             case Input:
@@ -130,6 +128,7 @@ public class MessageReader {
                 if (readSystemUpdate() == -1) return -1;
                 break;
             case Snapshot:
+                Log.debug("Serializing system snapshot...");
                 if (readSystemSnapshot() == -1) return -1;
                 break;
             case Empty:
@@ -194,6 +193,10 @@ public class MessageReader {
             EntityCreatedEvent entityCreatedEvent = (EntityCreatedEvent) event;
             nonExistent.removeValue(entityCreatedEvent.entityId);
         }
+        // TODO: Maybe use separate event
+        else if (event instanceof MatchRestartEvent) {
+            notUpdated.clear();
+        }
 
         if (packer.isReadMode()) {
             event.clientId = clientId;
@@ -206,6 +209,7 @@ public class MessageReader {
     }
 
     private int readSystemUpdate() {
+        readGameInfo();
         readPhysicsBodies();
         readControlStates();
         readPlayerInfos(false);
@@ -216,6 +220,7 @@ public class MessageReader {
     private final EntityCreatedEvent entityCreator = Pools.obtain(EntityCreatedEvent.class);
 
     private int readSystemSnapshot() {
+        readGameInfo();
         ImmutableArray<Entity> entities = netDriver.getEngine().getEntities();
         int cnt = packer.readInt(entities.size(), 0, NetDriver.MAX_ENTITY_ID);
         int i = 0;
@@ -231,6 +236,19 @@ public class MessageReader {
 
         readPlayerInfos(true);
 
+        return 0;
+    }
+
+    private int readGameInfo() {
+        RefereeSystem refereeSystem = netDriver.getEngine().getSystem(RefereeSystem.class);
+        RefereeSystem.MatchState matchState = RefereeSystem.MatchState.values()[packer.readInt(refereeSystem.getMatchState().value, 0, RefereeSystem.MatchState.values().length)];
+        float matchTime = packer.readFloat(refereeSystem.getMatchTime(), 0, NetDriver.MAX_MATCH_TIME, NetDriver.RES_MATCH_TIME);
+        float matchDuration = packer.readFloat(refereeSystem.getMatchDuration(), 0, NetDriver.MAX_MATCH_TIME, NetDriver.RES_MATCH_TIME);
+        if (packer.isReadMode()) {
+            refereeSystem.setMatchState(matchState);
+            refereeSystem.setMatchTime(matchTime);
+            refereeSystem.setMatchDuration(matchDuration);
+        }
         return 0;
     }
 

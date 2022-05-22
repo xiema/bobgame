@@ -31,7 +31,9 @@ public class RefereeSystem extends EntitySystem {
 
     private final PlayerInfo[] playerInfos = new PlayerInfo[NetDriver.MAX_CLIENTS];
 
-    private boolean matchStarted = false;
+    private MatchState matchState = MatchState.NotStarted;
+    private float matchTime = 0;
+    private float matchDuration = GameProperties.MATCH_TIME;
 
     public RefereeSystem(int priority) {
         super(priority);
@@ -61,8 +63,9 @@ public class RefereeSystem extends EntitySystem {
         listeners.put(PlayerScoreEvent.class, new EventListenerAdapter<PlayerScoreEvent>() {
             @Override
             public void handleEvent(PlayerScoreEvent event) {
+                if (matchState != MatchState.Started) return;
                 if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
-                    playerInfos[event.playerId].score += event.scoreIncrement;
+                    modifyPlayerScore(event.playerId, event.scoreIncrement);
                     ScoreBoardRefreshEvent scoreBoardEvent = Pools.obtain(ScoreBoardRefreshEvent.class);
                     getEngine().getSystem(NetDriver.class).queueClientEvent(-1, scoreBoardEvent, true);
                     getEngine().getSystem(EventsSystem.class).triggerEvent(scoreBoardEvent);
@@ -103,10 +106,12 @@ public class RefereeSystem extends EntitySystem {
     }
 
     private void reset() {
-        for (PlayerInfo playerInfo : playerInfos) {
+        for (int i = 0; i < playerInfos.length; ++i) {
+            PlayerInfo playerInfo = playerInfos[i];
             playerInfo.reset();
         }
-        matchStarted = false;
+        matchState = MatchState.NotStarted;
+        matchTime = 0;
         localPlayerId = -1;
     }
 
@@ -116,13 +121,71 @@ public class RefereeSystem extends EntitySystem {
             if (!playerInfos[i].inPlay) continue;
             playerInfos[i].respawnTime = Math.max(0, playerInfos[i].respawnTime - deltaTime);
             playerInfos[i].stamina = Math.max(GameProperties.PLAYER_STAMINA_MIN, Math.min(100, playerInfos[i].stamina + deltaTime * GameProperties.PLAYER_STAMINA_RECOVERY));
-            if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server && playerInfos[i].respawnTime <= 0 && playerInfos[i].controlledEntityId == -1) spawnPlayerBall(i);
+            if (matchState != MatchState.NotStarted && ((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server && playerInfos[i].respawnTime <= 0 && playerInfos[i].controlledEntityId == -1)
+                spawnPlayerBall(i);
+        }
+
+        if (matchState == MatchState.Started && ((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
+            matchTime += deltaTime;
+            if (matchTime >= matchDuration) {
+                endMatch();
+            }
         }
     }
 
+    public boolean modifyPlayerScore(int playerId, int amount) {
+        if (matchState == MatchState.Started && playerInfos[playerId].inPlay) {
+            playerInfos[playerId].score += amount;
+            return true;
+        }
+        return false;
+    }
 
-    public boolean isMatchStarted() {
-        return matchStarted;
+    public MatchState getMatchState() {
+        return matchState;
+    }
+
+    public void setMatchState(MatchState matchState) {
+        if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Client) {
+            if (this.matchState != matchState) {
+                this.matchState = matchState;
+                getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
+            }
+        }
+        else {
+            Log.error("RefereeSystem", "Tried to set match state in server");
+        }
+    }
+
+    public float getMatchTime() {
+        return matchTime;
+    }
+
+    public void setMatchTime(float matchTime) {
+        if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Client) {
+            this.matchTime = matchTime;
+        }
+        else {
+            Log.error("Attempted to set match time in Server");
+        }
+    }
+
+    // TODO: Use NetSerializable interface
+    public float getMatchDuration() {
+        return matchDuration;
+    }
+
+    public void setMatchDuration(float matchDuration) {
+        if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Client) {
+            this.matchDuration = matchDuration;
+        }
+        else {
+            Log.error("Attempted to set match duration in Server");
+        }
+    }
+
+    public float getMatchTimeRemaining() {
+        return matchDuration - matchTime;
     }
 
     public boolean isLocalPlayerJoined() {
@@ -161,7 +224,42 @@ public class RefereeSystem extends EntitySystem {
     public void setupGame() {
         Entity entity = EntityFactory.createHoleHazard(getEngine(), MathUtils.random(2, GameProperties.MAP_WIDTH -2), MathUtils.random(2, GameProperties.MAP_HEIGHT -2), 2);
         getEngine().addEntity(entity);
-        matchStarted = true;
+    }
+
+    public void startMatch() {
+        if (((GameEngine) getEngine()).getMode() != GameEngine.Mode.Server) {
+            Log.error("Cannot start match from client");
+            return;
+        }
+        if (matchState != MatchState.NotStarted) {
+            Log.error("RefereeSystem", "Attempted to start match that is already started or has ended");
+            return;
+        }
+        if (getPlayerCount() == 0) {
+            Log.info("Cannot start match with 0 players");
+            return;
+        }
+
+        matchState = MatchState.Started;
+        // TODO: send specific event
+        getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
+    }
+
+    public void endMatch() {
+        if (((GameEngine) getEngine()).getMode() != GameEngine.Mode.Server) {
+            Log.error("RefereeSystem", "Attempted to end match from client");
+            return;
+        }
+        if (matchState != MatchState.Started) {
+            Log.error("RefereeSystem", "Attempted to end a match that has not yet started or is already ended");
+            return;
+        }
+
+        matchState = MatchState.Ended;
+//        getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
+        MatchEndedEvent event = Pools.obtain(MatchEndedEvent.class);
+        getEngine().getSystem(NetDriver.class).queueClientEvent(-1, event);
+        getEngine().getSystem(EventsSystem.class).queueEvent(event);
     }
 
     public void setLocalPlayerId(int playerId) {
@@ -178,6 +276,14 @@ public class RefereeSystem extends EntitySystem {
         else {
             joinPlayer(-1);
         }
+    }
+
+    private int getPlayerCount() {
+        int count = 0;
+        for (PlayerInfo playerInfo : playerInfos) {
+            if (playerInfo.inPlay) count++;
+        }
+        return count;
     }
 
     private int getEmptyPlayerSlot() {
@@ -200,6 +306,11 @@ public class RefereeSystem extends EntitySystem {
     }
 
     public void joinPlayer(int clientId) {
+        if (matchState != MatchState.NotStarted) {
+            Log.error("RefereeSystem", "Attempted a match that has already started/ended");
+            return;
+        }
+
         GameEngine engine = (GameEngine) getEngine();
         NetDriver netDriver = engine.getSystem(NetDriver.class);
 
@@ -294,7 +405,7 @@ public class RefereeSystem extends EntitySystem {
         pb.body.setTransform(pb.bodyDef.position.x, pb.bodyDef.position.y, 0);
         pb.body.setLinearVelocity(0, 0);
 
-        playerInfos[playerId].score--;
+        modifyPlayerScore(playerId, -1);
 
         NetDriver netDriver = getEngine().getSystem(NetDriver.class);
 
@@ -315,5 +426,15 @@ public class RefereeSystem extends EntitySystem {
 
     public PlayerInfo getPlayerInfo(int playerId) {
         return playerInfos[playerId];
+    }
+
+    public enum MatchState {
+        NotStarted(0), Started(1), Ended(2);
+
+        public final int value;
+
+        MatchState(int value) {
+            this.value = value;
+        }
     }
 }

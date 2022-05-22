@@ -142,6 +142,22 @@ public class ConnectionManager {
         }
     }
 
+    public void setNeedsSnapshots() {
+        for (ConnectionSlot slot : connectionSlots) {
+            if (slot != null) {
+                slot.needsSnapshot = true;
+            }
+        }
+    }
+
+    public void resetLastSnapshotFrames() {
+        for (ConnectionSlot slot : connectionSlots) {
+            if (slot != null) {
+                slot.lastSnapshotFrame = -1;
+            }
+        }
+    }
+
     public ConnectionManager.ConnectionSlot getConnectionSlot(int clientId) {
         return connectionSlots[clientId];
     }
@@ -157,6 +173,12 @@ public class ConnectionManager {
             if (connectionSlots[i] != null && connectionSlots[i].playerId == playerId) return i;
         }
         return -1;
+    }
+
+    public void resetPlayerIds() {
+        for (ConnectionSlot slot : connectionSlots) {
+            if (slot != null) slot.playerId = -1;
+        }
     }
 
     public int getClientId(Connection connection) {

@@ -15,7 +15,6 @@ import com.xam.bobgame.game.PlayerInfo;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.utils.BitPacker;
 import com.xam.bobgame.utils.Bits2;
-import com.xam.bobgame.utils.DebugUtils;
 import com.xam.bobgame.utils.ExpoMovingAverage;
 
 import java.nio.ByteBuffer;
@@ -59,6 +58,9 @@ public class NetDriver extends EntitySystem {
     public static final int MAX_SCORE = 511;
     public static final int MAX_SCORE_INCREMENT = 31;
 
+    public static final float RES_MATCH_TIME = 1;
+    public static final float MAX_MATCH_TIME = 1800;
+
     public static final float VEL_SMOOTHING_FACTOR = 1.2f;
 
     public static final float FRICTION_FACTOR = 2f;
@@ -96,6 +98,8 @@ public class NetDriver extends EntitySystem {
             EntityCreatedEvent.class,
             EntityDespawnedEvent.class,
             RequestJoinEvent.class,
+            MatchEndedEvent.class,
+            MatchRestartEvent.class,
     };
 
     public static int getNetworkEventIndex(Class<? extends NetworkEvent> clazz) {
@@ -131,8 +135,6 @@ public class NetDriver extends EntitySystem {
 
     @Override
     public void addedToEngine(Engine engine) {
-        // TODO: set this here?
-        client.reconnectSalt = GameProfile.clientSalt;
         EventsSystem eventsSystem = engine.getSystem(EventsSystem.class);
         eventsSystem.addListeners(listeners);
         eventsSystem.addListeners(client.listeners);
@@ -148,7 +150,7 @@ public class NetDriver extends EntitySystem {
         for (ClientEvent clientEvent : clientEvents) Pools.free(clientEvent);
         clientEvents.clear();
         movingAverage.reset();
-        connectionManager.clear();
+//        connectionManager.clear();
         transport.clearDropped();
     }
 

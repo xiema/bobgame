@@ -113,10 +113,9 @@ public class NetServer extends Server {
                 }
             }
             if (snapshotPacket.messageCount > 0) {
-                connectionSlot.needsSnapshot = false;
                 connectionSlot.lastSnapshotFrame = currentFrame;
                 sendPacket.addMessage(snapshotPacket.getMessage(0));
-    //            Log.info("Send snapshot " + snapshotPacket.getMessage());
+//                Log.debug("Sending snapshot to Client " + connectionSlot.clientId + " (" + connectionSlot.playerId + ")");
             }
         }
         else {
@@ -162,6 +161,7 @@ public class NetServer extends Server {
         if (sendPacket.getMessageCount() > 0) {
             connectionSlot.sendDataPacket(sendPacket);
         }
+        connectionSlot.needsSnapshot = false;
 
         sendPacket.clear();
     }

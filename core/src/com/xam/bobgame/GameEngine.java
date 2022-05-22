@@ -13,9 +13,7 @@ import com.xam.bobgame.definitions.GameDefinitions;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
-import com.xam.bobgame.events.classes.ConnectionStateRefreshEvent;
-import com.xam.bobgame.events.classes.EntityCreatedEvent;
-import com.xam.bobgame.events.classes.EntityDespawnedEvent;
+import com.xam.bobgame.events.classes.*;
 import com.xam.bobgame.game.*;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.OrderedIntMap;
@@ -43,6 +41,7 @@ public class GameEngine extends PooledEngine {
     private float currentTime = 0;
 
     private boolean stopping = false;
+    private boolean restarting = false;
 
     private final OrderedIntMap<Entity> entityMap = new OrderedIntMap<>();
 
@@ -94,6 +93,13 @@ public class GameEngine extends PooledEngine {
 
             }
         });
+
+        listeners.put(MatchRestartEvent.class, new EventListenerAdapter<MatchRestartEvent>() {
+            @Override
+            public void handleEvent(MatchRestartEvent event) {
+                restart();
+            }
+        });
     }
 
     public void initialize() {
@@ -116,8 +122,18 @@ public class GameEngine extends PooledEngine {
     public void update(float deltaTime) {
         if (stopping) {
             stopInternal();
-            for (EntitySystem system : getSystems()) system.setProcessing(true);
-            pauseSystems();
+//            for (EntitySystem system : getSystems()) system.setProcessing(true);
+            if (restarting) {
+                restarting = false;
+                start();
+                if (mode == Mode.Client) {
+                    netDriver.getConnectionManager().setNeedsSnapshots();
+                }
+                netDriver.getConnectionManager().resetLastSnapshotFrames();
+            }
+            else {
+                pauseSystems();
+            }
             return;
         }
         super.update(deltaTime);
@@ -127,6 +143,8 @@ public class GameEngine extends PooledEngine {
     }
 
     private void stopInternal() {
+        netDriver.getConnectionManager().resetPlayerIds();
+
         // remove systems
         Array<EntitySystem> systems = new Array<>();
         removeSystem(netDriver);
@@ -153,15 +171,30 @@ public class GameEngine extends PooledEngine {
     }
 
     public void stop() {
-        removeAllEntities();
         stopping = true;
-        for (EntitySystem system : getSystems()) system.setProcessing(false);
+        removeAllEntities();
+//        for (EntitySystem system : getSystems()) system.setProcessing(false);
     }
 
     public void start() {
-        if (mode == Mode.Server) refereeSystem.setupGame();
+        if (stopping) {
+            Log.error("GameEngine", "Attempted to start GameEngine but it is still stopping");
+            return;
+        }
+        if (mode == Mode.Server) {
+            refereeSystem.setupGame();
+        }
         resumeSystems();
         eventsSystem.queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
+    }
+
+    public void restart() {
+        Log.info("Restarting engine...");
+        stop();
+        restarting = true;
+        if (mode == Mode.Server) {
+            netDriver.queueClientEvent(-1, Pools.obtain(MatchRestartEvent.class));
+        }
     }
 
     public void pauseSystems() {
@@ -197,9 +230,11 @@ public class GameEngine extends PooledEngine {
         int entityID = iden.id;
         entityMap.remove(entityID);
         if (mode == Mode.Server) {
-            EntityDespawnedEvent event = Pools.obtain(EntityDespawnedEvent.class);
-            event.entityId = EntityUtils.getId(entity);
-            netDriver.queueClientEvent(-1, event, false);
+            if (!stopping) {
+                EntityDespawnedEvent event = Pools.obtain(EntityDespawnedEvent.class);
+                event.entityId = EntityUtils.getId(entity);
+                netDriver.queueClientEvent(-1, event, false);
+            }
         }
         super.removeEntity(entity);
     }

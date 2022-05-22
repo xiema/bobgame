@@ -7,9 +7,12 @@ import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.badlogic.gdx.utils.Pools;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.events.classes.ConnectionStateRefreshEvent;
+import com.xam.bobgame.events.classes.MatchEndedEvent;
+import com.xam.bobgame.events.classes.MatchRestartEvent;
 import com.xam.bobgame.events.classes.PlayerAssignEvent;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.net.NetDriver;
@@ -22,13 +25,14 @@ public class MainMenu extends Table {
     NetDriver netDriver;
     final Skin skin;
 
-    final Cell<?> startGameCell;
+    final Cell<?> startMatchCell;
     final Cell<?> joinCell;
     final Cell<?> addressCell;
     final Cell<?> connectCell;
     final Cell<?> serverCell;
     final TextField serverAddressField;
-    final TextButton startGameButton;
+    final TextButton startMatchButton;
+    final TextButton newMatchButton;
     final TextButton joinButton;
     final TextButton leaveButton;
     final TextButton connectButton;
@@ -37,6 +41,8 @@ public class MainMenu extends Table {
     final TextButton startServerButton;
     final TextButton stopServerButton;
 
+    final Label matchTimeLabel;
+
     private final ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
     public MainMenu(Skin skin) {
@@ -44,11 +50,22 @@ public class MainMenu extends Table {
 
         serverAddressField = new TextField(GameProfile.lastConnectedServerAddress, skin);
 
-        startGameButton = new TextButton("Start Game", skin);
-        startGameButton.addListener(new ClickListener() {
+        startMatchButton = new TextButton("Start Match", skin);
+        startMatchButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                engine.start();
+                refereeSystem.startMatch();
+            }
+        });
+
+        newMatchButton = new TextButton("New Match", skin);
+        newMatchButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (engine.getMode() == GameEngine.Mode.Server) {
+                    MatchRestartEvent e = Pools.obtain(MatchRestartEvent.class);
+                    engine.getSystem(EventsSystem.class).queueEvent(e);
+                }
             }
         });
 
@@ -98,6 +115,7 @@ public class MainMenu extends Table {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 netDriver.startServer();
+                engine.start();
             }
         });
 
@@ -110,7 +128,7 @@ public class MainMenu extends Table {
         });
 
         defaults().align(Align.center).fill().expand();
-        startGameCell = add(startGameButton);
+        startMatchCell = add(startMatchButton);
         row();
         joinCell = add(joinButton);
         row();
@@ -119,6 +137,11 @@ public class MainMenu extends Table {
         connectCell = add(connectButton);
         row();
         serverCell = add(startServerButton);
+        row();
+
+        add(matchTimeLabel = new Label("0", skin)).align(Align.center);
+        matchTimeLabel.setAlignment(Align.center);
+
         setSize(getPrefWidth(), getPrefHeight());
 
         listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
@@ -133,8 +156,23 @@ public class MainMenu extends Table {
                 refreshElementStates();
             }
         });
+        listeners.put(MatchEndedEvent.class, new EventListenerAdapter<MatchEndedEvent>() {
+            @Override
+            public void handleEvent(MatchEndedEvent event) {
+                matchTimeLabel.setText(0);
+                refreshElementStates();
+            }
+        });
 
         setWidth(350);
+    }
+
+    @Override
+    public void act(float delta) {
+        super.act(delta);
+        if (refereeSystem.getMatchState() == RefereeSystem.MatchState.Started) {
+            matchTimeLabel.setText((int) refereeSystem.getMatchTimeRemaining());
+        }
     }
 
     void initialize(GameEngine engine) {
@@ -149,16 +187,16 @@ public class MainMenu extends Table {
     void refreshElementStates() {
         // client connected
         if (netDriver.isClientConnecting()) {
-            disabled(startGameCell, startGameButton);
+            disabled(startMatchCell, startMatchButton);
             disabled(joinCell, joinButton);
             disabled(addressCell, serverAddressField);
             disabled(connectCell, disconnectButton);
             disabled(serverCell, startServerButton);
         }
         else if (netDriver.isClientConnected()) {
-            disabled(startGameCell, startGameButton);
+            disabled(startMatchCell, startMatchButton);
 
-            if (refereeSystem.isLocalPlayerJoined()) {
+            if (refereeSystem.isLocalPlayerJoined() || refereeSystem.getMatchState() != RefereeSystem.MatchState.NotStarted) {
                 disabled(joinCell, joinButton);
             }
             else {
@@ -172,18 +210,24 @@ public class MainMenu extends Table {
         // server running
         else if (netDriver.isServerRunning()) {
 
-            if (refereeSystem.isMatchStarted()) {
-                disabled(startGameCell, startGameButton);
-                if (refereeSystem.isLocalPlayerJoined()) {
+            switch (refereeSystem.getMatchState()) {
+                case NotStarted:
+                    enabled(startMatchCell, startMatchButton);
+                    if (refereeSystem.isLocalPlayerJoined()) {
+                        disabled(joinCell, joinButton);
+                    }
+                    else {
+                        enabled(joinCell, joinButton);
+                    }
+                    break;
+                case Started:
+                    disabled(startMatchCell, startMatchButton);
                     disabled(joinCell, joinButton);
-                }
-                else {
-                    enabled(joinCell, joinButton);
-                }
-            }
-            else {
-                enabled(startGameCell, startGameButton);
-                disabled(joinCell, joinButton);
+                    break;
+                case Ended:
+                    enabled(startMatchCell, newMatchButton);
+                    disabled(joinCell, joinButton);
+                    break;
             }
 
             disabled(addressCell, serverAddressField);
@@ -191,7 +235,7 @@ public class MainMenu extends Table {
             disabled(connectCell, connectButton);
         }
         else {
-            disabled(startGameCell, startGameButton);
+            disabled(startMatchCell, startMatchButton);
             if (!netDriver.canReconnect()) {
                 disabled(joinCell, joinButton);
                 enabled(addressCell, serverAddressField);

@@ -12,12 +12,14 @@ public class GameProperties {
 
     public static final int Z_POS_MAX = 3;
 
+    public static final float MATCH_TIME = 60;
+
     public static final float PLAYER_FORCE_STRENGTH = 1000f;
     public static final float LINEAR_DAMPENING = 0.5f;
     public static final float CHARGE_DURATION = 0.4f;
     public static final float CHARGE_DURATION_2 = CHARGE_DURATION * 2;
 
-    public static final float PICKUP_SPAWN_COOLDOWN = 10f;
+    public static final float PICKUP_SPAWN_COOLDOWN = 3.5f;
     public static final float PICKUP_PUSH_STRENGTH = 80f;
 
     public static final float PLAYER_RESPAWN_TIME = 5;
