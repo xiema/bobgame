@@ -297,13 +297,18 @@ public enum ConnectionState {
                             continue;
                         }
                     }
-                    slot.sendPacket.addMessage(clientEvent.serializedMessage);
-                    slot.sendPacket.requestSnapshot = slot.needsSnapshot;
-                    slot.needsSnapshot = false;
-                    slot.sendDataPacket(slot.sendPacket);
-                    slot.sendPacket.clear();
-                    sent = true;
-                    Pools.free(clientEvent);
+                    if (!slot.sendPacket.isFull()) {
+                        slot.sendPacket.addMessage(clientEvent.serializedMessage);
+                        slot.sendPacket.requestSnapshot = slot.needsSnapshot;
+                        slot.needsSnapshot = false;
+                        slot.sendDataPacket(slot.sendPacket);
+                        slot.sendPacket.clear();
+                        sent = true;
+                        Pools.free(clientEvent);
+                    }
+                    else {
+                        Log.debug("ClientConnected", "Delaying sending event " + clientEvent.event);
+                    }
                 }
                 slot.netDriver.clientEvents.clear();
 

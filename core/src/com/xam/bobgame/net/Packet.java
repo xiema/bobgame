@@ -124,10 +124,14 @@ public class Packet {
 
     public @Null Message createMessage() {
         if (messageCount >= messages.length) {
-            Log.error("Packet.createMessage", "Reached message limit");
+            Log.debug("Packet.createMessage", "Reached message limit");
             return null;
         }
         return messages[messageCount++];
+    }
+
+    public boolean isFull() {
+        return messageCount >= messages.length;
     }
 
     public boolean addMessage(Message in) {

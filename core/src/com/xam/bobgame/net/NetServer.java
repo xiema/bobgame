@@ -115,9 +115,18 @@ public class NetServer extends Server {
                 }
             }
             if (snapshotPacket.messageCount > 0) {
-                connectionSlot.lastSnapshotFrame = currentFrame;
-                sendPacket.addMessage(snapshotPacket.getMessage(0));
-//                Log.debug("Sending snapshot to Client " + connectionSlot.clientId + " (" + connectionSlot.playerId + ")");
+                if (!sendPacket.isFull()) {
+                    connectionSlot.lastSnapshotFrame = currentFrame;
+                    connectionSlot.needsSnapshot = false;
+                    sendPacket.addMessage(snapshotPacket.getMessage(0));
+//                    Log.debug("Sending snapshot to Client " + connectionSlot.clientId + " (" + connectionSlot.playerId + ")");
+                }
+                else {
+                    Log.debug("NetServer", "Delaying send snapshot to Client " + connectionSlot.clientId);
+                }
+            }
+            else {
+                Log.warn("NetServer", "Snapshot packet is empty");
             }
         }
         else {
@@ -132,7 +141,15 @@ public class NetServer extends Server {
                     }
                 }
                 if (updatePacket.messageCount > 0) {
-                    sendPacket.addMessage(updatePacket.getMessage(0));
+                    if (!sendPacket.isFull()) {
+                        sendPacket.addMessage(updatePacket.getMessage(0));
+                    }
+                    else {
+                        Log.debug("NetServer", "Delaying send update to Client " + connectionSlot.clientId);
+                    }
+                }
+                else {
+                    Log.warn("NetServer", "Update packet is empty");
                 }
 
                 for (int i = 0; i < netDriver.clientEvents.size; ++i) {
@@ -152,7 +169,7 @@ public class NetServer extends Server {
                             }
                         }
                         else {
-                            Log.warn("NetServer", "Failed to send Event Message: " + clientEvent.event);
+                            Log.debug("NetServer", "Failed to send Event Message: " + clientEvent.event);
                         }
                     }
                 }
@@ -162,7 +179,6 @@ public class NetServer extends Server {
         if (sendPacket.getMessageCount() > 0) {
             connectionSlot.sendDataPacket(sendPacket);
         }
-        connectionSlot.needsSnapshot = false;
 
         sendPacket.clear();
     }
