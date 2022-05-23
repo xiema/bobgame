@@ -386,18 +386,17 @@ public class MessageReader {
         RefereeSystem refereeSystem = netDriver.getEngine().getSystem(RefereeSystem.class);
 
         if (packer.isWriteMode()) {
-            packer.packInt(refereeSystem.getSortedPlayerInfos().size(), 0, NetDriver.MAX_CLIENTS);
-            for (PlayerInfo playerInfo : refereeSystem.getSortedPlayerInfos()) {
-                packer.packInt(playerInfo.playerId, 0, NetDriver.MAX_CLIENTS - 1);
+            for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
+                PlayerInfo playerInfo = refereeSystem.getPlayerInfo(i);
                 playerInfo.read(packer, netDriver.getEngine());
             }
         }
         else {
-            int count = packer.unpackInt(0, NetDriver.MAX_CLIENTS);
-            for (int i = 0; i < count; ++i) {
-                int playerId = packer.unpackInt(0, NetDriver.MAX_CLIENTS - 1);
-                PlayerInfo playerInfo = refereeSystem.getPlayerInfo(playerId);
+            int count = 0;
+            for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
+                PlayerInfo playerInfo = refereeSystem.getPlayerInfo(i);
                 playerInfo.read(packer, netDriver.getEngine());
+                if (playerInfo.inPlay) count++;
             }
             if (count != refereeSystem.getSortedPlayerInfos().size()) {
                 refereeSystem.refreshSortedPlayerInfos();

@@ -142,6 +142,7 @@ public class GameEngine extends PooledEngine {
                 start();
                 if (mode == Mode.Server) {
                     netDriver.queueClientEvent(-1, Pools.obtain(MatchRestartEvent.class));
+                    eventsSystem.queueEvent(Pools.obtain(ScoreBoardRefreshEvent.class));
                 }
                 if (mode == Mode.Client) {
                     netDriver.getConnectionManager().setNeedsSnapshots();

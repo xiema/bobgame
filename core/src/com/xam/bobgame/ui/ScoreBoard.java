@@ -34,8 +34,6 @@ public class ScoreBoard extends Table {
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
-    private int rowCount = 0;
-
     public ScoreBoard(Skin skin) {
         this.skin = skin;
 
@@ -183,7 +181,6 @@ public class ScoreBoard extends Table {
         getCell(playerScoreLabel).clearActor();
         getCell(playerRespawnTimeLabel).clearActor();
         getCell(playerLatencyLabel).clearActor();
-        rowCount--;
         reposition();
 //        playerNameLabels[playerId].setText("-");
 //        playerScoreLabels[playerId].setText("-");

@@ -62,7 +62,7 @@ public class UIStage extends Stage {
         menuTable.row();
 
         spectatorList = new SpectatorList(skin);
-        menuTable.add(spectatorList).fillX().expandX().pad(5, 5, 5, 5);
+        menuTable.add(spectatorList).fillX().expandX().pad(5, 5, 5, 5).minHeight(spectatorList.getMinHeight());
         menuTable.row();
 
         mainMenu = new MainMenu(skin);
@@ -90,7 +90,10 @@ public class UIStage extends Stage {
         listeners.put(MatchEndedEvent.class, new EventListenerAdapter<MatchEndedEvent>() {
             @Override
             public void handleEvent(MatchEndedEvent event) {
-                if (engine.getSystem(RefereeSystem.class).getLocalPlayerId() == event.winningPlayerId) {
+                RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
+                if (!refereeSystem.getPlayerInfo(refereeSystem.getLocalPlayerId()).inPlay) return;
+
+                if (refereeSystem.getLocalPlayerId() == event.winningPlayerId) {
                     winLabel.setText("YOU WIN!");
                 }
                 else {
@@ -106,6 +109,7 @@ public class UIStage extends Stage {
         forceMeter.initialize(engine);
         mainMenu.initialize(engine);
         scoreBoard.initialize(engine);
+        spectatorList.initialize(engine);
         winLabel.remove();
     }
 
