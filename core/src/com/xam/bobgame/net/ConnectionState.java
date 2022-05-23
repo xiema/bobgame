@@ -177,8 +177,7 @@ public enum ConnectionState {
         @Override
         int start(ConnectionManager.ConnectionSlot slot) {
 //            slot.netDriver.connectionManager.removeConnection(slot.clientId);
-            slot.netDriver.client.stop();
-            slot.netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
+            slot.netDriver.client.disconnect(false);
             return 0;
         }
 
@@ -292,7 +291,11 @@ public enum ConnectionState {
                 for (NetDriver.ClientEvent clientEvent : slot.netDriver.clientEvents) {
     //                Log.info("Send event " + clientEvent.event);
                     if (clientEvent.serializedMessage.messageId == -1) {
-                        slot.netDriver.messageReader.serializeEvent(clientEvent.serializedMessage, clientEvent.event);
+                        if (slot.netDriver.messageReader.serializeEvent(clientEvent.serializedMessage, clientEvent.event) == -1) {
+                            Log.error("Error serializing event " + clientEvent.event);
+                            Pools.free(clientEvent);
+                            continue;
+                        }
                     }
                     slot.sendPacket.addMessage(clientEvent.serializedMessage);
                     slot.sendPacket.requestSnapshot = slot.needsSnapshot;

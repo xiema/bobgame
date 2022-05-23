@@ -12,11 +12,14 @@ public class PlayerInfo implements NetSerializable {
 
     public final int playerId;
     public boolean inPlay = false;
+    public boolean connected = false;
     public int controlledEntityId = -1;
     public int score = 0;
     public float respawnTime = 0;
     public float latency = 0;
     public float stamina = 100;
+
+    public int rank = -1;
 
     public PlayerInfo(int playerId) {
         this.playerId = playerId;
@@ -24,11 +27,13 @@ public class PlayerInfo implements NetSerializable {
 
     public void reset() {
         inPlay = false;
+        connected = false;
         controlledEntityId = -1;
         score = 0;
         respawnTime = 0;
         stamina = 100;
         latency = 0;
+        rank = -1;
     }
 
     @Override

@@ -40,6 +40,32 @@ public class RefereeSystem extends EntitySystem {
 
     public RefereeSystem(int priority) {
         super(priority);
+        listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
+            @Override
+            public void handleEvent(ClientConnectedEvent event) {
+                if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
+                    int playerId;
+                    if (event.clientId == -1) {
+                        // check if already assigned a player id
+                        playerId = localPlayerId;
+                        if (playerId == -1) {
+                            playerId = addPlayer();
+                        }
+                    }
+                    else {
+                        ConnectionManager.ConnectionSlot slot = getEngine().getSystem(NetDriver.class).getConnectionManager().getConnectionSlot(event.clientId);
+                        // check if already assigned a player id
+                        playerId = slot.getPlayerId();
+                        if (playerId == -1) {
+                            playerId = addPlayer();
+                            if (playerId != -1) slot.setPlayerId(playerId);
+                        }
+                    }
+
+                    if (playerId != -1) assignPlayer(event.clientId, playerId);
+                }
+            }
+        });
         listeners.put(ClientDisconnectedEvent.class, new EventListenerAdapter<ClientDisconnectedEvent>() {
             @Override
             public void handleEvent(ClientDisconnectedEvent event) {
@@ -81,6 +107,30 @@ public class RefereeSystem extends EntitySystem {
                 }
             }
         });
+        listeners.put(RequestPlayerIdEvent.class, new EventListenerAdapter<RequestPlayerIdEvent>() {
+            @Override
+            public void handleEvent(RequestPlayerIdEvent event) {
+                if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server) {
+                    NetDriver netDriver = getEngine().getSystem(NetDriver.class);
+                    int playerId = netDriver.getConnectionManager().getConnectionSlot(event.clientId).getPlayerId();
+                    if (playerId == -1) {
+                        Log.error("Client " + event.clientId + " has invalid playerId");
+                        return;
+                    }
+                    PlayerAssignEvent e = Pools.obtain(PlayerAssignEvent.class);
+                    e.playerId = playerId;
+                    netDriver.queueClientEvent(event.clientId, e, false);
+                }
+            }
+        });
+        listeners.put(PlayerJoinedEvent.class, new EventListenerAdapter<PlayerJoinedEvent>() {
+            @Override
+            public void handleEvent(PlayerJoinedEvent event) {
+                refreshSortedPlayerInfos();
+                getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
+                getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ScoreBoardRefreshEvent.class));
+            }
+        });
         listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
             @Override
             public void handleEvent(PlayerAssignEvent event) {
@@ -108,6 +158,22 @@ public class RefereeSystem extends EntitySystem {
         reset();
     }
 
+    public void reloadPlayerInfos() {
+        ConnectionManager connectionManager = getEngine().getSystem(NetDriver.class).getConnectionManager();
+        for (int playerId = 0; playerId < playerInfos.length; ++playerId) {
+            PlayerInfo playerInfo = playerInfos[playerId];
+            int clientId = connectionManager.getPlayerClientId(playerId);
+            if (clientId != -1) {
+                ConnectionManager.ConnectionSlot slot = connectionManager.getConnectionSlot(clientId);
+                playerInfo.connected = slot != null && slot.isConnected();
+            }
+        }
+        if (localPlayerId != -1) {
+            playerInfos[localPlayerId].connected = true;
+        }
+        refreshSortedPlayerInfos();
+    }
+
     private void reset() {
         for (int i = 0; i < playerInfos.length; ++i) {
             PlayerInfo playerInfo = playerInfos[i];
@@ -116,11 +182,15 @@ public class RefereeSystem extends EntitySystem {
         sortedPlayerInfos.clear();
         matchState = MatchState.NotStarted;
         matchTime = 0;
-        localPlayerId = -1;
     }
 
     @Override
     public void update(float deltaTime) {
+        NetDriver netDriver = getEngine().getSystem(NetDriver.class);
+        if (netDriver.isClientConnected() && localPlayerId == -1) {
+            netDriver.queueClientEvent(0, Pools.obtain(RequestPlayerIdEvent.class), false);
+        }
+
         for (int i = 0; i < playerInfos.length; ++i) {
             if (!playerInfos[i].inPlay) continue;
             playerInfos[i].respawnTime = Math.max(0, playerInfos[i].respawnTime - deltaTime);
@@ -201,7 +271,7 @@ public class RefereeSystem extends EntitySystem {
     }
 
     public boolean isLocalPlayerJoined() {
-        return localPlayerId != -1;
+        return localPlayerId != -1 && playerInfos[localPlayerId].inPlay;
     }
 
     public Entity getLocalPlayerEntity() {
@@ -313,9 +383,18 @@ public class RefereeSystem extends EntitySystem {
         return count;
     }
 
-    private int getEmptyPlayerSlot() {
+    private int getUnassignedPlayerSlot() {
+        int count = 0;
         for (int i = 0; i < playerInfos.length; ++i) {
-            if (!playerInfos[i].inPlay) return i;
+            if (!playerInfos[i].connected) {
+                return i;
+            }
+            else {
+                count++;
+                if (count >= GameProperties.MAX_PLAYERS) {
+                    return -1;
+                }
+            }
         }
         return -1;
     }
@@ -327,20 +406,29 @@ public class RefereeSystem extends EntitySystem {
     public void refreshSortedPlayerInfos() {
         sortedPlayerInfos.clear();
         for (PlayerInfo playerInfo : playerInfos) {
-            if (playerInfo.inPlay) sortedPlayerInfos.add(playerInfo);
+            if (playerInfo.inPlay) {
+                sortedPlayerInfos.add(playerInfo);
+            }
         }
         sortedPlayerInfos.sort(PlayerInfo.COMPARATOR);
         sortedPlayerInfos.reverse();
+        int rank = 0;
+        for (PlayerInfo playerInfo : sortedPlayerInfos) {
+            playerInfo.rank = rank++;
+        }
+        for (PlayerInfo playerInfo : playerInfos) {
+            if (!playerInfo.inPlay) playerInfo.rank = rank++;
+        }
     }
 
     private int addPlayer() {
-        int playerId = getEmptyPlayerSlot();
+        int playerId = getUnassignedPlayerSlot();
         if (playerId == -1) {
             Log.info("Too many players");
             return -1;
         }
 
-        playerInfos[playerId].inPlay = true;
+        playerInfos[playerId].connected = true;
 
         return playerId;
     }
@@ -350,53 +438,41 @@ public class RefereeSystem extends EntitySystem {
             Log.error("RefereeSystem", "Attempted a match that has already started/ended");
             return;
         }
-
         GameEngine engine = (GameEngine) getEngine();
+        if (engine.getMode() != GameEngine.Mode.Server) return;
         NetDriver netDriver = engine.getSystem(NetDriver.class);
 
-        int playerId = -1;
 
+        int playerId;
         if (clientId == -1) {
-            if (localPlayerId == -1) {
-                // local server
-                playerId = localPlayerId = addPlayer();
-                PlayerAssignEvent assignEvent = Pools.obtain(PlayerAssignEvent.class);
-                assignEvent.playerId = playerId;
-                getEngine().getSystem(EventsSystem.class).queueEvent(assignEvent);
-            }
+            playerId = localPlayerId;
         }
         else {
-            // remote client
             ConnectionManager.ConnectionSlot slot = netDriver.getConnectionManager().getConnectionSlot(clientId);
-            if (slot.getPlayerId() == -1) {
-                playerId = addPlayer();
-                if (playerId != -1) {
-                    slot.setPlayerId(playerId);
-                }
-            }
-            // send on first connect, reconnect, and if client somehow lost its playerId
-            if (slot.getPlayerId() != -1) {
-                assignPlayer(clientId, slot.getPlayerId());
-            }
+            playerId = slot.getPlayerId();
         }
-        ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
-        netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(event);
+        playerInfos[playerId].inPlay = true;
 
-        if (playerId != -1) {
-    //        spawnPlayerBall(playerId);
-            PlayerJoinedEvent joinedEvent = Pools.obtain(PlayerJoinedEvent.class);
-            joinedEvent.playerId = playerId;
-            refreshSortedPlayerInfos();
-            netDriver.queueClientEvent(-1, joinedEvent);
-            engine.getSystem(EventsSystem.class).queueEvent(joinedEvent);
-        }
+        PlayerJoinedEvent joinedEvent = Pools.obtain(PlayerJoinedEvent.class);
+        joinedEvent.playerId = playerId;
+        refreshSortedPlayerInfos();
+        netDriver.queueClientEvent(-1, joinedEvent);
+        engine.getSystem(EventsSystem.class).queueEvent(joinedEvent);
     }
 
     public void assignPlayer(int clientId, int playerId) {
-        Log.info("Client " + clientId + " joined as Player " + playerId);
-        PlayerAssignEvent assignEvent = Pools.obtain(PlayerAssignEvent.class);
-        assignEvent.playerId = playerId;
-        getEngine().getSystem(NetDriver.class).queueClientEvent(clientId, assignEvent, false);
+        if (clientId == -1) {
+            Log.info("Joined as Player " + playerId);
+            PlayerAssignEvent assignEvent = Pools.obtain(PlayerAssignEvent.class);
+            assignEvent.playerId = playerId;
+            getEngine().getSystem(EventsSystem.class).queueEvent(assignEvent);
+        }
+        else {
+            Log.info("Client " + clientId + " joined as Player " + playerId);
+            PlayerAssignEvent assignEvent = Pools.obtain(PlayerAssignEvent.class);
+            assignEvent.playerId = playerId;
+            getEngine().getSystem(NetDriver.class).queueClientEvent(clientId, assignEvent, false);
+        }
     }
 
     public void removePlayer(int playerId, boolean kicked) {

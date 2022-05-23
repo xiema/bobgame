@@ -1,5 +1,6 @@
 package com.xam.bobgame.ui;
 
+import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.scenes.scene2d.ui.Cell;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -10,10 +11,7 @@ import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
-import com.xam.bobgame.events.classes.PlayerAssignEvent;
-import com.xam.bobgame.events.classes.PlayerJoinedEvent;
-import com.xam.bobgame.events.classes.PlayerLeftEvent;
-import com.xam.bobgame.events.classes.ScoreBoardRefreshEvent;
+import com.xam.bobgame.events.classes.*;
 import com.xam.bobgame.game.PlayerInfo;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.net.NetDriver;
@@ -25,10 +23,10 @@ public class ScoreBoard extends Table {
     GameEngine engine;
     final Skin skin;
 
-    private final Cell<?>[] playerNameCells = new Cell[NetDriver.MAX_CLIENTS];
-    private final Cell<?>[] playerScoreCells = new Cell[NetDriver.MAX_CLIENTS];
-    private final Cell<?>[] playerRespawnTimeCells = new Cell[NetDriver.MAX_CLIENTS];
-    private final Cell<?>[] playerLatencyCells = new Cell[NetDriver.MAX_CLIENTS];
+    private final Cell<?>[] playerNameCells = new Cell[GameProperties.MAX_PLAYERS];
+    private final Cell<?>[] playerScoreCells = new Cell[GameProperties.MAX_PLAYERS];
+    private final Cell<?>[] playerRespawnTimeCells = new Cell[GameProperties.MAX_PLAYERS];
+    private final Cell<?>[] playerLatencyCells = new Cell[GameProperties.MAX_PLAYERS];
     private final Label[] playerNameLabels = new Label[NetDriver.MAX_CLIENTS];
     private final Label[] playerScoreLabels = new Label[NetDriver.MAX_CLIENTS];
     private final Label[] playerRespawnTimeLabels = new Label[NetDriver.MAX_CLIENTS];
@@ -41,13 +39,16 @@ public class ScoreBoard extends Table {
     public ScoreBoard(Skin skin) {
         this.skin = skin;
 
-        setBackground(skin.getDrawable("window"));
+        setBackground(skin.getDrawable("blue"));
 
-        columnDefaults(0).align(Align.center).fillY().expandY().expandX();
-        columnDefaults(1).align(Align.center).fillY().expandY().width(90).spaceLeft(15);
-        columnDefaults(2).align(Align.center).fillY().expandY().width(90);
-        columnDefaults(3).align(Align.center).fillY().expandY().width(110);
+        align(Align.top);
+        padTop(5);
+        columnDefaults(0).align(Align.center).expandX();
+        columnDefaults(1).align(Align.center).width(90).spaceLeft(15);
+        columnDefaults(2).align(Align.center).width(90);
+        columnDefaults(3).align(Align.center).width(110);
 
+        defaults().padBottom(10);
         Label label;
         add(label = new Label("Name", skin, "defaultWhite"));
         label.setAlignment(Align.center);
@@ -59,16 +60,25 @@ public class ScoreBoard extends Table {
         label.setAlignment(Align.center);
         row();
 
+        defaults().padBottom(1);
         for (int i = 0; i < playerNameLabels.length; ++i) {
-            playerNameCells[i] = add(playerNameLabels[i] = new Label("", skin));
-            playerScoreCells[i] = add(playerScoreLabels[i] = new Label("", skin));
-            playerRespawnTimeCells[i] = add(playerRespawnTimeLabels[i] = new Label("", skin));
-            playerLatencyCells[i] = add(playerLatencyLabels[i] = new Label("", skin));
+            playerNameLabels[i] = new Label("-", skin);
+            playerScoreLabels[i] = new Label("-", skin);
+            playerRespawnTimeLabels[i] = new Label("-", skin);
+            playerLatencyLabels[i] = new Label("-", skin);
 
             playerNameLabels[i].setAlignment(Align.center);
             playerRespawnTimeLabels[i].setAlignment(Align.center);
             playerScoreLabels[i].setAlignment(Align.center);
             playerLatencyLabels[i].setAlignment(Align.center);
+
+            if (i < playerNameCells.length) {
+                playerNameCells[i] = add(playerNameLabels[i]);
+                playerScoreCells[i] = add(playerScoreLabels[i]);
+                playerRespawnTimeCells[i] = add(playerRespawnTimeLabels[i]);
+                playerLatencyCells[i] = add(playerLatencyLabels[i]);
+            }
+
             row();
         }
 
@@ -76,12 +86,20 @@ public class ScoreBoard extends Table {
             @Override
             public void handleEvent(PlayerJoinedEvent event) {
                 addPlayer(event.playerId);
+//                refreshScoreBoard();
+            }
+        });
+        listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
+            @Override
+            public void handleEvent(ClientConnectedEvent event) {
+                refreshScoreBoard();
             }
         });
         listeners.put(PlayerLeftEvent.class, new EventListenerAdapter<PlayerLeftEvent>() {
             @Override
             public void handleEvent(PlayerLeftEvent event) {
-                removePlayer(event.playerId);
+//                removePlayer(event.playerId);
+                refreshScoreBoard();
             }
         });
         listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
@@ -102,7 +120,10 @@ public class ScoreBoard extends Table {
         this.engine = engine;
         engine.getSystem(EventsSystem.class).addListeners(listeners);
         refreshScoreBoard();
-        for (int i = 0; i < playerNameLabels.length; ++i) setPlayerStyle(i, "default");
+        RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
+        for (int i = 0; i < playerNameLabels.length; ++i) {
+            setPlayerStyle(i, i == refereeSystem.getLocalPlayerId() ? "defaultWhite" : "default");
+        }
     }
 
     private void reposition() {
@@ -116,45 +137,41 @@ public class ScoreBoard extends Table {
             return;
         }
         Label.LabelStyle style = skin.get(styleName, Label.LabelStyle.class);
-        playerNameLabels[playerId].setStyle(style);
-        playerScoreLabels[playerId].setStyle(style);
-        playerRespawnTimeLabels[playerId].setStyle(style);
-        playerLatencyLabels[playerId].setStyle(style);
+        if (playerNameLabels[playerId].getStyle() != style) playerNameLabels[playerId].setStyle(style);
+        if (playerScoreLabels[playerId].getStyle() != style) playerScoreLabels[playerId].setStyle(style);
+        if (playerRespawnTimeLabels[playerId].getStyle() != style) playerRespawnTimeLabels[playerId].setStyle(style);
+        if (playerLatencyLabels[playerId].getStyle() != style) playerLatencyLabels[playerId].setStyle(style);
     }
 
     private void refreshScoreBoard() {
         RefereeSystem refereeSystem = engine.getSystem(RefereeSystem.class);
         if (refereeSystem == null) return;
 
-        for (int j = 0; j < playerNameCells.length; ++j) {
-            playerNameCells[j].clearActor();
-            playerScoreCells[j].clearActor();
-            playerRespawnTimeCells[j].clearActor();
-            playerLatencyCells[j].clearActor();
+        for (int i = 0; i < playerNameCells.length; ++i) {
+            playerNameCells[i].clearActor();
+            playerScoreCells[i].clearActor();
+            playerRespawnTimeCells[i].clearActor();
+            playerLatencyCells[i].clearActor();
         }
 
-        rowCount = 0;
-        for (PlayerInfo playerInfo : refereeSystem.getSortedPlayerInfos()) {
-            addPlayer(playerInfo.playerId);
-            setPlayerScore(playerInfo.playerId, playerInfo.score, playerInfo.respawnTime, playerInfo.latency);
+        ImmutableArray<PlayerInfo> playerInfos = refereeSystem.getSortedPlayerInfos();
+        int i = 0;
+        for (PlayerInfo playerInfo : playerInfos) {
+            playerNameCells[i].setActor(playerNameLabels[playerInfo.playerId]);
+            playerScoreCells[i].setActor(playerScoreLabels[playerInfo.playerId]);
+            playerRespawnTimeCells[i].setActor(playerRespawnTimeLabels[playerInfo.playerId]);
+            playerLatencyCells[i].setActor(playerLatencyLabels[playerInfo.playerId]);
+            setPlayerStyle(playerInfo.playerId, playerInfo.playerId == refereeSystem.getLocalPlayerId() ? "defaultWhite" : "default");
+            setPlayerScore("PL." + playerInfo.playerId, playerInfo.playerId, playerInfo.score, playerInfo.respawnTime, playerInfo.latency);
+            i++;
         }
 
         reposition();
     }
 
     public void addPlayer(int playerId) {
-        Label playerNameLabel = playerNameLabels[playerId];
-        Label playerScoreLabel = playerScoreLabels[playerId];
-        Label playerRespawnTimeLabel = playerRespawnTimeLabels[playerId];
-        Label playerLatencyLabel = playerLatencyLabels[playerId];
-        playerNameLabel.setText("PL." + playerId);
-        playerScoreLabel.setText(0);
-        playerNameCells[rowCount].setActor(playerNameLabel);
-        playerScoreCells[rowCount].setActor(playerScoreLabel);
-        playerRespawnTimeCells[rowCount].setActor(playerRespawnTimeLabel);
-        playerLatencyCells[rowCount].setActor(playerLatencyLabel);
-        rowCount++;
-        reposition();
+        PlayerInfo playerInfo = engine.getSystem(RefereeSystem.class).getPlayerInfo(playerId);
+        playerNameLabels[playerId].setText("PL." + playerInfo.playerId);
     }
 
     public void removePlayer(int playerId) {
@@ -168,9 +185,14 @@ public class ScoreBoard extends Table {
         getCell(playerLatencyLabel).clearActor();
         rowCount--;
         reposition();
+//        playerNameLabels[playerId].setText("-");
+//        playerScoreLabels[playerId].setText("-");
+//        playerRespawnTimeLabels[playerId].setText("-");
+//        playerLatencyLabels[playerId].setText("-");
     }
 
-    public void setPlayerScore(int playerId, int score, float respawnTime, float latency) {
+    public void setPlayerScore(String playerName, int playerId, int score, float respawnTime, float latency) {
+        playerNameLabels[playerId].setText(playerName);
         playerScoreLabels[playerId].setText(String.valueOf(score));
         playerRespawnTimeLabels[playerId].setText(String.valueOf((int) respawnTime));
         if (latency > 0) {
@@ -189,7 +211,7 @@ public class ScoreBoard extends Table {
         for (int i = 0; i < NetDriver.MAX_CLIENTS; ++i) {
             PlayerInfo playerInfo = refereeSystem.getPlayerInfo(i);
             if (playerInfo.inPlay) {
-                setPlayerScore(i, playerInfo.score, playerInfo.respawnTime, playerInfo.latency);
+                setPlayerScore("PL." + playerInfo.playerId, playerInfo.playerId, playerInfo.score, playerInfo.respawnTime, playerInfo.latency);
             }
         }
     }

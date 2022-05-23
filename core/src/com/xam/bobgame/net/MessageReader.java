@@ -235,7 +235,7 @@ public class MessageReader {
         }
 
         readPlayerInfos(true);
-        netDriver.getEngine().getSystem(RefereeSystem.class).refreshSortedPlayerInfos();
+        if (packer.isReadMode()) netDriver.getEngine().getSystem(RefereeSystem.class).refreshSortedPlayerInfos();
 
         return 0;
     }

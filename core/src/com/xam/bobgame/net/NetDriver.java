@@ -100,6 +100,7 @@ public class NetDriver extends EntitySystem {
             EntityCreatedEvent.class,
             EntityDespawnedEvent.class,
             RequestJoinEvent.class,
+            RequestPlayerIdEvent.class,
             MatchEndedEvent.class,
             MatchRestartEvent.class,
     };
@@ -117,22 +118,6 @@ public class NetDriver extends EntitySystem {
 
     public NetDriver(int priority) {
         super(priority);
-
-        listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
-            @Override
-            public void handleEvent(ClientConnectedEvent event) {
-                GameEngine engine = (GameEngine) getEngine();
-                if (engine.getMode() == GameEngine.Mode.Client) {
-                    ConnectionManager.ConnectionSlot connectionSlot = connectionManager.getConnectionSlot(client.getHostId());
-                    GameProfile.lastConnectedServerAddress = connectionSlot.getAddress();
-                    GameProfile.clientSalt = connectionSlot.getSalt();
-                    GameProfile.save();
-                    engine.resumeSystems();
-
-                    engine.getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
-                }
-            }
-        });
     }
 
     @Override
@@ -271,6 +256,7 @@ public class NetDriver extends EntitySystem {
 
     public void stopServer() {
         server.stop();
+        connectionManager.clear();
     }
 
     public void setClientReconnect() {
@@ -278,7 +264,7 @@ public class NetDriver extends EntitySystem {
     }
 
     public void disconnectClient() {
-        client.disconnect();
+        client.disconnect(true);
     }
 
     public boolean canReconnect() {

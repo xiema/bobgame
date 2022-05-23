@@ -28,14 +28,13 @@ public class UIStage extends Stage {
     final NetDriver netDriver;
     final Skin skin;
 
-    final Label sendBitrateLabel;
-    final Label receiveBitrateLabel;
     final Label matchTimeLabel;
     final Label winLabel;
 
     final MainMenu mainMenu;
 
     final ScoreBoard scoreBoard;
+    final SpectatorList spectatorList;
     final ForceMeter forceMeter;
 
     private final ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
@@ -55,15 +54,20 @@ public class UIStage extends Stage {
         Table menuTable = new Table();
         menuTable.setSize(GameProperties.MENU_WIDTH, GameProperties.WINDOW_HEIGHT);
         menuTable.setPosition(GameProperties.WINDOW_WIDTH, 0, Align.bottomRight);
+        menuTable.setBackground(skin.getDrawable("light-blue"));
 
         scoreBoard = new ScoreBoard(skin);
 //        scoreBoard.setWidth(GameProperties.MENU_WIDTH);
-        menuTable.add(scoreBoard).colspan(2).fill().expand();
+        menuTable.add(scoreBoard).fill().expand().pad(5, 5, 0, 5);
+        menuTable.row();
+
+        spectatorList = new SpectatorList(skin);
+        menuTable.add(spectatorList).fillX().expandX().pad(5, 5, 5, 5);
         menuTable.row();
 
         mainMenu = new MainMenu(skin);
 //        mainMenu.setPosition(GameProperties.WINDOW_WIDTH, 0, Align.bottomRight);
-        menuTable.add(mainMenu).align(Align.left).width(GameProperties.MENU_WIDTH * 0.5f);
+        menuTable.add(mainMenu).fillX().expandX();
 
         matchTimeLabel = new Label("0", skin);
         matchTimeLabel.setAlignment(Align.center);
@@ -72,40 +76,6 @@ public class UIStage extends Stage {
         winLabel = new Label("", skin);
         winLabel.setAlignment(Align.center);
         winLabel.setPosition(0.5f * GameProperties.WINDOW_HEIGHT + GameProperties.FORCE_METER_WIDTH, 0.5f * GameProperties.WINDOW_HEIGHT, Align.center);
-
-        Table subTable = new Table();
-        menuTable.add(subTable).width(GameProperties.MENU_WIDTH * 0.5f);
-
-        subTable.defaults().expand().fill();
-        sendBitrateLabel = new Label("0", skin) {
-            @Override
-            public void act(float delta) {
-                super.act(delta);
-                Formatter formatter = new Formatter();
-                setText(formatter.format("%1.2f", netDriver.getAverageSendBitrate()).toString());
-            }
-        };
-        sendBitrateLabel.setAlignment(Align.right);
-        sendBitrateLabel.setPosition(GameProperties.WINDOW_WIDTH, 0, Align.bottomRight);
-        receiveBitrateLabel = new Label("0", skin) {
-            @Override
-            public void act(float delta) {
-                super.act(delta);
-                Formatter formatter = new Formatter();
-                setText(formatter.format("%1.2f", netDriver.getAverageReceiveBitrate()).toString());
-            }
-        };
-        receiveBitrateLabel.setAlignment(Align.right);
-        receiveBitrateLabel.setPosition(GameProperties.WINDOW_WIDTH, 0, Align.bottomRight);
-
-        Label label;
-        subTable.add(label = new Label("Recv", skin));
-        subTable.add(receiveBitrateLabel).align(Align.right);
-        label.setAlignment(Align.right);
-        subTable.row();
-        subTable.add(label = new Label("Send", skin));
-        label.setAlignment(Align.right);
-        subTable.add(sendBitrateLabel).align(Align.right);
 
         addActor(menuTable);
 
@@ -136,6 +106,7 @@ public class UIStage extends Stage {
         forceMeter.initialize(engine);
         mainMenu.initialize(engine);
         scoreBoard.initialize(engine);
+        winLabel.remove();
     }
 
     @Override

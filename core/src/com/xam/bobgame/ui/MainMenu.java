@@ -1,23 +1,28 @@
 package com.xam.bobgame.ui;
 
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.scenes.scene2d.Action;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
 import com.xam.bobgame.GameEngine;
+import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
-import com.xam.bobgame.events.classes.ConnectionStateRefreshEvent;
-import com.xam.bobgame.events.classes.MatchEndedEvent;
-import com.xam.bobgame.events.classes.MatchRestartEvent;
-import com.xam.bobgame.events.classes.PlayerAssignEvent;
+import com.xam.bobgame.events.classes.*;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.GameProfile;
 
+import java.util.Formatter;
+
+@SuppressWarnings("rawtypes")
 public class MainMenu extends Table {
 
     GameEngine engine;
@@ -25,11 +30,7 @@ public class MainMenu extends Table {
     NetDriver netDriver;
     final Skin skin;
 
-    final Cell<?> startMatchCell;
-    final Cell<?> joinCell;
-    final Cell<?> addressCell;
-    final Cell<?> connectCell;
-    final Cell<?> serverCell;
+    final Array<Cell> cells = getCells();
     final TextField serverAddressField;
     final TextButton startMatchButton;
     final TextButton newMatchButton;
@@ -41,10 +42,24 @@ public class MainMenu extends Table {
     final TextButton startServerButton;
     final TextButton stopServerButton;
 
+    final Label sendBitrateLabel;
+    final Label receiveBitrateLabel;
+
     private final ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
     public MainMenu(Skin skin) {
         this.skin = skin;
+
+        defaults().expand().fill();
+        columnDefaults(0).width(0.5f * GameProperties.MENU_WIDTH);
+        columnDefaults(1).width(0.5f * GameProperties.MENU_WIDTH);
+
+        for (int i = 0; i < 5; ++i) {
+            for (int j = 0; j < 2; ++j) {
+                add();
+            }
+            row();
+        }
 
         serverAddressField = new TextField(GameProfile.lastConnectedServerAddress, skin);
 
@@ -114,6 +129,9 @@ public class MainMenu extends Table {
             public void clicked(InputEvent event, float x, float y) {
                 netDriver.startServer();
                 engine.start();
+                ClientConnectedEvent e = Pools.obtain(ClientConnectedEvent.class);
+                e.clientId = -1;
+                engine.getSystem(EventsSystem.class).queueEvent(e);
             }
         });
 
@@ -125,23 +143,45 @@ public class MainMenu extends Table {
             }
         });
 
-        defaults().align(Align.center).fill().expand();
-        startMatchCell = add(startMatchButton);
-        row();
-        joinCell = add(joinButton);
-        row();
-        addressCell = add(serverAddressField);
-        row();
-        connectCell = add(connectButton);
-        row();
-        serverCell = add(startServerButton);
-        row();
+        FieldValuePair pair;
+        pair = new FieldValuePair("Recv", "0", skin);
+        receiveBitrateLabel = pair.value;
+        receiveBitrateLabel.addAction(Actions.forever(new Action() {
+            @Override
+            public boolean act(float delta) {
+                Formatter formatter = new Formatter();
+                receiveBitrateLabel.setText(formatter.format("%1.2f", netDriver.getAverageReceiveBitrate()).toString());
+                return false;
+            }
+        }));
+        cells.get(8).setActor(pair);
+        pair = new FieldValuePair("Send", "0", skin);
+        sendBitrateLabel = pair.value;
+        sendBitrateLabel.addAction(Actions.forever(new Action() {
+            @Override
+            public boolean act(float delta) {
+                Formatter formatter = new Formatter();
+                sendBitrateLabel.setText(formatter.format("%1.2f", netDriver.getAverageSendBitrate()).toString());
+                return false;
+            }
+        }));
+        sendBitrateLabel.setAlignment(Align.right);
+        receiveBitrateLabel.setAlignment(Align.right);
+        cells.get(9).setActor(pair);
 
-        setSize(getPrefWidth(), getPrefHeight());
+        defaults().align(Align.center).fill().expand();
+
+//        setSize(getPrefWidth(), getPrefHeight());
 
         listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
             @Override
             public void handleEvent(PlayerAssignEvent event) {
+                refreshElementStates();
+            }
+        });
+        listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
+            @Override
+            public void handleEvent(ClientConnectedEvent event) {
                 refreshElementStates();
             }
         });
@@ -174,73 +214,74 @@ public class MainMenu extends Table {
     }
 
     void refreshElementStates() {
-        // client connected
+        // client
         if (netDriver.isClientConnecting()) {
-            disabled(startMatchCell, startMatchButton);
-            disabled(joinCell, joinButton);
-            disabled(addressCell, serverAddressField);
-            disabled(connectCell, disconnectButton);
-            disabled(serverCell, startServerButton);
+            disabled(cells.get(0), startServerButton);
+            disabled(cells.get(2), disconnectButton);
+            disabled(cells.get(3), serverAddressField);
+            disabled(cells.get(4), startMatchButton);
+            disabled(cells.get(6), joinButton);
         }
         else if (netDriver.isClientConnected()) {
-            disabled(startMatchCell, startMatchButton);
+            disabled(cells.get(0), startServerButton);
+            enabled(cells.get(2), disconnectButton);
+            disabled(cells.get(3), serverAddressField);
+            disabled(cells.get(4), startMatchButton);
 
             if (refereeSystem.isLocalPlayerJoined() || refereeSystem.getMatchState() != RefereeSystem.MatchState.NotStarted) {
-                disabled(joinCell, joinButton);
+                disabled(cells.get(6), joinButton);
             }
             else {
-                enabled(joinCell, joinButton);
+                enabled(cells.get(6), joinButton);
             }
 
-            disabled(addressCell, serverAddressField);
-            enabled(connectCell, disconnectButton);
-            disabled(serverCell, startServerButton);
         }
-        // server running
+        // server
         else if (netDriver.isServerRunning()) {
+            enabled(cells.get(0), stopServerButton);
+            disabled(cells.get(2), connectButton);
+            disabled(cells.get(3), serverAddressField);
 
             switch (refereeSystem.getMatchState()) {
                 case NotStarted:
                     if (refereeSystem.getPlayerCount() > 0) {
-                        enabled(startMatchCell, startMatchButton);
+                        enabled(cells.get(4), startMatchButton);
                     }
                     else {
-                        disabled(startMatchCell, startMatchButton);
+                        disabled(cells.get(4), startMatchButton);
                     }
                     if (refereeSystem.isLocalPlayerJoined()) {
-                        disabled(joinCell, joinButton);
+                        disabled(cells.get(6), joinButton);
                     }
                     else {
-                        enabled(joinCell, joinButton);
+                        enabled(cells.get(6), joinButton);
                     }
                     break;
                 case Started:
-                    disabled(startMatchCell, startMatchButton);
-                    disabled(joinCell, joinButton);
+                    disabled(cells.get(4), startMatchButton);
+                    disabled(cells.get(6), joinButton);
                     break;
                 case Ended:
-                    enabled(startMatchCell, newMatchButton);
-                    disabled(joinCell, joinButton);
+                    enabled(cells.get(4), newMatchButton);
+                    disabled(cells.get(6), joinButton);
                     break;
             }
 
-            disabled(addressCell, serverAddressField);
-            enabled(serverCell, stopServerButton);
-            disabled(connectCell, connectButton);
         }
         else {
-            disabled(startMatchCell, startMatchButton);
+            enabled(cells.get(0), startServerButton);
             if (!netDriver.canReconnect()) {
-                disabled(joinCell, joinButton);
-                enabled(addressCell, serverAddressField);
-                enabled(connectCell, connectButton);
+                enabled(cells.get(2), connectButton);
+                enabled(cells.get(3), serverAddressField);
+                disabled(cells.get(4), startMatchButton);
+                disabled(cells.get(6), joinButton);
             }
             else {
-                enabled(joinCell, leaveButton);
-                disabled(addressCell, serverAddressField);
-                enabled(connectCell, reconnectButton);
+                enabled(cells.get(2), reconnectButton);
+                disabled(cells.get(3), serverAddressField);
+                disabled(cells.get(4), startMatchButton);
+                enabled(cells.get(6), leaveButton);
             }
-            enabled(serverCell, startServerButton);
         }
     }
 
@@ -263,5 +304,19 @@ public class MainMenu extends Table {
     private void hidden(Cell<?> cell, Actor actor) {
         cell.setActor(actor);
         actor.setVisible(false);
+    }
+
+    private class FieldValuePair extends Table {
+        final Label field;
+        final Label value;
+
+        public FieldValuePair(String fieldText, String valueText, Skin skin) {
+            setBackground(skin.getDrawable("white"));
+            setColor(Color.BLACK);
+            columnDefaults(0).width(90);
+            columnDefaults(1).expandX().fillX();
+            add(field = new Label(fieldText, skin)).padLeft(10);
+            add(value = new Label(valueText, skin)).padRight(10);
+        }
     }
 }

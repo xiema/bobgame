@@ -10,6 +10,7 @@ import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.events.classes.ConnectionStateRefreshEvent;
+import com.xam.bobgame.game.RefereeSystem;
 
 import java.io.IOException;
 
@@ -86,6 +87,7 @@ public class NetServer extends Server {
         running = false;
         ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
         netDriver.getEngine().getSystem(EventsSystem.class).triggerEvent(event);
+        netDriver.getEngine().getSystem(RefereeSystem.class).setLocalPlayerId(-1);
         ((GameEngine) netDriver.getEngine()).stop();
     }
 
@@ -132,27 +134,26 @@ public class NetServer extends Server {
                 if (updatePacket.messageCount > 0) {
                     sendPacket.addMessage(updatePacket.getMessage(0));
                 }
-            }
 
-            for (int i = 0; i < netDriver.clientEvents.size; ++i) {
-                NetDriver.ClientEvent clientEvent = netDriver.clientEvents.get(i);
-                if (clientEvent.clientMask.get(connectionSlot.clientId)) {
-                    if (clientEvent.serializedMessage.messageId == -1) {
-                        netDriver.messageReader.serializeEvent(clientEvent.serializedMessage, clientEvent.event);
-                    }
-
-                    if (sendPacket.addMessage(clientEvent.serializedMessage)) {
-    //                    eventPacket.clear();
-                        clientEvent.clientMask.unset(connectionSlot.clientId);
-                        if (!clientEvent.clientMask.anySet()) {
-        //                    Log.info("Removing event " + clientEvent.event + " from queue");
-                            Pools.free(clientEvent);
-                            netDriver.clientEvents.removeIndex(i);
-                            i--;
+                for (int i = 0; i < netDriver.clientEvents.size; ++i) {
+                    NetDriver.ClientEvent clientEvent = netDriver.clientEvents.get(i);
+                    if (clientEvent.clientMask.get(connectionSlot.clientId)) {
+                        if (clientEvent.serializedMessage.messageId == -1) {
+                            netDriver.messageReader.serializeEvent(clientEvent.serializedMessage, clientEvent.event);
                         }
-                    }
-                    else {
-                        Log.warn("NetServer", "Failed to send Event Message: " + clientEvent.event);
+
+                        if (sendPacket.addMessage(clientEvent.serializedMessage)) {
+                            clientEvent.clientMask.unset(connectionSlot.clientId);
+                            if (!clientEvent.clientMask.anySet()) {
+            //                    Log.info("Removing event " + clientEvent.event + " from queue");
+                                Pools.free(clientEvent);
+                                netDriver.clientEvents.removeIndex(i);
+                                i--;
+                            }
+                        }
+                        else {
+                            Log.warn("NetServer", "Failed to send Event Message: " + clientEvent.event);
+                        }
                     }
                 }
             }

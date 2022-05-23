@@ -15,6 +15,7 @@ import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.events.*;
 import com.xam.bobgame.events.classes.*;
 import com.xam.bobgame.game.*;
+import com.xam.bobgame.net.ConnectionManager;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.utils.OrderedIntMap;
 
@@ -100,6 +101,19 @@ public class GameEngine extends PooledEngine {
                 restart();
             }
         });
+        listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
+            @Override
+            public void handleEvent(ClientConnectedEvent event) {
+                if (mode == Mode.Client) {
+                    ConnectionManager.ConnectionSlot connectionSlot = netDriver.getConnectionManager().getConnectionSlot(netDriver.getClientHostId());
+                    GameProfile.lastConnectedServerAddress = connectionSlot.getAddress();
+                    GameProfile.clientSalt = connectionSlot.getSalt();
+                    GameProfile.save();
+                    resumeSystems();
+                }
+//                getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
+            }
+        });
     }
 
     public void initialize() {
@@ -126,9 +140,13 @@ public class GameEngine extends PooledEngine {
             if (restarting) {
                 restarting = false;
                 start();
+                if (mode == Mode.Server) {
+                    netDriver.queueClientEvent(-1, Pools.obtain(MatchRestartEvent.class));
+                }
                 if (mode == Mode.Client) {
                     netDriver.getConnectionManager().setNeedsSnapshots();
                 }
+                refereeSystem.reloadPlayerInfos();
                 netDriver.getConnectionManager().resetLastSnapshotFrames();
             }
             else {
@@ -143,8 +161,6 @@ public class GameEngine extends PooledEngine {
     }
 
     private void stopInternal() {
-        netDriver.getConnectionManager().resetPlayerIds();
-
         // remove systems
         Array<EntitySystem> systems = new Array<>();
         removeSystem(netDriver);
@@ -185,16 +201,13 @@ public class GameEngine extends PooledEngine {
             refereeSystem.setupGame();
         }
         resumeSystems();
-        eventsSystem.queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
+//        eventsSystem.queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
     }
 
     public void restart() {
         Log.info("Restarting engine...");
         stop();
         restarting = true;
-        if (mode == Mode.Server) {
-            netDriver.queueClientEvent(-1, Pools.obtain(MatchRestartEvent.class));
-        }
     }
 
     public void pauseSystems() {

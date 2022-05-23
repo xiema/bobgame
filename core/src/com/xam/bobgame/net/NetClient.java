@@ -16,6 +16,7 @@ import com.xam.bobgame.events.classes.ClientConnectedEvent;
 import com.xam.bobgame.events.classes.ConnectionStateRefreshEvent;
 import com.xam.bobgame.events.EventsSystem;
 import com.xam.bobgame.GameProfile;
+import com.xam.bobgame.game.RefereeSystem;
 
 import java.io.IOException;
 
@@ -87,15 +88,17 @@ public class NetClient extends Client {
         return hostId;
     }
 
-    public void disconnect() {
+    public void disconnect(boolean forget) {
+        if (forget) {
+            reconnectSalt = 0;
+            GameProfile.clientSalt = 0;
+        }
+
         if (isConnected()) {
             netDriver.connectionManager.sendDisconnect(hostId);
         }
 
         ((GameEngine) netDriver.getEngine()).stop();
-
-        reconnectSalt = 0;
-        GameProfile.clientSalt = 0;
 
         stop();
     }
@@ -108,6 +111,8 @@ public class NetClient extends Client {
             netDriver.connectionManager.removeConnection(hostId);
             hostId = -1;
         }
+        netDriver.getEngine().getSystem(RefereeSystem.class).setLocalPlayerId(-1);
+        netDriver.getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
     }
 
     public void requestSnapshot() {

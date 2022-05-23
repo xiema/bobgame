@@ -15,6 +15,7 @@ public class GameProperties {
 
     public static final int Z_POS_MAX = 3;
 
+    public static final int MAX_PLAYERS = 16;
     public static final float MATCH_TIME = 60;
 
     public static final float PLAYER_FORCE_STRENGTH = 1000f;

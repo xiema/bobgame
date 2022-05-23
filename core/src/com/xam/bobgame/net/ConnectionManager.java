@@ -225,6 +225,10 @@ public class ConnectionManager {
             messageBuffer = new MessageBuffer(16);
         }
 
+        public boolean isConnected() {
+            return state == ConnectionState.ServerConnected || state == ConnectionState.ClientConnected;
+        }
+
         public Connection getConnection() {
             return connection;
         }
