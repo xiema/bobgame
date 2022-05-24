@@ -75,6 +75,12 @@ public class SpectatorList extends Table {
                 refresh();
             }
         });
+        listeners.put(PlayerConnectedEvent.class, new EventListenerAdapter<PlayerConnectedEvent>() {
+            @Override
+            public void handleEvent(PlayerConnectedEvent event) {
+                refresh();
+            }
+        });
         listeners.put(ClientConnectedEvent.class, new EventListenerAdapter<ClientConnectedEvent>() {
             @Override
             public void handleEvent(ClientConnectedEvent event) {

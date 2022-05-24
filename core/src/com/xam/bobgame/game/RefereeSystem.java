@@ -63,6 +63,10 @@ public class RefereeSystem extends EntitySystem {
                     }
 
                     if (playerId != -1) assignPlayer(event.clientId, playerId);
+
+                    PlayerConnectedEvent playerConnectedEvent = Pools.obtain(PlayerConnectedEvent.class);
+                    playerConnectedEvent.playerId = playerId;
+                    getEngine().getSystem(NetDriver.class).queueClientEvent(-1, playerConnectedEvent, false);
                 }
             }
         });

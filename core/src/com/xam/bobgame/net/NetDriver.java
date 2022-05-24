@@ -92,6 +92,7 @@ public class NetDriver extends EntitySystem {
 
     public static final Class<?>[] networkEventClasses = {
             PlayerAssignEvent.class,
+            PlayerConnectedEvent.class,
             PlayerJoinedEvent.class,
             PlayerLeftEvent.class,
             PlayerControlEvent.class,
