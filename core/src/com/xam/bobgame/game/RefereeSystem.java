@@ -331,6 +331,18 @@ public class RefereeSystem extends EntitySystem {
         getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
     }
 
+    public void restartMatch() {
+        if (((GameEngine) getEngine()).getMode() != GameEngine.Mode.Server) {
+            Log.error("Cannot restart match from client");
+            return;
+        }
+        if (matchState != MatchState.Ended) {
+            Log.error("RefereeSystem", "Attempted to restart match but match has not ended");
+        }
+        MatchRestartEvent e = Pools.obtain(MatchRestartEvent.class);
+        getEngine().getSystem(EventsSystem.class).queueEvent(e);
+    }
+
     public void endMatch() {
         if (((GameEngine) getEngine()).getMode() != GameEngine.Mode.Server) {
             Log.error("RefereeSystem", "Attempted to end match from client");

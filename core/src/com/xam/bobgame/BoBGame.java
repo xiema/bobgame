@@ -14,8 +14,11 @@ import com.xam.bobgame.dev.DevTools;
 import com.xam.bobgame.graphics.GraphicsRenderer;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.ui.UIStage;
-import com.xam.bobgame.utils.HeadlessCommandRunnable;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.Formatter;
 import java.util.Map;
 
 public class BoBGame extends ApplicationAdapter {
@@ -38,6 +41,8 @@ public class BoBGame extends ApplicationAdapter {
 	DevTools devTools;
 
 	Thread headlessCommandThread;
+	Thread headlessEngineThread;
+	BufferedReader commandReader = new BufferedReader(new InputStreamReader(System.in));
 
 	public BoBGame() {
 		this(null);
@@ -90,18 +95,35 @@ public class BoBGame extends ApplicationAdapter {
 			}
 		}
 		else {
-			headlessCommandThread = new Thread(new HeadlessCommandRunnable(this));
-			headlessCommandThread.start();
-			engine.netDriver.startServer();
-			engine.start();
+			headlessEngineThread = new Thread(new Runnable() {
+				long nextTime = 0;
+
+				@Override
+				public void run() {
+					engine.netDriver.startServer();
+					engine.start();
+					nextTime = System.currentTimeMillis() + GameProperties.SIMULATION_UPDATE_INTERVAL_L;
+					long curTime;
+
+					while (true) {
+						engine.update(GameProperties.SIMULATION_UPDATE_INTERVAL);
+						while ((curTime = System.currentTimeMillis()) < nextTime) {
+							// waiting
+						}
+						nextTime = curTime + GameProperties.SIMULATION_UPDATE_INTERVAL_L;
+					}
+
+				}
+			});
+			headlessEngineThread.start();
 		}
 	}
 
 	@Override
 	public void render () {
-		engine.update(GameProperties.SIMULATION_UPDATE_INTERVAL);
-
 		if (!headless) {
+			engine.update(GameProperties.SIMULATION_UPDATE_INTERVAL);
+
 			ScreenUtils.clear(0, 0, 0, 1);
 			viewport.apply(true);
 			renderer.draw(batch);
@@ -111,6 +133,52 @@ public class BoBGame extends ApplicationAdapter {
 			uiStage.draw();
 
 			if (devMode) devTools.render(GameProperties.SIMULATION_UPDATE_INTERVAL);
+		}
+		else {
+			try {
+				String input = commandReader.readLine();
+				headlessCommand(input);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private void headlessCommand(String input) {
+		switch (input) {
+			case "start":
+				synchronized (engine.updateLock) {
+					engine.refereeSystem.startMatch();
+				}
+				break;
+			case "restart":
+				synchronized (engine.updateLock) {
+					engine.refereeSystem.restartMatch();
+				}
+				break;
+			case "restartServer":
+				synchronized (engine.updateLock) {
+					engine.netDriver.stopServer();
+				}
+				while (true) {
+					synchronized (engine.updateLock) {
+						if (!engine.isStopping()) {
+							engine.netDriver.startServer();
+							engine.start();
+							break;
+						}
+						try {
+							Thread.sleep(0);
+						} catch (InterruptedException e) {
+							Log.error("BoBGame", e.getClass() + " " + e.getMessage());
+						}
+					}
+				}
+				break;
+			case "":
+				Formatter f = new Formatter();
+				Log.info(f.format("Bitrate recv=%1.2f send=%1.2f", engine.netDriver.getAverageReceiveBitrate(), engine.netDriver.getAverageSendBitrate()).toString());
+				break;
 		}
 	}
 
@@ -136,7 +204,9 @@ public class BoBGame extends ApplicationAdapter {
 	}
 
 	void onEngineStarted() {
-		uiStage.initialize(engine);
+		if (!headless) {
+			uiStage.initialize(engine);
+		}
 	}
 
 	public GameEngine getEngine() {

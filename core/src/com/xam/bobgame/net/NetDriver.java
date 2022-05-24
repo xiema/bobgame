@@ -7,6 +7,7 @@ import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.KryoSerialization;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProfile;
 import com.xam.bobgame.events.*;
@@ -252,6 +253,12 @@ public class NetDriver extends EntitySystem {
 
     public boolean startServer() {
         server.start();
+        // TODO: store flag in class property
+        if (!BoBGame.isHeadless()) {
+            ClientConnectedEvent e = Pools.obtain(ClientConnectedEvent.class);
+            e.clientId = -1;
+            getEngine().getSystem(EventsSystem.class).queueEvent(e);
+        }
         return server.isRunning();
     }
 

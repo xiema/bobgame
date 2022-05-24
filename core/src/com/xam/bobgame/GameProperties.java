@@ -35,4 +35,5 @@ public class GameProperties {
     public static final float CHARGE_RATE = PLAYER_STAMINA_MAX / CHARGE_DURATION;
 
     public static final float SIMULATION_UPDATE_INTERVAL = 1f / 60f;
+    public static final long SIMULATION_UPDATE_INTERVAL_L = (long) (SIMULATION_UPDATE_INTERVAL * 1000);
 }

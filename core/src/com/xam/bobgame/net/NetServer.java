@@ -87,7 +87,8 @@ public class NetServer extends Server {
         running = false;
         ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);
         netDriver.getEngine().getSystem(EventsSystem.class).triggerEvent(event);
-        netDriver.getEngine().getSystem(RefereeSystem.class).setLocalPlayerId(-1);
+        RefereeSystem refereeSystem = netDriver.getEngine().getSystem(RefereeSystem.class);
+        if (refereeSystem.isLocalPlayerJoined()) refereeSystem.setLocalPlayerId(-1);
         ((GameEngine) netDriver.getEngine()).stop();
     }
 

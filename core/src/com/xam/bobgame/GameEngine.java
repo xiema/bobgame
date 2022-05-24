@@ -38,6 +38,8 @@ public class GameEngine extends PooledEngine {
     RefereeSystem refereeSystem;
     NetDriver netDriver;
 
+    final Object updateLock = new Object();
+
     private int currentFrame = 0;
     private float currentTime = 0;
 
@@ -134,31 +136,33 @@ public class GameEngine extends PooledEngine {
 
     @Override
     public void update(float deltaTime) {
-        if (stopping) {
-            stopInternal();
-//            for (EntitySystem system : getSystems()) system.setProcessing(true);
-            if (restarting) {
-                restarting = false;
-                start();
-                if (mode == Mode.Server) {
-                    netDriver.queueClientEvent(-1, Pools.obtain(MatchRestartEvent.class));
-                    eventsSystem.queueEvent(Pools.obtain(ScoreBoardRefreshEvent.class));
+        synchronized (updateLock) {
+            if (stopping) {
+                stopInternal();
+    //            for (EntitySystem system : getSystems()) system.setProcessing(true);
+                if (restarting) {
+                    restarting = false;
+                    start();
+                    if (mode == Mode.Server) {
+                        netDriver.queueClientEvent(-1, Pools.obtain(MatchRestartEvent.class));
+                        eventsSystem.queueEvent(Pools.obtain(ScoreBoardRefreshEvent.class));
+                    }
+                    if (mode == Mode.Client) {
+                        netDriver.getConnectionManager().setNeedsSnapshots();
+                    }
+                    refereeSystem.reloadPlayerInfos();
+                    netDriver.getConnectionManager().resetLastSnapshotFrames();
                 }
-                if (mode == Mode.Client) {
-                    netDriver.getConnectionManager().setNeedsSnapshots();
+                else {
+                    pauseSystems();
                 }
-                refereeSystem.reloadPlayerInfos();
-                netDriver.getConnectionManager().resetLastSnapshotFrames();
+                return;
             }
-            else {
-                pauseSystems();
-            }
-            return;
+            super.update(GameProperties.SIMULATION_UPDATE_INTERVAL);
+            netDriver.update2(GameProperties.SIMULATION_UPDATE_INTERVAL);
+            currentFrame++;
+            currentTime += deltaTime;
         }
-        super.update(deltaTime);
-        netDriver.update2(deltaTime);
-        currentFrame++;
-        currentTime += Gdx.graphics.getDeltaTime();
     }
 
     private void stopInternal() {
@@ -282,6 +286,14 @@ public class GameEngine extends PooledEngine {
 
     public float getCurrentTime() {
         return currentTime;
+    }
+
+    public boolean isStopping() {
+        return stopping;
+    }
+
+    public boolean isRestarting() {
+        return restarting;
     }
 
     public Entity getEntityById(int entityId) {

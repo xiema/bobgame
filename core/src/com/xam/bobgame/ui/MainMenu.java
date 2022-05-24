@@ -75,10 +75,7 @@ public class MainMenu extends Table {
         newMatchButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                if (engine.getMode() == GameEngine.Mode.Server) {
-                    MatchRestartEvent e = Pools.obtain(MatchRestartEvent.class);
-                    engine.getSystem(EventsSystem.class).queueEvent(e);
-                }
+                refereeSystem.restartMatch();
             }
         });
 
@@ -129,9 +126,6 @@ public class MainMenu extends Table {
             public void clicked(InputEvent event, float x, float y) {
                 netDriver.startServer();
                 engine.start();
-                ClientConnectedEvent e = Pools.obtain(ClientConnectedEvent.class);
-                e.clientId = -1;
-                engine.getSystem(EventsSystem.class).queueEvent(e);
             }
         });
 
