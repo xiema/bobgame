@@ -136,7 +136,7 @@ public class Packet {
 
     public boolean addMessage(Message in) {
         if (messageCount >= messages.length) {
-            Log.error("Packet.addMessage", "Reached message limit");
+            Log.debug("Packet.addMessage", "Reached message limit");
             return false;
         }
         in.copyTo(messages[messageCount++]);

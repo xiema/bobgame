@@ -15,6 +15,7 @@ public enum ConnectionState {
         int read(ConnectionManager.ConnectionSlot slot, Packet in) {
             if (in.type == Packet.PacketType.ConnectionRequest) {
                 slot.transitionState(ServerPending);
+                slot.lastReconnect = ((GameEngine) slot.netDriver.getEngine()).getCurrentTime();
             } else if (in.type == Packet.PacketType.Reconnect) {
                 ConnectionManager.ConnectionSlot oldSlot = slot.netDriver.getConnectionManager().findSalt(in.salt);
                 if (oldSlot == null) {
@@ -25,6 +26,7 @@ public enum ConnectionState {
                     if (!oldSlot.hostAddress.equals(slot.hostAddress)) {
                         Log.warn("Client " + slot.clientId + " reconnecting with a new host address");
                     }
+                    Log.debug("Client " + oldSlot.clientId + " is reconnecting");
                     oldSlot.messageNumChecker.set(slot.messageNumChecker);
                     PacketBuffer pb = oldSlot.packetBuffer;
                     oldSlot.packetBuffer = slot.packetBuffer;
@@ -229,6 +231,7 @@ public enum ConnectionState {
         int readMessage(ConnectionManager.ConnectionSlot slot, Message message) {
             slot.transitionState(ClientConnected);
             slot.messageBuffer.syncFrameNum = message.frameNum - NetDriver.JITTER_BUFFER_SIZE;
+            slot.needsSnapshot = true;
             ClientConnected.readMessage(slot, message);
 //                slot.packetBuffer.frameOffset = message.frameNum - ((GameEngine) slot.netDriver.getEngine()).getCurrentFrame() - NetDriver.JITTER_BUFFER_SIZE;
             return 0;
@@ -259,7 +262,7 @@ public enum ConnectionState {
         @Override
         int readMessage(ConnectionManager.ConnectionSlot slot, Message message) {
             if (message.getType() == Message.MessageType.Update && slot.lastSnapshotFrame == -1) {
-                Log.info("Can't update while still waiting for snapshot");
+                Log.warn("Can't update while still waiting for snapshot.");
                 return -1;
             } else if (message.getType() == Message.MessageType.Snapshot) {
                 slot.lastSnapshotFrame = message.frameNum;
@@ -301,6 +304,9 @@ public enum ConnectionState {
                         slot.sendPacket.addMessage(clientEvent.serializedMessage);
                         slot.sendPacket.requestSnapshot = slot.needsSnapshot;
                         slot.needsSnapshot = false;
+                        if (slot.sendPacket.requestSnapshot) {
+                            Log.debug("ClientConnected", "Requesting snapshot from server");
+                        }
                         slot.sendDataPacket(slot.sendPacket);
                         slot.sendPacket.clear();
                         sent = true;
@@ -317,6 +323,9 @@ public enum ConnectionState {
                     slot.sendPacket.type = Packet.PacketType.Empty;
                     slot.sendPacket.requestSnapshot = slot.needsSnapshot;
                     slot.needsSnapshot = false;
+                    if (slot.sendPacket.requestSnapshot) {
+                        Log.debug("ClientConnected", "Requesting snapshot from server");
+                    }
                     slot.sendTransportPacket(slot.sendPacket);
                     slot.sendPacket.clear();
                 }

@@ -34,10 +34,7 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
 
     @Override
     public int read(BitPacker packer, Engine engine) {
-        entityId = packer.readInt(entityId, 0, NetDriver.MAX_ENTITY_ID);
-
-        Entity entity = ((GameEngine) engine).getEntityById(entityId);
-
+        Entity entity;
         IdentityComponent iden;
         PhysicsBodyComponent pb;
         GraphicsComponent graphics;
@@ -45,10 +42,13 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
         GravitationalFieldComponent gravField;
 
         if (packer.isWriteMode()) {
+            entity = ((GameEngine) engine).getEntityById(entityId);
             if (entity == null) {
                 Log.error("EntityCreatedEvent", "Entity with id " + entityId + " not found");
                 return -1;
             }
+
+            packer.packInt(entityId, 0, NetDriver.MAX_ENTITY_ID);
             iden = ComponentMappers.identity.get(entity);
             pb = ComponentMappers.physicsBody.get(entity);
             graphics = ComponentMappers.graphics.get(entity);
@@ -61,6 +61,8 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
             packer.readBoolean(gravField != null);
         }
         else {
+            entityId = packer.unpackInt(0, NetDriver.MAX_ENTITY_ID);
+            entity = ((GameEngine) engine).getEntityById(entityId);
             if (entity == null) {
                 iden = engine.createComponent(IdentityComponent.class);
                 pb = packer.readBoolean(true) ? engine.createComponent(PhysicsBodyComponent.class) : null;

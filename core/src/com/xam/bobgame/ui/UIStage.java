@@ -70,10 +70,12 @@ public class UIStage extends Stage {
         menuTable.add(mainMenu).fillX().expandX();
 
         matchTimeLabel = new Label("0", skin);
+        matchTimeLabel.setFontScale(2);
         matchTimeLabel.setAlignment(Align.center);
-        matchTimeLabel.setPosition(0.5f * GameProperties.WINDOW_HEIGHT + GameProperties.FORCE_METER_WIDTH, GameProperties.WINDOW_HEIGHT - 15f, Align.top);
+        matchTimeLabel.setPosition(0.5f * GameProperties.WINDOW_HEIGHT + GameProperties.FORCE_METER_WIDTH, GameProperties.WINDOW_HEIGHT - 25f, Align.top);
         addActor(matchTimeLabel);
         winLabel = new Label("", skin);
+        winLabel.setFontScale(4);
         winLabel.setAlignment(Align.center);
         winLabel.setPosition(0.5f * GameProperties.WINDOW_HEIGHT + GameProperties.FORCE_METER_WIDTH, 0.5f * GameProperties.WINDOW_HEIGHT, Align.center);
 

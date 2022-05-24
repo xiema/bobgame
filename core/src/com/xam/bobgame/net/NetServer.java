@@ -120,7 +120,7 @@ public class NetServer extends Server {
                     connectionSlot.lastSnapshotFrame = currentFrame;
                     connectionSlot.needsSnapshot = false;
                     sendPacket.addMessage(snapshotPacket.getMessage(0));
-//                    Log.debug("Sending snapshot to Client " + connectionSlot.clientId + " (" + connectionSlot.playerId + ")");
+                    Log.debug("Sending snapshot to Client " + connectionSlot.clientId + " (" + connectionSlot.playerId + ")");
                 }
                 else {
                     Log.debug("NetServer", "Delaying send snapshot to Client " + connectionSlot.clientId);

@@ -225,7 +225,7 @@ public class NetDriver extends EntitySystem {
                     switch (messageInfo.type) {
                         case Snapshot:
                             connectionManager.getConnectionSlot(packetInfo.clientId).needsSnapshot = true;
-                            Log.warn("Dropped message: " + messageInfo.type);
+                            Log.warn("Dropped message: " + messageInfo.type + " (Client " + packetInfo.clientId + ")");
                             break;
                     }
                 }

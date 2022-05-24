@@ -62,7 +62,15 @@ public class RefereeSystem extends EntitySystem {
                         }
                     }
 
-                    if (playerId != -1) assignPlayer(event.clientId, playerId);
+                    if (playerId != -1) {
+                        if (event.clientId == -1) {
+                            Log.info("Joined as Player " + playerId);
+                        }
+                        else {
+                            Log.info("Client " + event.clientId + " joined as Player " + playerId);
+                        }
+                        assignPlayer(event.clientId, playerId);
+                    }
 
                     PlayerConnectedEvent playerConnectedEvent = Pools.obtain(PlayerConnectedEvent.class);
                     playerConnectedEvent.playerId = playerId;
@@ -138,7 +146,7 @@ public class RefereeSystem extends EntitySystem {
         listeners.put(PlayerAssignEvent.class, new EventListenerAdapter<PlayerAssignEvent>() {
             @Override
             public void handleEvent(PlayerAssignEvent event) {
-                setLocalPlayerId(event.playerId);
+                if (localPlayerId != event.playerId) setLocalPlayerId(event.playerId);
             }
         });
 
@@ -329,6 +337,8 @@ public class RefereeSystem extends EntitySystem {
         matchState = MatchState.Started;
         // TODO: send specific event
         getEngine().getSystem(EventsSystem.class).queueEvent(Pools.obtain(ConnectionStateRefreshEvent.class));
+
+        Log.info("Match started");
     }
 
     public void restartMatch() {
@@ -341,6 +351,8 @@ public class RefereeSystem extends EntitySystem {
         }
         MatchRestartEvent e = Pools.obtain(MatchRestartEvent.class);
         getEngine().getSystem(EventsSystem.class).queueEvent(e);
+
+        Log.info("Match restarted");
     }
 
     public void endMatch() {
@@ -372,7 +384,12 @@ public class RefereeSystem extends EntitySystem {
             event.winningPlayerId = winningPlayerId;
             getEngine().getSystem(NetDriver.class).queueClientEvent(-1, event);
             getEngine().getSystem(EventsSystem.class).queueEvent(event);
+            Log.info("Match ended. Winner: Player " + winningPlayerId + " Score: " + winningPlayerScore);
         }
+        else {
+            Log.info("Match ended");
+        }
+
     }
 
     public void setLocalPlayerId(int playerId) {
@@ -478,13 +495,11 @@ public class RefereeSystem extends EntitySystem {
 
     public void assignPlayer(int clientId, int playerId) {
         if (clientId == -1) {
-            Log.info("Joined as Player " + playerId);
             PlayerAssignEvent assignEvent = Pools.obtain(PlayerAssignEvent.class);
             assignEvent.playerId = playerId;
             getEngine().getSystem(EventsSystem.class).queueEvent(assignEvent);
         }
         else {
-            Log.info("Client " + clientId + " joined as Player " + playerId);
             PlayerAssignEvent assignEvent = Pools.obtain(PlayerAssignEvent.class);
             assignEvent.playerId = playerId;
             getEngine().getSystem(NetDriver.class).queueClientEvent(clientId, assignEvent, false);

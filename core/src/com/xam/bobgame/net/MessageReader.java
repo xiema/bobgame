@@ -228,6 +228,20 @@ public class MessageReader {
             if (packer.isWriteMode()) {
                 Entity entity = entities.get(i++);
                 entityCreator.entityId = EntityUtils.getId(entity);
+                if (entityCreator.entityId == -1) {
+                    Log.error("MessageReader.readSystemSnapshot", "Tried to serialize invalid entity");
+                    packer.readBoolean(false);
+                    continue;
+                }
+                else {
+                    packer.readBoolean(true);
+                }
+            }
+            else {
+                if (!packer.readBoolean(false)) {
+                    // empty
+                    continue;
+                }
             }
             // TODO: include entity position
             entityCreator.snapshot = true;
