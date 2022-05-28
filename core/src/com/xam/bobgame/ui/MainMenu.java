@@ -7,11 +7,15 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
+import com.badlogic.gdx.scenes.scene2d.ui.Button;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
+import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
 import com.xam.bobgame.events.*;
@@ -20,6 +24,8 @@ import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.net.NetDriver;
 import com.xam.bobgame.GameProfile;
 
+import java.awt.*;
+import java.net.URI;
 import java.util.Formatter;
 
 @SuppressWarnings("rawtypes")
@@ -41,6 +47,7 @@ public class MainMenu extends Table {
     final TextButton reconnectButton;
     final TextButton startServerButton;
     final TextButton stopServerButton;
+    final TextButton repoButton;
 
     final Label sendBitrateLabel;
     final Label receiveBitrateLabel;
@@ -51,12 +58,10 @@ public class MainMenu extends Table {
         this.skin = skin;
 
         defaults().expand().fill();
-        columnDefaults(0).width(0.5f * GameProperties.MENU_WIDTH);
-        columnDefaults(1).width(0.5f * GameProperties.MENU_WIDTH);
 
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 2; ++j) {
-                add();
+                add().width(0.5f * GameProperties.MENU_WIDTH);
             }
             row();
         }
@@ -137,6 +142,23 @@ public class MainMenu extends Table {
             }
         });
 
+        repoButton = new TextButton(GameProperties.REPOSITORY_URL, skin);
+        repoButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                Desktop desktop = Desktop.isDesktopSupported() ? Desktop.getDesktop() : null;
+                if (desktop != null && desktop.isSupported(Desktop.Action.BROWSE)) {
+                    try {
+                        desktop.browse(new URI("https://" + repoButton.getText()));
+                    } catch (Exception e) {
+                        Log.error("" + e.getClass() + " " + e.getMessage());
+                    }
+                }
+            }
+        });
+        add(repoButton).colspan(2);
+        row();
+
         FieldValuePair pair;
         pair = new FieldValuePair("Recv", "0", skin);
         receiveBitrateLabel = pair.value;
@@ -148,7 +170,7 @@ public class MainMenu extends Table {
                 return false;
             }
         }));
-        cells.get(8).setActor(pair);
+        add(pair);
         pair = new FieldValuePair("Send", "0", skin);
         sendBitrateLabel = pair.value;
         sendBitrateLabel.addAction(Actions.forever(new Action() {
@@ -161,9 +183,9 @@ public class MainMenu extends Table {
         }));
         sendBitrateLabel.setAlignment(Align.right);
         receiveBitrateLabel.setAlignment(Align.right);
-        cells.get(9).setActor(pair);
+        add(pair);
 
-        defaults().align(Align.center).fill().expand();
+//        defaults().align(Align.center).fill().expand();
 
 //        setSize(getPrefWidth(), getPrefHeight());
 

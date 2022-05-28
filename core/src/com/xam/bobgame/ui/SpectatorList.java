@@ -23,8 +23,8 @@ public class SpectatorList extends Table {
 
     private GameEngine engine;
     private NetDriver netDriver;
-    private final Label[] labels = new Label[33];
-    private final Cell<?>[] cells = new Cell<?>[33];
+    private final Label[] labels = new Label[32];
+    private final Cell<?>[] cells = new Cell<?>[32];
 
     private ObjectMap<Class<? extends GameEvent>, GameEventListener> listeners = new ObjectMap<>();
 
@@ -39,13 +39,13 @@ public class SpectatorList extends Table {
         Label label;
 
         padTop(5);
-        add(label = new Label("Spectators", skin, "defaultWhite")).colspan(3).padBottom(10);
+        add(label = new Label("Spectators", skin, "defaultWhite")).colspan(4).padBottom(10);
         label.setAlignment(Align.center);
         row();
 
-        for (int i = 0; i < 11; ++i) {
-            for (int j = 0; j < 3; ++j) {
-                cells[i * 3 + j] = add(labels[i * 3 + j] = label = new Label("-", skin));
+        for (int i = 0; i < 8; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                cells[i * 4 + j] = add(labels[i * 4 + j] = label = new Label("-", skin));
                 label.setAlignment(Align.center);
             }
             row();
