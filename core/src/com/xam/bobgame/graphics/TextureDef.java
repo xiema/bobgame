@@ -53,6 +53,26 @@ public class TextureDef {
                 return tx;
             }
         },
+        Star(3) {
+            @Override
+            Texture createTexture(TextureDef textureDef) {
+                Pixmap pmap = new Pixmap(textureDef.wh, textureDef.wh, Pixmap.Format.RGBA8888);
+                pmap.setColor(textureDef.color);
+                int cx = textureDef.wh / 2, cy = textureDef.wh / 2;
+                int x1 = cx - textureDef.textureVal2, x2 = cx + textureDef.textureVal2;
+                int y1 = cy + textureDef.textureVal2, y2 = cy - textureDef.textureVal2;
+                pmap.fillRectangle(x1, y1, textureDef.textureVal2, textureDef.textureVal2);
+                pmap.fillTriangle(x1, y1, 0, cy, x1, y2);
+                pmap.fillTriangle(x1, y2, cx, textureDef.textureVal1 * 2, x2, y2);
+                pmap.fillTriangle(x2, y2, textureDef.textureVal1 * 2, cy, x2, y1);
+                pmap.fillTriangle(x2, y1, cx, 0, x1, y1);
+
+                pmap.setColor(Color.RED);
+                Texture tx = new Texture(pmap);
+                pmap.dispose();
+                return tx;
+            }
+        },
         ;
 
         private int value;

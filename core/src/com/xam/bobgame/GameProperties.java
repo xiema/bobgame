@@ -25,6 +25,8 @@ public class GameProperties {
 
     public static final float PICKUP_SPAWN_COOLDOWN = 3.5f;
     public static final float PICKUP_PUSH_STRENGTH = 80f;
+    public static final float PICKUP_MIN_ANGULAR_VEL = -6.28f;
+    public static final float PICKUP_MAX_ANGULAR_VEL = 6.28f;
 
     public static final float PLAYER_RESPAWN_TIME = 5;
     public static final float PLAYER_SPAWN_MARGIN = 3;

@@ -3,6 +3,7 @@ package com.xam.bobgame.entity;
 import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.esotericsoftware.minlog.Log;
 import com.xam.bobgame.GameProperties;
@@ -47,11 +48,15 @@ public class EntityFactory {
                 0, 0.2f, 2f, 0.1f, 0.2f, false);
         physicsBody.fixtureDef.filter.categoryBits = 2;
         physicsBody.fixtureDef.filter.maskBits = (short) (0xFFFF - 2);
+        physicsBody.bodyDef.angularVelocity = MathUtils.random(GameProperties.PICKUP_MIN_ANGULAR_VEL, GameProperties.PICKUP_MAX_ANGULAR_VEL);
+        physicsBody.bodyDef.angularDamping = 0.1f;
+        physicsBody.bodyDef.fixedRotation = false;
 
         TextureDef textureDef = new TextureDef();
-        textureDef.type = TextureDef.TextureType.PlayerBall;
+        textureDef.type = TextureDef.TextureType.Star;
         textureDef.wh = 32;
         textureDef.textureVal1 = 16;
+        textureDef.textureVal2 = 4;
         textureDef.color.set(Color.YELLOW);
         GraphicsComponent graphics = ComponentFactory.graphics(engine, textureDef, 0.4f, 0.4f, 0);
 

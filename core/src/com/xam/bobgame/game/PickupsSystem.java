@@ -58,6 +58,10 @@ public class PickupsSystem extends EntitySystem {
                         Body body = ComponentMappers.physicsBody.get(event.entity).body;
                         tempVec.set(body.getLinearVelocity()).nor().scl(GameProperties.PICKUP_PUSH_STRENGTH);
                         body.applyForceToCenter(tempVec, true);
+                        float r = MathUtils.random(GameProperties.PICKUP_MIN_ANGULAR_VEL, GameProperties.PICKUP_MAX_ANGULAR_VEL);
+                        float newAngularVel = Math.abs(body.getAngularVelocity()) + Math.abs(r);
+                        if (r < 0) newAngularVel *= -1;
+                        body.setAngularVelocity(newAngularVel);
                     }
                 }
             }

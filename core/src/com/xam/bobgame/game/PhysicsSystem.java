@@ -81,6 +81,7 @@ public class PhysicsSystem extends EntitySystem {
                 physicsBody.fixture = physicsBody.body.createFixture(physicsBody.fixtureDef);
                 physicsBody.fixture.setUserData(new FixtureData(entity, false));
                 physicsBody.body.setFixedRotation(true);
+                physicsBody.body.setAngularVelocity(physicsBody.bodyDef.angularVelocity);
 //                if (!enabled) physicsBody.fixture.setSensor(true);
                 shape.dispose();
 
