@@ -26,6 +26,7 @@ public class GraphicsComponent implements Component, NetSerializable, Poolable {
         textureDef.type = TextureDef.TextureType.values()[packer.readInt(textureDef.type.getValue(), 0, TextureDef.TextureType.values().length)];
         textureDef.wh = packer.readInt(textureDef.wh, 0, 128);
         textureDef.textureVal1 = packer.readInt(textureDef.textureVal1, 0, 128);
+        textureDef.textureVal2 = packer.readInt(textureDef.textureVal2, 0, 128);
         float r = packer.readFloat(textureDef.color.r, 0, 1, NetDriver.RES_COLOR);
         float g = packer.readFloat(textureDef.color.g, 0, 1, NetDriver.RES_COLOR);
         float b = packer.readFloat(textureDef.color.b, 0, 1, NetDriver.RES_COLOR);
