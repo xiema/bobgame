@@ -12,6 +12,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.xam.bobgame.BoBGame;
 import com.xam.bobgame.events.classes.MatchEndedEvent;
 import com.xam.bobgame.events.classes.MatchRestartEvent;
+import com.xam.bobgame.events.classes.ScoreBoardRefreshEvent;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
@@ -28,6 +29,7 @@ public class UIStage extends Stage {
     final NetDriver netDriver;
     final Skin skin;
 
+    final Label playerScoreLabel;
     final Label matchTimeLabel;
     final Label winLabel;
 
@@ -69,6 +71,14 @@ public class UIStage extends Stage {
 //        mainMenu.setPosition(GameProperties.WINDOW_WIDTH, 0, Align.bottomRight);
         menuTable.add(mainMenu).fillX().expandX();
 
+        Label label = new Label("Score:", skin);
+        label.setPosition(GameProperties.FORCE_METER_WIDTH + GameProperties.WINDOW_HEIGHT - 85f, 12f, Align.bottomRight);
+        addActor(label);
+        playerScoreLabel = new Label("0", skin);
+        playerScoreLabel.setAlignment(Align.right);
+        playerScoreLabel.setPosition(GameProperties.FORCE_METER_WIDTH + GameProperties.WINDOW_HEIGHT - 15f, 12f, Align.bottomRight);
+        addActor(playerScoreLabel);
+
         matchTimeLabel = new Label("0", skin);
         matchTimeLabel.setFontScale(2);
         matchTimeLabel.setAlignment(Align.center);
@@ -87,6 +97,7 @@ public class UIStage extends Stage {
             @Override
             public void handleEvent(MatchRestartEvent event) {
                 winLabel.remove();
+                playerScoreLabel.setText(0);
             }
         });
         listeners.put(MatchEndedEvent.class, new EventListenerAdapter<MatchEndedEvent>() {
@@ -102,6 +113,13 @@ public class UIStage extends Stage {
                     winLabel.setText("YOU LOSE!");
                 }
                 addActor(winLabel);
+            }
+        });
+        listeners.put(ScoreBoardRefreshEvent.class, new EventListenerAdapter<ScoreBoardRefreshEvent>() {
+            @Override
+            public void handleEvent(ScoreBoardRefreshEvent event) {
+                if (!refereeSystem.isLocalPlayerJoined()) return;
+                playerScoreLabel.setText(refereeSystem.getPlayerInfo(refereeSystem.getLocalPlayerId()).score);
             }
         });
     }
