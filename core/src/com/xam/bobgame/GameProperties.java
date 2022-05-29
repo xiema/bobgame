@@ -41,5 +41,6 @@ public class GameProperties {
     public static final float SIMULATION_UPDATE_INTERVAL = 1f / 60f;
     public static final long SIMULATION_UPDATE_INTERVAL_L = (long) (SIMULATION_UPDATE_INTERVAL * 1000);
 
+    public static final String WINDOW_TITLE = "Battle of Balls";
     public static final String REPOSITORY_URL = "github.com/xiema/bobgame";
 }

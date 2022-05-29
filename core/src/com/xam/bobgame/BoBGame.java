@@ -53,7 +53,6 @@ public class BoBGame extends ApplicationAdapter {
 			headless = runArgs.containsKey("headless");
 			devMode = runArgs.containsKey("devMode");
 			noProfile = runArgs.containsKey("noProfile");
-			noProfile = runArgs.containsKey("noProfile");
 			noUDP = runArgs.containsKey("noUDP");
 		}
 		if (devMode) {
@@ -63,6 +62,8 @@ public class BoBGame extends ApplicationAdapter {
 	
 	@Override
 	public void create () {
+		Gdx.graphics.setTitle(GameProperties.WINDOW_TITLE);
+
 		GameProfile.load();
 
 		inputMultiplexer = new InputMultiplexer();
@@ -95,6 +96,7 @@ public class BoBGame extends ApplicationAdapter {
 			}
 		}
 		else {
+			Log.info("Starting in headless dedicated server mode");
 			headlessEngineThread = new Thread(new Runnable() {
 				long nextTime = 0;
 
