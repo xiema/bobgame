@@ -84,6 +84,9 @@ public class RefereeSystem extends EntitySystem {
                 if (event.playerId != -1) {
                     removePlayer(event.playerId, !event.cleanDisconnect);
                 }
+                else if (event.clientId == -1) {
+                    removePlayer(localPlayerId, false);
+                }
                 else {
                     Log.debug("Client " + event.clientId + " disconnected without joining");
                 }

@@ -201,6 +201,12 @@ public class MainMenu extends Table {
                 refreshElementStates();
             }
         });
+        listeners.put(ClientDisconnectedEvent.class, new EventListenerAdapter<ClientDisconnectedEvent>() {
+            @Override
+            public void handleEvent(ClientDisconnectedEvent event) {
+                refreshElementStates();
+            }
+        });
         listeners.put(ConnectionStateRefreshEvent.class, new EventListenerAdapter<ConnectionStateRefreshEvent>() {
             @Override
             public void handleEvent(ConnectionStateRefreshEvent event) {

@@ -265,6 +265,11 @@ public class NetDriver extends EntitySystem {
     public void stopServer() {
         server.stop();
         connectionManager.clear();
+        if (!BoBGame.isHeadless()) {
+            ClientDisconnectedEvent e = Pools.obtain(ClientDisconnectedEvent.class);
+            e.clientId = -1;
+            getEngine().getSystem(EventsSystem.class).queueEvent(e);
+        }
     }
 
     public void setClientReconnect() {
