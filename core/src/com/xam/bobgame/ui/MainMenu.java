@@ -163,10 +163,14 @@ public class MainMenu extends Table {
         pair = new FieldValuePair("Recv", "0", skin);
         receiveBitrateLabel = pair.value;
         receiveBitrateLabel.addAction(Actions.forever(new Action() {
+            private int acc = 0;
             @Override
             public boolean act(float delta) {
-                Formatter formatter = new Formatter();
-                receiveBitrateLabel.setText(formatter.format("%1.2f", netDriver.getAverageReceiveBitrate()).toString());
+                if (acc == 0) {
+                    Formatter formatter = new Formatter();
+                    receiveBitrateLabel.setText(formatter.format("%1.2f", netDriver.getAverageReceiveBitrate()).toString());
+                }
+                acc = (acc + 1) % GameProperties.BITRATE_INDICATOR_UPDATE_INTERVAL;
                 return false;
             }
         }));
@@ -174,10 +178,14 @@ public class MainMenu extends Table {
         pair = new FieldValuePair("Send", "0", skin);
         sendBitrateLabel = pair.value;
         sendBitrateLabel.addAction(Actions.forever(new Action() {
+            private int acc = 0;
             @Override
             public boolean act(float delta) {
-                Formatter formatter = new Formatter();
-                sendBitrateLabel.setText(formatter.format("%1.2f", netDriver.getAverageSendBitrate()).toString());
+                if (acc == 0) {
+                    Formatter formatter = new Formatter();
+                    sendBitrateLabel.setText(formatter.format("%1.2f", netDriver.getAverageSendBitrate()).toString());
+                }
+                acc = (acc + 1) % GameProperties.BITRATE_INDICATOR_UPDATE_INTERVAL;
                 return false;
             }
         }));
