@@ -63,6 +63,12 @@ public class NetDriver extends EntitySystem {
     public static final float RES_MATCH_TIME = 1;
     public static final float MAX_MATCH_TIME = 1800;
 
+    public static final int MAX_BUFF_COUNT = 15;
+    public static final float MAX_BUFF_DURATION = 16f;
+    public static final float RES_BUFF_DURATION = (float) Math.pow(2d, -5d);
+    public static final int GRAPHICS_MAX_ANIMATORS = 7;
+    public static final float RES_GRAPHICS_BLINK_FREQ = (float) Math.pow(2d, -5d);
+
     public static final float VEL_SMOOTHING_FACTOR = 1.2f;
 
     public static final float FRICTION_FACTOR = 2f;

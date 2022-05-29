@@ -6,6 +6,7 @@ import com.badlogic.gdx.utils.Null;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.Pools;
 import com.esotericsoftware.minlog.Log;
+import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.components.BuffableComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.events.*;
@@ -62,7 +63,7 @@ public class BuffSystem extends EntitySystem {
             for (int i = 0; i < buffable.buffs.size; ) {
                 Buff buff = buffable.buffs.get(i);
                 buff.update(engine, entity, deltaTime);
-                if (buff.isFinished()) {
+                if (((GameEngine) getEngine()).getMode() == GameEngine.Mode.Server && buff.isFinished()) {
                     buffable.buffs.removeIndex(i);
                     buff.endBuffEffects(engine, entity);
                     Pools.free(buff);

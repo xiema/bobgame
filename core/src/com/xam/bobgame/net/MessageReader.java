@@ -210,7 +210,7 @@ public class MessageReader {
 
     private int readSystemUpdate() {
         readGameInfo();
-        readPhysicsBodies();
+        readEntityUpdates();
         readControlStates();
         readPlayerInfos(false);
 
@@ -267,7 +267,9 @@ public class MessageReader {
         return 0;
     }
 
-    private int readPhysicsBodies() {
+    private final BuffableComponent dummyBuffable = new BuffableComponent();
+
+    private int readEntityUpdates() {
         OrderedIntMap<Entity> entityMap = ((GameEngine) netDriver.getEngine()).getEntityMap();
 
         if (packer.isWriteMode()) {
@@ -279,6 +281,14 @@ public class MessageReader {
                     packer.packInt(entityId, -1, NetDriver.MAX_ENTITY_ID);
                     PhysicsBodyComponent pb = ComponentMappers.physicsBody.get(entity);
                     readPhysicsBody(pb);
+                    BuffableComponent buffable = ComponentMappers.buffables.get(entity);
+                    if (buffable != null) {
+                        packer.readBoolean(true);
+                        buffable.read(packer, netDriver.getEngine());
+                    }
+                    else {
+                        packer.readBoolean(false);
+                    }
                 }
                 else {
                     Log.warn("No entity with id " + entityId + " exists");
@@ -304,6 +314,8 @@ public class MessageReader {
                     nonExistent.add(entityId);
                 }
                 Entity entity = entityMap.get(entityId, null);
+
+                // PhysicsBody Component
                 PhysicsBodyComponent pb = null;
                 if (entity != null) {
                     pb = ComponentMappers.physicsBody.get(entity);
@@ -314,7 +326,25 @@ public class MessageReader {
                 int ret = readPhysicsBody(pb);
                 if (ret != 0) {
                     if ((ret & 1) != 0 && EntityUtils.isAdded(entity)) {
-                        Log.warn("MessageReader.readPhysicsBody", "Body for Entity " + entityId + " has no UserData");
+                        Log.warn("MessageReader.readEntityUpdates", "Body for Entity " + entityId + " has no UserData");
+                    }
+                }
+
+                // Buffable Component
+                if (packer.readBoolean(false)) {
+                    BuffableComponent buffable = dummyBuffable;
+                    if (entity != null) {
+                        buffable = ComponentMappers.buffables.get(entity);
+                        if (buffable == null) {
+                            Log.warn("Entity " + entityId + "is missing a Buffable Component");
+                            buffable = dummyBuffable;
+                        }
+                    }
+                    ret = buffable.read(packer, netDriver.getEngine());
+                    if (ret != 0) {
+                        if (EntityUtils.isAdded(entity)) {
+                            Log.warn("MessageReader.readEntityUpdates", "Error unpacking Buffable for Entity " + entityId);
+                        }
                     }
                 }
             }

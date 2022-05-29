@@ -40,6 +40,7 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
         GraphicsComponent graphics;
         HazardComponent hazard;
         GravitationalFieldComponent gravField;
+        BuffableComponent buffable;
 
         if (packer.isWriteMode()) {
             entity = ((GameEngine) engine).getEntityById(entityId);
@@ -54,11 +55,13 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
             graphics = ComponentMappers.graphics.get(entity);
             hazard = ComponentMappers.hazards.get(entity);
             gravField = ComponentMappers.gravFields.get(entity);
+            buffable = ComponentMappers.buffables.get(entity);
 
             packer.readBoolean(pb != null);
             packer.readBoolean(graphics != null);
             packer.readBoolean(hazard != null);
             packer.readBoolean(gravField != null);
+            packer.readBoolean(buffable != null);
         }
         else {
             entityId = packer.unpackInt(0, NetDriver.MAX_ENTITY_ID);
@@ -69,6 +72,7 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
                 graphics = packer.readBoolean(true) ? engine.createComponent(GraphicsComponent.class) : null;
                 hazard = packer.readBoolean(true) ? engine.createComponent(HazardComponent.class) : null;
                 gravField = packer.readBoolean(true) ? engine.createComponent(GravitationalFieldComponent.class) : null;
+                buffable = packer.readBoolean(true) ? engine.createComponent(BuffableComponent.class) : null;
             }
             else {
                 if (!snapshot) {
@@ -81,6 +85,7 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
                 graphics = packer.readBoolean(true) ? ComponentMappers.graphics.get(entity) : null;
                 hazard = packer.readBoolean(true) ? ComponentMappers.hazards.get(entity) : null;
                 gravField = packer.readBoolean(true) ? ComponentMappers.gravFields.get(entity) : null;
+                buffable = packer.readBoolean(true) ? ComponentMappers.buffables.get(entity) : null;
             }
 
             if (pb != null) {
@@ -99,6 +104,7 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
         if (graphics != null) graphics.read(packer, engine);
         if (hazard != null) hazard.read(packer, engine);
         if (gravField != null) gravField.read(packer, engine);
+        if (buffable != null) buffable.read(packer, engine);
 
         if (packer.isReadMode()) {
             if (entity == null) {
@@ -108,6 +114,7 @@ public class EntityCreatedEvent extends NetDriver.NetworkEvent {
                 if (graphics != null) entity.add(graphics);
                 if (hazard != null) entity.add(hazard);
                 if (gravField != null) entity.add(gravField);
+                if (buffable != null) entity.add(buffable);
                 engine.addEntity(entity);
             }
         }

@@ -125,6 +125,7 @@ public class BoBGame extends ApplicationAdapter {
 	public void render () {
 		if (!headless) {
 			engine.update(GameProperties.SIMULATION_UPDATE_INTERVAL);
+			renderer.update(GameProperties.SIMULATION_UPDATE_INTERVAL);
 
 			ScreenUtils.clear(0, 0, 0, 1);
 			viewport.apply(true);

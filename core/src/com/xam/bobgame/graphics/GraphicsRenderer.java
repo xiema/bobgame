@@ -17,18 +17,19 @@ import com.badlogic.gdx.physics.box2d.Transform;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.badlogic.gdx.utils.Pools;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.xam.bobgame.BoBGame;
+import com.xam.bobgame.buffs.Buff;
+import com.xam.bobgame.components.*;
 import com.xam.bobgame.entity.EntityUtils;
 import com.xam.bobgame.game.RefereeSystem;
 import com.xam.bobgame.GameEngine;
 import com.xam.bobgame.GameProperties;
-import com.xam.bobgame.components.AIComponent;
-import com.xam.bobgame.components.GraphicsComponent;
-import com.xam.bobgame.components.IdentityComponent;
-import com.xam.bobgame.components.PhysicsBodyComponent;
 import com.xam.bobgame.entity.ComponentMappers;
 import com.xam.bobgame.game.PhysicsSystem;
+import com.xam.bobgame.graphics.animators.Animator;
+import com.xam.bobgame.graphics.animators.BlinkAnimator;
 
 public class GraphicsRenderer {
     private GameEngine engine;
@@ -43,6 +44,17 @@ public class GraphicsRenderer {
     private ShapeRenderer shapeRenderer;
 
     private ObjectMap<Family, EntityListener> entityListeners = new ObjectMap<>();
+
+    public static final Class<?>[] animatorClasses = {
+            BlinkAnimator.class,
+    };
+
+    public static int getAnimatorClassIndex(Class<? extends Animator> clazz) {
+        for (int i = 0; i < animatorClasses.length; ++i) {
+            if (animatorClasses[i] == clazz) return i;
+        }
+        return -1;
+    }
 
     public GraphicsRenderer(GameEngine engine, Viewport viewport) {
         this.engine = engine;
@@ -80,9 +92,11 @@ public class GraphicsRenderer {
     private final Vector2 tempVec = new Vector2();
     private final Vector2 tempVec2 = new Vector2();
 
-    public void draw(Batch batch) {
-        updateEntities();
+    public void update(float deltaTime) {
+        updateEntities(deltaTime);
+    }
 
+    public void draw(Batch batch) {
         Camera camera = viewport.getCamera();
         camera.update();
         shapeRenderer.setProjectionMatrix(camera.combined);
@@ -108,18 +122,43 @@ public class GraphicsRenderer {
         batch.end();
     }
 
-    private void updateEntities() {
+    private void updateEntities(float deltaTime) {
         for (Entity entity: entities) {
             PhysicsBodyComponent physicsBody = ComponentMappers.physicsBody.get(entity);
             GraphicsComponent graphics = ComponentMappers.graphics.get(entity);
+
+            // reset for animators
+            graphics.drawTint.set(graphics.baseTint);
+            graphics.drawOffsets.setZero();
+            graphics.drawOrientation = 0;
+
+            BuffableComponent buffable = ComponentMappers.buffables.get(entity);
+            if (buffable != null) {
+                for (Buff buff : buffable.buffs) {
+                    for (int i = 0; i < buff.animators.size; ) {
+                        Animator<GraphicsComponent> animator = buff.animators.get(i);
+                        animator.setObject(graphics);
+                        animator.update(deltaTime);
+                        if (animator.isFinished()) {
+                            buff.animators.removeIndex(i);
+                            Pools.free(animator);
+                        }
+                        else {
+                            i++;
+                        }
+                    }
+                }
+            }
+
             Body body = physicsBody.body;
             PhysicsSystem.PhysicsHistory physicsHistory = (PhysicsSystem.PhysicsHistory) body.getUserData();
             Transform tfm = body.getTransform();
             Vector2 pos = tfm.getPosition();
-            float x = pos.x + physicsHistory.posXError.getAverage() - (physicsBody.xJitterCount > 1 ? physicsBody.displacement.x / 2 : 0);
-            float y = pos.y + physicsHistory.posYError.getAverage() - (physicsBody.yJitterCount > 1 ? physicsBody.displacement.y / 2 : 0);
+            float x = pos.x + graphics.drawOffsets.x + physicsHistory.posXError.getAverage() - (physicsBody.xJitterCount > 1 ? physicsBody.displacement.x / 2 : 0);
+            float y = pos.y + graphics.drawOffsets.y + physicsHistory.posYError.getAverage() - (physicsBody.yJitterCount > 1 ? physicsBody.displacement.y / 2 : 0);
+            graphics.sprite.setColor(graphics.drawTint);
             graphics.sprite.setOriginBasedPosition(x, y);
-            graphics.sprite.setRotation(MathUtils.radiansToDegrees * tfm.getRotation() + 90);
+            graphics.sprite.setRotation(MathUtils.radiansToDegrees * tfm.getRotation() + graphics.drawOrientation + 90);
 
 //            Log.info("entity " + EntityUtils.getId(entity) + " posXError=" + physicsHistory.posXError.getAverage() + " posYError=" + physicsHistory.posYError.getAverage());
         }
