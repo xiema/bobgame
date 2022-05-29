@@ -21,6 +21,7 @@ public class DesktopLauncher {
 		while (i < arg.length) {
 			switch (arg[i]) {
 				case "-h":
+				case "--headless":
 					runArgs.put("headless", "");
 					break;
 				case "--noProfile":
