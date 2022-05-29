@@ -59,7 +59,7 @@ public class PacketBuffer{
                 }
                 putIndex = (putIndex + 1) % bufferLength;
                 if (b) {
-                    Log.info("receive: Skipping packets " + getIndex + "-" + putIndex);
+                    Log.debug("PacketBuffer.receive", "Skipping packets " + getIndex + "-" + putIndex);
                     getIndex = oldestReceivedIndex = (putIndex + 1) % bufferLength;
                 }
                 while (!bufferFlag[oldestReceivedIndex] && oldestReceivedIndex != putIndex) {
@@ -91,7 +91,7 @@ public class PacketBuffer{
             else if (bufferFlag[oldestReceivedIndex] && ((GameEngine) netDriver.getEngine()).getCurrentTime() - receiveTime[oldestReceivedIndex] > timeLimit) {
                 buffer[oldestReceivedIndex].copyTo(out);
                 bufferFlag[oldestReceivedIndex] = false;
-                Log.info("get: Skipping packets " + getIndex + "-" + oldestReceivedIndex);
+                Log.debug("PacketBuffer.get", "Skipping packets " + getIndex + "-" + oldestReceivedIndex);
                 getIndex = oldestReceivedIndex = (oldestReceivedIndex + 1) % bufferLength;
                 retrieved = true;
             }
