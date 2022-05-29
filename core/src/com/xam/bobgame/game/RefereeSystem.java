@@ -557,7 +557,7 @@ public class RefereeSystem extends EntitySystem {
         pb.body.setTransform(pb.bodyDef.position.x, pb.bodyDef.position.y, 0);
         pb.body.setLinearVelocity(0, 0);
 
-        modifyPlayerScore(playerId, -1);
+        modifyPlayerScore(playerId, GameProperties.PLAYER_DEATH_POINT_PENALTY);
 
         NetDriver netDriver = getEngine().getSystem(NetDriver.class);
 

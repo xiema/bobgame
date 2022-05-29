@@ -23,7 +23,9 @@ public class GameProperties {
     public static final float CHARGE_DURATION = 0.4f;
     public static final float CHARGE_DURATION_2 = CHARGE_DURATION * 2;
 
-    public static final float PICKUP_SPAWN_COOLDOWN = 3.5f;
+    public static final int PLAYER_DEATH_POINT_PENALTY = -3;
+
+    public static final float PICKUP_SPAWN_COOLDOWN = 3f;
     public static final float PICKUP_PUSH_STRENGTH = 80f;
     public static final float PICKUP_MIN_ANGULAR_VEL = -6.28f;
     public static final float PICKUP_MAX_ANGULAR_VEL = 6.28f;
