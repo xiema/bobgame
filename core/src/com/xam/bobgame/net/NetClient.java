@@ -61,11 +61,11 @@ public class NetClient extends Client {
                 connect(5000, add[0], Integer.parseInt(add[1]));
             }
             else if (BoBGame.isNoUDP()) {
-                connect(5000, host, NetDriver.PORT_TCP);
+                connect(5000, host, BoBGame.getTcpPort());
             }
 
             else {
-                connect(5000, host, NetDriver.PORT_TCP, NetDriver.PORT_UDP);
+                connect(5000, host, BoBGame.getTcpPort(), BoBGame.getUdpPort());
             }
             return true;
         } catch (IOException e) {

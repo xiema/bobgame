@@ -41,12 +41,12 @@ public class NetServer extends Server {
         ((GameEngine) netDriver.getEngine()).setMode(GameEngine.Mode.Server);
         try {
             if (BoBGame.isNoUDP()) {
-                bind(NetDriver.PORT_TCP);
-                Log.info("Server listening on " + NetDriver.PORT_TCP);
+                bind(BoBGame.getTcpPort());
+                Log.info("Server listening on " + BoBGame.getTcpPort());
             }
             else {
-                bind(NetDriver.PORT_TCP, NetDriver.PORT_UDP);
-                Log.info("Server listening on " + NetDriver.PORT_TCP + "/" + NetDriver.PORT_UDP);
+                bind(BoBGame.getTcpPort(), BoBGame.getUdpPort());
+                Log.info("Server listening on " + BoBGame.getTcpPort() + "/" + BoBGame.getUdpPort());
             }
             running = true;
             ConnectionStateRefreshEvent event = Pools.obtain(ConnectionStateRefreshEvent.class);

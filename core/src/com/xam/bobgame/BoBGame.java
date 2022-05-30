@@ -26,6 +26,8 @@ public class BoBGame extends ApplicationAdapter {
 	static boolean devMode = false;
 	static boolean noProfile = false;
 	static boolean noUDP = false;
+	static int tcpPort = NetDriver.PORT_TCP;
+	static int udpPort = NetDriver.PORT_UDP;
 
 	GameEngine engine;
 	GameDefinitions gameDefinitions;
@@ -54,6 +56,22 @@ public class BoBGame extends ApplicationAdapter {
 			devMode = runArgs.containsKey("devMode");
 			noProfile = runArgs.containsKey("noProfile");
 			noUDP = runArgs.containsKey("noUDP");
+			if (runArgs.containsKey("tcpPort")) {
+				try {
+					tcpPort = Integer.parseInt(runArgs.get("tcpPort"));
+				}
+				catch (NumberFormatException e) {
+					Log.error("Invalid TCP Port " + runArgs.get("tcpPort"));
+				}
+			}
+			if (runArgs.containsKey("udpPort")) {
+				try {
+					udpPort = Integer.parseInt(runArgs.get("udpPort"));
+				}
+				catch (NumberFormatException e) {
+					Log.error("Invalid UDP Port " + runArgs.get("udpPort"));
+				}
+			}
 		}
 		if (devMode) {
 			Log.set(Log.LEVEL_DEBUG);
@@ -226,5 +244,13 @@ public class BoBGame extends ApplicationAdapter {
 
 	public static boolean isNoUDP() {
 		return noUDP;
+	}
+
+	public static int getTcpPort() {
+		return tcpPort;
+	}
+
+	public static int getUdpPort() {
+		return udpPort;
 	}
 }

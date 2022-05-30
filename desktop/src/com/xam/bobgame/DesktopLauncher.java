@@ -33,6 +33,12 @@ public class DesktopLauncher {
 				case "--devMode":
 					runArgs.put("devMode", "");
 					break;
+				case "--tcpPort":
+					runArgs.put("tcpPort", arg[++i]);
+					break;
+				case "--udpPort":
+					runArgs.put("udpPort", arg[++i]);
+					break;
 			}
 			i++;
 		}
